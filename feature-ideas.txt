@@ -1,0 +1,10 @@
+Settings:
+Light/Dark Mode
+Album Art Mode: Toggle whether or not album art is used in various backdrops and styling
+
+Integrations:
+Stream from YT
+last.fm
+MusicBrainz
+discogs marketplace
+bandcamp

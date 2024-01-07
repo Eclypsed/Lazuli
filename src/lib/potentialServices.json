@@ -1,0 +1,52 @@
+{
+    "jellyfin": {
+        "displayName": "Jellyfin",
+        "type": ["streaming"],
+        "icon": "https://raw.githubusercontent.com/jellyfin/jellyfin-ux/55616553b692b1a6c7d8e786eeb7d8216e9b50df/branding/SVG/icon-transparent.svg"
+    },
+    "youtube-music": {
+        "displayName": "YouTube Music",
+        "type": ["streaming"],
+        "icon": "https://upload.wikimedia.org/wikipedia/commons/6/6a/Youtube_Music_icon.svg"
+    },
+    "spotify": {
+        "displayName": "Spotify",
+        "type": ["streaming"],
+        "icon": "https://upload.wikimedia.org/wikipedia/commons/8/84/Spotify_icon.svg"
+    },
+    "apple-music": {
+        "displayName": "Apple Music",
+        "type": ["streaming", "marketplace"],
+        "icon": "https://upload.wikimedia.org/wikipedia/commons/5/5f/Apple_Music_icon.svg"
+    },
+    "bandcamp": {
+        "displayName": "bandcamp",
+        "type": ["marketplace", "streaming"],
+        "icon": "https://upload.wikimedia.org/wikipedia/commons/6/6a/Bandcamp-button-bc-circle-aqua.svg"
+    },
+    "soundcloud": {
+        "displayName": "SoundCloud",
+        "type": ["streaming"],
+        "icon": "https://www.vectorlogo.zone/logos/soundcloud/soundcloud-icon.svg"
+    },
+    "lastfm": {
+        "displayName": "Last.fm",
+        "type": ["analytics"],
+        "icon": "https://upload.wikimedia.org/wikipedia/commons/c/c4/Lastfm.svg"
+    },
+    "plex": {
+        "displayName": "Plex",
+        "type": ["streaming"],
+        "icon": "https://www.vectorlogo.zone/logos/plextv/plextv-icon.svg"
+    },
+    "deezer": {
+        "displayName": "deezer",
+        "type": ["streaming"],
+        "icon": "https://upload.wikimedia.org/wikipedia/commons/6/6b/Deezer_Icon.svg"
+    },
+    "amazon-music": {
+        "displayName": "Amazon Music",
+        "type": ["streaming", "marketplace"],
+        "icon": "https://upload.wikimedia.org/wikipedia/commons/9/92/Amazon_Music_logo.svg"
+    }
+}

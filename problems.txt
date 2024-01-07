@@ -4,6 +4,7 @@ Big Problems:
 - Authentication for every other potential streaming service:
     - YouTube Music:? https://ytmusicapi.readthedocs.io/en/stable/setup/oauth.html 
     - Spotify: https://developer.spotify.com/documentation/web-api/concepts/authorization
+- Do I allow users to connect multiple accounts from the same service?
 
 Little Problems:
 - Video and audio need to be kept in sync, accounting for buffering and latency.

@@ -30,8 +30,11 @@ export async function PATCH({ request }) {
     const schema = Joi.object({
         userId: Joi.number().required(),
         connection: Joi.object({
-            serviceName: Joi.string().required(),
+            serviceType: Joi.string().required(),
             accessToken: Joi.string().required(),
+            refreshToken: Joi.string(),
+            expiry: Joi.number(),
+            connectionInfo: Joi.string(),
         }).required(),
     })
 
@@ -41,9 +44,10 @@ export async function PATCH({ request }) {
     const validation = schema.validate({ userId, connection })
     if (validation.error) return new Response(validation.error.message, { status: 400 })
 
-    UserConnections.setConnection(userId, connection.serviceName, connection.accessToken)
+    const { serviceType, accessToken, refreshToken, expiry, connectionInfo } = connection
+    const newConnectionId = UserConnections.addConnection(userId, serviceType, accessToken, { refreshToken, expiry, connectionInfo })
 
-    return new Response('Updated Connection')
+    return new Response(JSON.stringify({ id: newConnectionId }))
 }
 
 /** @type {import('./$types').RequestHandler} */
@@ -51,7 +55,7 @@ export async function DELETE({ request }) {
     const schema = Joi.object({
         userId: Joi.number().required(),
         connection: Joi.object({
-            serviceName: Joi.string().required(),
+            serviceId: Joi.string().required(),
         }).required(),
     })
 
@@ -61,7 +65,7 @@ export async function DELETE({ request }) {
     const validation = schema.validate({ userId, connection })
     if (validation.error) return new Response(validation.error.message, { status: 400 })
 
-    UserConnections.deleteConnection(userId, connection.serviceName)
+    const deletedConnectionId = UserConnections.deleteConnection(userId, connection.serviceId)
 
-    return new Response('Deleted Connection')
+    return new Response(JSON.stringify({ id: deletedConnectionId }))
 }

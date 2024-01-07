@@ -10,11 +10,16 @@ export const load = async ({ fetch, locals }) => {
         },
     })
     if (response.ok) {
-        const connectionsData = await response.json()
-        if (connectionsData) {
-            const serviceNames = connectionsData.map((connection) => connection.serviceName)
-            return { existingConnections: serviceNames }
-        }
+        const connectionData = await response.json()
+        const clientConnectionData = {}
+        connectionData?.forEach((connection) => {
+            const { id, serviceType, connectionInfo } = connection
+            clientConnectionData[id] = {
+                serviceType,
+                connectionInfo: JSON.parse(connectionInfo),
+            }
+        })
+        return { existingConnections: clientConnectionData }
     } else {
         const error = await response.text()
         console.log(error)
@@ -42,23 +47,26 @@ export const actions = {
         }
 
         const jellyfinAuthData = await jellyfinAuthResponse.json()
-        const jellyfinAccessToken = jellyfinAuthData.AccessToken
+        const { User, AccessToken, ServerId } = jellyfinAuthData
+        const connectionInfo = JSON.stringify({ User, ServerId })
         const updateConnectionsResponse = await fetch('/api/user/connections', {
             method: 'PATCH',
             headers: {
                 apikey: SECRET_INTERNAL_API_KEY,
                 userId: locals.userId,
             },
-            body: JSON.stringify({ serviceName: 'jellyfin', accessToken: jellyfinAccessToken }),
+            body: JSON.stringify({ serviceType: 'jellyfin', accessToken: AccessToken, connectionInfo }),
         })
 
         if (!updateConnectionsResponse.ok) return fail(500, { message: 'Internal Server Error' })
 
-        return { message: 'Updated Jellyfin connection' }
+        const newConnectionData = await updateConnectionsResponse.json()
+
+        return { message: 'Added Jellyfin connection', newConnection: { id: newConnectionData.id, serviceType: 'jellyfin', connectionInfo: JSON.parse(connectionInfo) } }
     },
     deleteConnection: async ({ request, fetch, locals }) => {
         const formData = await request.formData()
-        const serviceName = formData.get('service')
+        const serviceId = formData.get('serviceId')
 
         const deleteConnectionResponse = await fetch('/api/user/connections', {
             method: 'DELETE',
@@ -66,11 +74,13 @@ export const actions = {
                 apikey: SECRET_INTERNAL_API_KEY,
                 userId: locals.userId,
             },
-            body: JSON.stringify({ serviceName }),
+            body: JSON.stringify({ serviceId }),
         })
 
         if (!deleteConnectionResponse.ok) return fail(500, { message: 'Internal Server Error' })
 
-        return { message: 'Connection deleted' }
+        const deletedConnectionData = await deleteConnectionResponse.json()
+
+        return { message: 'Connection deleted', deletedConnection: { id: deletedConnectionData.id } }
     },
 }

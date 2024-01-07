@@ -1,0 +1,17 @@
+Big Problems:
+- The stream services being utilized still need to be able to gather which songs you are listening to to provide recommendations,
+  so requests need to be proxied through the actual streaming service.
+- Authentication for every other potential streaming service:
+    - YouTube Music:? https://ytmusicapi.readthedocs.io/en/stable/setup/oauth.html 
+    - Spotify: https://developer.spotify.com/documentation/web-api/concepts/authorization
+
+Little Problems:
+- Video and audio need to be kept in sync, accounting for buffering and latency.
+
+Fixed Problems:
+- Fucking Jellyfin Authentication (Missing Header)
+- Continuous session verification (Fixed with JWTs)
+
+Looking for Style Guidlines?:
+- URL structure: https://developers.google.com/search/docs/crawling-indexing/url-structure
+- API best practicies: https://learn.microsoft.com/en-us/azure/architecture/best-practices/api-design

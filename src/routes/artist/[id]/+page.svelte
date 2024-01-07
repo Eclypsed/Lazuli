@@ -1,18 +1,8 @@
 <script>
-    import { onMount } from 'svelte';
-
-    import { fetchArtistItems } from '$lib/Jellyfin-api.js';
     import AlbumCard from '$lib/albumCard.svelte';
     export let data;
 
-    let artistItems = {
-        albums: [],
-        singles: [],
-        appearances: []
-    };
-    onMount(async () => {
-        artistItems = await fetchArtistItems(data.id);
-    })
+    const artistItems = data.artistItems
 </script>
 
 <div class="grid">
@@ -29,6 +19,9 @@
     { #each artistItems.appearances as item }
         <AlbumCard  {item} cardType="appearances"/>
     { /each }
+</div>
+<div>
+    Test
 </div>
 
 <style>

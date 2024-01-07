@@ -12,3 +12,27 @@
     -ms-overflow-style: none; /* IE and Edge */
     scrollbar-width: none; /* Firefox */
 }
+
+/* Default scrollbar for Chrome, Safari, Edge and Opera */
+::-webkit-scrollbar {
+    width: 20px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    border-radius: 10px;
+    box-shadow: inset 10px 10px rgba(100, 100, 100, 0.6);
+    border: solid 7px transparent;
+}
+/* Default scrollbar for Chrome, Safari, Edge, and Opera */
+
+:root {
+    scrollbar-width: thin; /* Default scrollbar width for Firefox */
+    scrollbar-color: grey transparent; /* Default scrollbar colors for Firefox */
+    --jellyfin-purple: #aa5cc3;
+    --jellyfin-blue: #00a4dc;
+    --lazuli-primary: #ed6713;
+}

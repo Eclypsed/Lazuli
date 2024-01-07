@@ -2,10 +2,8 @@
     export let currentlyPlaying
     export let playlistItems
 
-    import { buildAudioEndpoint } from '$lib/audio-manager.js'
-    import { onMount } from 'svelte'
-    import { createEventDispatcher } from 'svelte'
-    import { generateURL } from '$lib/Jellyfin-api.js'
+    import { JellyfinUtils } from '$lib/utils'
+    import { onMount, createEventDispatcher } from 'svelte'
     import { fade } from 'svelte/transition'
 
     import ListItem from '$lib/listItem.svelte'
@@ -14,12 +12,9 @@
     const dispatch = createEventDispatcher()
 
     $: currentlyPlayingImageId = 'Primary' in currentlyPlaying.ImageTags ? currentlyPlaying.Id : currentlyPlaying.AlbumId
-    $: currentlyPlayingImage = generateURL({
-        type: 'Image',
-        pathParams: { id: currentlyPlayingImageId },
-    })
+    $: currentlyPlayingImage = JellyfinUtils.getImageEnpt(currentlyPlayingImageId)
 
-    $: audioEndpoint = buildAudioEndpoint(currentlyPlaying.Id, 'default')
+    $: audioEndpoint = JellyfinUtils.getAudioEnpt(currentlyPlaying.Id, 'default')
     let audio
     let audioVolume = 0.1
     let progressBar

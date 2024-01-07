@@ -2,7 +2,7 @@
     export let item;
     export let cardType;
 
-    import { generateURL } from '$lib/Jellyfin-api.js';
+    import { JellyfinUtils } from '$lib/utils'
 
     const getAlbumCardLink = (item) => {
         if (cardType === "albums") {
@@ -19,7 +19,7 @@
 
 <a href={getAlbumCardLink(item)} style="text-decoration: none;">
     <div class="image-card">
-        <img src="{generateURL({type: 'Image', pathParams: {'id': 'Primary' in item.ImageTags ? item.Id : item.AlbumId}})}" alt="jacket">
+        <img src="{JellyfinUtils.getImageEnpt('Primary' in item.ImageTags ? item.Id : item.AlbumId)}" alt="jacket">
         <span>{item.Name}</span>
     </div>
 </a>

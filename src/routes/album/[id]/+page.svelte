@@ -2,7 +2,7 @@
     import { fly, slide } from 'svelte/transition'
     import { cubicIn, cubicOut } from 'svelte/easing'
 
-    import { generateURL } from '$lib/Jellyfin-api.js'
+    import { JellyfinUtils } from '$lib/utils'
     import AlbumBg from '$lib/albumBG.svelte'
     import Navbar from '$lib/navbar.svelte'
     import ListItem from '$lib/listItem.svelte'
@@ -10,8 +10,7 @@
     import MediaPlayer from '$lib/mediaPlayer.svelte'
 
     export let data
-    let albumImg = generateURL({ type: 'Image', pathParams: { id: data.id } })
-    // console.log(generateURL({type: 'Items', queryParams: {'albumIds': data.albumData.Id, 'recursive': true}}))
+    let albumImg = JellyfinUtils.getImageEnpt(data.id)
     let discArray = Array.from({ length: data.albumData?.discCount ? data.albumData.discCount : 1 }, (_, i) => {
         return data.albumItemsData.filter((item) => item?.ParentIndexNumber === i + 1 || !item?.ParentIndexNumber)
     })

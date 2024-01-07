@@ -1,11 +1,10 @@
 <script>
     export let item
 
-    import { generateURL } from '$lib/Jellyfin-api.js'
-    import { ticksToTime } from '$lib/utils.js'
+    import { JellyfinUtils, ticksToTime } from '$lib/utils'
     import { createEventDispatcher } from 'svelte'
 
-    $: jacketSrc = generateURL({ type: 'Image', pathParams: { id: 'Primary' in item.ImageTags ? item.Id : item.AlbumId } })
+    $: jacketSrc = JellyfinUtils.getImageEnpt('Primary' in item.ImageTags ? item.Id : item.AlbumId)
 
     const dispatch = createEventDispatcher()
 

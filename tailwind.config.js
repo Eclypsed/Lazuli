@@ -6,10 +6,13 @@ export default {
     theme: {
         extend: {
             fontFamily: {
-                notoSans: [
-                    "'Noto Sans', 'Noto Sans HK', 'Noto Sans JP', 'Noto Sans KR', 'Noto Sans SC', 'Noto Sans TC'",
-                    ...defaultTheme.fontFamily.sans,
-                ],
+                notoSans: ["'Noto Sans', 'Noto Sans HK', 'Noto Sans JP', 'Noto Sans KR', 'Noto Sans SC', 'Noto Sans TC'", ...defaultTheme.fontFamily.sans],
+            },
+            colors: {
+                'lazuli-primary': '#ed6713',
+                'neutral-925': 'rgb(16, 16, 16)',
+                'jellyfin-purple': '#aa5cc3',
+                'jellyfin-blue': '#00a4dc',
             },
         },
     },

@@ -1,0 +1,12 @@
+{
+    "connectionId": "Database id of the respective connection",
+    "serviceType": "Type of service of the respective connection",
+    "userId": "The UUID of the account [req]",
+    "username": "The username of the account [req]",
+    "email": "Email asscociated w/ account [opt]",
+    "serviceUrl": "Id of source server [req]",
+    "serverName": "Name of source server [jellyfin]",
+
+    "V POTENTIAL": "TBD V",
+    "connectionEnabled": "[Toggle] boolean; enables/disables pulling data from the respective connection"
+}

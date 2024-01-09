@@ -26,12 +26,8 @@ export async function GET({ url, fetch }) {
         return authResponse
     }
 
-    if (!authResponse.headers.get('content-type').includes('application/json')) return new Response('Jellyfin server returned invalid data', { status: 500 })
-
     const data = await authResponse.json()
-    const requiredData = ['User', 'AccessToken', 'ServerId']
-
-    if (!requiredData.every((key) => Object.keys(data).includes(key))) return new Response('Data missing from Jellyfin server response', { status: 500 })
+    if (!('AccessToken' in data && 'User' in data)) return new Response('Jellyfin server response has missing data', { status: 500 })
 
     const responseData = JSON.stringify(data)
     const responseHeaders = new Headers({

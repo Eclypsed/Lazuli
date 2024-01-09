@@ -1,24 +1,16 @@
 <script>
-    import { onMount } from 'svelte'
-
-    export let data
-
-    let videoElement
-    let audioElement
-
-    onMount(() => {
-        audioElement.volume = 0.3
-    })
-
 </script>
 
-<video controls bind:this={videoElement} preload="auto">
-    <source src={data.videoUrl} type="video/mp4" />
-    <track kind="captions" />
-</video>
-<audio controls bind:this={audioElement}
-                on:play={videoElement.play()}
-                on:pause={videoElement.pause()}
-                on:seeked={(videoElement.currentTime = audioElement.currentTime)} preload="auto">
-    <source src={data.audioUrl} type="audio/webm" />
-</audio>
+<section class="grid h-full place-items-center">
+    <div class="aspect-video h-2/3 bg-slate-900">
+        <video id="video-player" controls></video>
+        <!-- <iframe
+            src="https://www.youtube.com/embed/uhx-u5peyeY?controls=0&autoplay=0&showinfo=0&rel=0"
+            title="Video"
+            frameBorder="0"
+            allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+            class="h-full w-full"
+        /> -->
+    </div>
+</section>

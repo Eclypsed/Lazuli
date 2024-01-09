@@ -26,7 +26,6 @@
         "better-sqlite3": "^9.1.1",
         "joi": "^17.11.0",
         "jsonwebtoken": "^9.0.2",
-        "youtubei.js": "^7.0.0",
         "ytdl-core": "^4.11.5"
     }
 }

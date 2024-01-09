@@ -9,7 +9,7 @@
     import Toggle from '$lib/components/utility/toggle.svelte'
 
     export let data
-    let existingConnections = data.existingConnections
+    let connectionProfiles = data.connectionProfiles
 
     const submitCredentials = ({ formData, action, cancel }) => {
         switch (action.search) {
@@ -43,18 +43,20 @@
                 case 'success':
                     modal = null
                     if (result.data?.newConnection) {
-                        const { id, serviceType, connectionInfo } = result.data.newConnection
-                        existingConnections[id] = {
-                            serviceType,
-                            connectionInfo,
-                        }
-                        existingConnections = existingConnections
-                    } else if (result.data?.deletedConnection) {
-                        const id = result.data.deletedConnection.id
-                        delete existingConnections[id]
-                        existingConnections = existingConnections
+                        const newConnection = result.data.newConnection
+                        connectionProfiles = [newConnection, ...connectionProfiles]
+
+                        return ($newestAlert = ['success', `Added ${Services[newConnection.serviceType].displayName}`])
+                    } else if (result.data?.deletedConnectionId) {
+                        const id = result.data.deletedConnectionId
+                        const indexToDelete = connectionProfiles.findIndex((profile) => profile.connectionId === id)
+                        const serviceType = connectionProfiles[indexToDelete].serviceType
+
+                        connectionProfiles.splice(indexToDelete, 1)
+                        connectionProfiles = connectionProfiles
+
+                        return ($newestAlert = ['success', `Deleted ${Services[serviceType].displayName}`])
                     }
-                    return ($newestAlert = ['success', result.data.message])
             }
         }
     }
@@ -80,21 +82,22 @@
         </div>
     </section>
     <div class="grid gap-8">
-        {#each Object.entries(existingConnections) as [connectionId, connectionData]}
-            {@const serviceData = Services[connectionData.serviceType]}
+        {#each connectionProfiles as connectionProfile}
+            {@const serviceData = Services[connectionProfile.serviceType]}
             <section class="overflow-hidden rounded-lg" style="background-color: rgba(82, 82, 82, 0.25);" transition:fly={{ x: 50 }}>
                 <header class="flex h-20 items-center gap-4 p-4">
                     <img src={serviceData.icon} alt="{serviceData.displayName} icon" class="aspect-square h-full p-1" />
                     <div>
-                        {#if connectionData.serviceType === 'jellyfin'}
-                            <div>{connectionData.connectionInfo.User.Name}</div>
-                        {:else}
-                            <div>Account Name</div>
-                        {/if}
-                        <div class="text-sm text-neutral-500">{serviceData.displayName}</div>
+                        <div>{connectionProfile?.username ? connectionProfile.username : 'Placeholder Account Name'}</div>
+                        <div class="text-sm text-neutral-500">
+                            {serviceData.displayName}
+                            {#if connectionProfile.serviceType === 'jellyfin'}
+                                - {connectionProfile.serverName}
+                            {/if}
+                        </div>
                     </div>
                     <div class="ml-auto h-8">
-                        <IconButton on:click={() => (modal = `delete-${connectionId}`)}>
+                        <IconButton on:click={() => (modal = `delete-${connectionProfile.connectionId}`)}>
                             <i slot="icon" class="fa-solid fa-link-slash" />
                         </IconButton>
                     </div>
@@ -113,11 +116,12 @@
         <form method="post" use:enhance={submitCredentials} transition:fly={{ y: -15 }} class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
             {#if typeof modal === 'string'}
                 {@const connectionId = modal.replace('delete-', '')}
-                {@const service = Services[existingConnections[connectionId].serviceType]}
+                {@const connection = connectionProfiles.find((profile) => profile.connectionId === connectionId)}
+                {@const serviceData = Services[connection.serviceType]}
                 <div class="rounded-lg bg-neutral-900 p-5">
-                    <h1 class="pb-4 text-center">Delete {service.displayName} connection?</h1>
+                    <h1 class="pb-4 text-center">Delete {serviceData.displayName} connection?</h1>
                     <div class="flex w-60 justify-around">
-                        <input type="hidden" name="serviceId" value={connectionId} />
+                        <input type="hidden" name="connectionId" value={connectionId} />
                         <button class="rounded bg-neutral-800 px-4 py-2 text-center" on:click|preventDefault={() => (modal = null)}>Cancel</button>
                         <button class="rounded bg-red-500 px-4 py-2 text-center" formaction="?/deleteConnection">Delete</button>
                     </div>

@@ -20,7 +20,6 @@ export async function GET({ url }) {
     return new Response(JSON.stringify(userConnections), { headers: responseHeaders })
 }
 
-// May need to add support for refresh token and expiry in the future
 /** @type {import('./$types').RequestHandler} */
 export async function PATCH({ request, url }) {
     const schema = Joi.object({

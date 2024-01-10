@@ -9,22 +9,22 @@
             uri: '/settings/connections',
             icon: 'fa-solid fa-circle-nodes',
         },
-        devices: {
-            displayName: 'Devices',
-            uri: '/settings/devices',
-            icon: 'fa-solid fa-mobile-screen',
-        },
+        // devices: {
+        //     displayName: 'Devices',
+        //     uri: '/settings/devices',
+        //     icon: 'fa-solid fa-mobile-screen',
+        // },
     }
 </script>
 
-<main class="mx-auto grid h-full max-w-screen-xl gap-8 p-8">
+<main class="mx-auto grid h-full max-w-screen-xl gap-8 p-8 pt-24">
     <nav class="h-full rounded-lg p-6">
         <h1 class="flex h-6 justify-between text-neutral-400">
             <span>
                 <i class="fa-solid fa-gear" />
                 Settings
             </span>
-            {#if $page.url.pathname.replaceAll('/', ' ').trim().split(' ').at(-1) !== 'settings'}
+            {#if $page.url.pathname.split('/').at(-1) !== 'settings'}
                 <IconButton on:click={() => goto('/settings')}>
                     <i slot="icon" class="fa-solid fa-caret-left" />
                 </IconButton>
@@ -39,7 +39,7 @@
                             {route.displayName}
                         </div>
                     {:else}
-                        <a href={route.uri} class="block rounded-lg px-3 py-1 hover:bg-neutral-700">
+                        <a href={route.uri} class="block rounded-lg px-3 py-1 opacity-50 hover:bg-neutral-700">
                             <i class={route.icon} />
                             {route.displayName}
                         </a>

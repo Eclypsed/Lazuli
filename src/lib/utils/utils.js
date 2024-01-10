@@ -1,3 +1,5 @@
+import Joi from 'joi'
+
 export const ticksToTime = (ticks) => {
     const totalSeconds = ~~(ticks / 10000000)
     const totalMinutes = ~~(totalSeconds / 60)
@@ -18,46 +20,88 @@ export const ticksToTime = (ticks) => {
 }
 
 export class JellyfinUtils {
-    static #ROOT_URL = 'http://eclypsecloud:8096/'
-    static #API_KEY = 'fd4bf4c18e5f4bb08c2cb9f6a1542118'
-    static #USER_ID = '7364ce5928c64b90b5765e56ca884053'
     static #AUDIO_PRESETS = {
         default: {
-            MaxStreamingBitrate: '999999999',
+            MaxStreamingBitrate: 999999999,
             Container: 'opus,webm|opus,mp3,aac,m4a|aac,m4b|aac,flac,webma,webm|webma,wav,ogg',
             TranscodingContainer: 'ts',
             TranscodingProtocol: 'hls',
             AudioCodec: 'aac',
-            userId: this.#USER_ID,
+            // userId: REMEMBER TO ADD THIS TO THE END,
         },
     }
 
-    static #buildUrl(baseURL, queryParams) {
-        const queryParamList = queryParams ? Object.entries(queryParams).map(([key, value]) => `${key}=${value}`) : []
-        queryParamList.push(`api_key=${this.#API_KEY}`)
-        return baseURL.concat('?' + queryParamList.join('&'))
+    static mediaItemFactory = (itemData, connectionData) => {
+        const generalItemSchema = Joi.object({
+            ServerId: Joi.string().required(),
+            Type: Joi.string().required(),
+        }).unknown(true)
+
+        const generalItemValidation = generalItemSchema.validate(itemData)
+        if (generalItemValidation.error) throw new Error(generalItemValidation.error.message)
+
+        switch (itemData.Type) {
+            case 'Audio':
+                return this.songFactory(itemData, connectionData)
+            case 'MusicAlbum':
+                break
+        }
     }
 
-    static getItemsEnpt(itemParams) {
-        const baseUrl = this.#ROOT_URL + `Users/${this.#USER_ID}/Items`
-        const endpoint = this.#buildUrl(baseUrl, itemParams)
-        return endpoint
+    static songFactory = (songData, connectionData) => {
+        const { id, serviceType, serviceUserId, serviceUrl } = connectionData
+
+        const songSchema = Joi.object({
+            Name: Joi.string().required(),
+            Id: Joi.string().required(),
+            RunTimeTicks: Joi.number().required(),
+        }).unknown(true)
+
+        const songValidation = songSchema.validate(songData)
+        if (songValidation.error) throw new Error(songValidation.error.message)
+
+        const artistData = songData?.ArtistItems
+            ? Array.from(songData.ArtistItems, (artist) => {
+                  return { name: artist.Name, id: artist.Id }
+              })
+            : null
+
+        const albumData = songData?.AlbumId
+            ? {
+                  name: songData.Album,
+                  id: songData.AlbumId,
+                  artists: songData.AlbumArtists,
+                  image: songData?.AlbumPrimaryImageTag ? new URL(`Items/${songData.AlbumId}/Images/Primary`, serviceUrl).href : null,
+              }
+            : null
+
+        const imageSource = songData?.ImageTags?.Primary
+            ? new URL(`Items/${songData.Id}/Images/Primary`, serviceUrl).href
+            : songData?.AlbumPrimaryImageTag
+              ? new URL(`Items/${songData.AlbumId}/Images/Primary`, serviceUrl).href
+              : null
+
+        const audioSearchParams = new URLSearchParams(this.#AUDIO_PRESETS.default)
+        audioSearchParams.append('userId', serviceUserId)
+        const audoSource = new URL(`Audio/${songData.Id}/universal?${audioSearchParams.toString()}`, serviceUrl).href
+
+        return {
+            connectionId: id,
+            serviceType,
+            mediaType: 'song',
+            name: songData.Name,
+            id: songData.Id,
+            duration: Math.floor(songData.RunTimeTicks / 10000), // <-- Converts 'ticks' (whatever that means) to milliseconds, a sane unit of measure
+            artists: artistData,
+            album: albumData,
+            image: imageSource,
+            audio: audoSource,
+            video: null,
+            releaseDate: songData?.ProductionYear,
+        }
     }
 
-    static getImageEnpt(id, imageParams) {
-        const baseUrl = this.#ROOT_URL + `Items/${id}/Images/Primary`
-        const endpoint = this.#buildUrl(baseUrl, imageParams)
-        return endpoint
-    }
-
-    static getAudioEnpt(id, audioPreset) {
-        const baseUrl = this.#ROOT_URL + `Audio/${id}/universal`
-        const presetParams = this.#AUDIO_PRESETS[audioPreset]
-        const endpoint = this.#buildUrl(baseUrl, presetParams)
-        return endpoint
-    }
-
-    static getLocalDeviceUUID() {
+    static getLocalDeviceUUID = () => {
         const existingUUID = localStorage.getItem('lazuliDeviceUUID')
 
         if (!existingUUID) {
@@ -68,4 +112,8 @@ export class JellyfinUtils {
 
         return existingUUID
     }
+}
+
+export class YouTubeMusicUtils {
+    static mediaItemFactory = () => {}
 }

@@ -91,7 +91,7 @@
                         <div>{connectionProfile?.username ? connectionProfile.username : 'Placeholder Account Name'}</div>
                         <div class="text-sm text-neutral-500">
                             {serviceData.displayName}
-                            {#if connectionProfile.serviceType === 'jellyfin'}
+                            {#if connectionProfile.serviceType === 'jellyfin' && connectionProfile?.serverName}
                                 - {connectionProfile.serverName}
                             {/if}
                         </div>
@@ -105,7 +105,7 @@
                 <hr class="mx-2 border-t-2 border-neutral-600" />
                 <div class="p-4 text-sm text-neutral-400">
                     <div class="grid grid-cols-[3rem_auto] gap-4">
-                        <Toggle on:toggled={(event) => console.log(event.detail.toggleState)} />
+                        <Toggle on:toggled={(event) => console.log(event.detail.toggled)} />
                         <span>Enable Connection</span>
                     </div>
                 </div>

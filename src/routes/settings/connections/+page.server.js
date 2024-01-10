@@ -2,40 +2,32 @@ import { fail } from '@sveltejs/kit'
 import { SECRET_INTERNAL_API_KEY } from '$env/static/private'
 import { UserConnections } from '$lib/server/db/users'
 
-class ConnectionProfile {
-    static async createProfile(connectionId) {
-        const connectionData = await this.getUserData(connectionId)
-        return { connectionId, ...connectionData }
-    }
+const createProfile = async (connectionData) => {
+    const { id, serviceType, serviceUserId, serviceUrl, accessToken, refreshToken, expiry } = connectionData
 
-    static getUserData = async (connectionId) => {
-        const connectionData = UserConnections.getConnection(connectionId)
-        const { serviceType, serviceUserId, serviceUrl, accessToken } = connectionData
+    switch (serviceType) {
+        case 'jellyfin':
+            const userUrl = new URL(`Users/${serviceUserId}`, serviceUrl).href
+            const systemUrl = new URL('System/Info', serviceUrl).href
 
-        switch (serviceType) {
-            case 'jellyfin':
-                const userUrl = new URL(`Users/${serviceUserId}`, serviceUrl).href
-                const systemUrl = new URL('System/Info', serviceUrl).href
+            const reqHeaders = new Headers({ Authorization: `MediaBrowser Token="${accessToken}"` })
 
-                const reqHeaders = new Headers()
-                reqHeaders.append('Authorization', `MediaBrowser Token="${accessToken}"`)
+            const userResponse = await fetch(userUrl, { headers: reqHeaders })
+            const systemResponse = await fetch(systemUrl, { headers: reqHeaders })
 
-                const userResponse = await fetch(userUrl, { headers: reqHeaders })
-                const systemResponse = await fetch(systemUrl, { headers: reqHeaders })
+            const userData = await userResponse.json()
+            const systemData = await systemResponse.json()
 
-                const userData = await userResponse.json()
-                const systemData = await systemResponse.json()
-
-                return {
-                    serviceType,
-                    userId: serviceUserId,
-                    username: userData?.Name,
-                    serviceUrl: serviceUrl,
-                    serverName: systemData?.ServerName,
-                }
-            default:
-                return null
-        }
+            return {
+                connectionId: id,
+                serviceType,
+                userId: serviceUserId,
+                username: userData?.Name,
+                serviceUrl: serviceUrl,
+                serverName: systemData?.ServerName,
+            }
+        default:
+            return null
     }
 }
 
@@ -51,7 +43,7 @@ export const load = async ({ fetch, locals }) => {
     const connectionProfiles = []
     if (allConnections) {
         for (const connection of allConnections) {
-            const connectionProfile = await ConnectionProfile.createProfile(connection.id)
+            const connectionProfile = await createProfile(connection)
             connectionProfiles.push(connectionProfile)
         }
     }
@@ -93,9 +85,10 @@ export const actions = {
 
         if (!updateConnectionsResponse.ok) return fail(500, { message: 'Internal Server Error' })
 
-        const newConnectionData = await updateConnectionsResponse.json()
+        const newConnection = await updateConnectionsResponse.json()
+        const newConnectionData = UserConnections.getConnection(newConnection.id)
 
-        const jellyfinProfile = await ConnectionProfile.createProfile(newConnectionData.id)
+        const jellyfinProfile = await createProfile(newConnectionData)
 
         return { newConnection: jellyfinProfile }
     },

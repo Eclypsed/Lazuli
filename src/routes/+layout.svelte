@@ -25,24 +25,18 @@
     <slot />
 {:else}
     <main class="h-screen font-notoSans text-white">
-        {#if $page.url.pathname === '/login'}
-            <div class="bg-black h-full">
-                <slot />
-            </div>
-        {:else}
-            <div class="fixed isolate -z-10 h-full w-full bg-black">
-                <!-- This whole bg is a complete copy of ytmusic, design own at some point (Place for customization w/ album art etc?) (EDIT: Ok, it looks SICK with album art!) -->
-                <div id="background-gradient" class="absolute z-10 h-1/2 w-full bg-cover" />
-                {#if loaded}
-                    <!-- May want to add a small blur filter in the event that the album/song image is below a certain resolution -->
-                    <img id="background-image" src={backgroundImage} alt="" class="h-1/2 w-full object-cover blur-xl" in:fade={{ duration: 1000 }} />
-                {/if}
-            </div>
+        {#if $page.url.pathname !== '/login'}
             <Navbar />
-            <div class="h-full pt-16">
-                <slot />
-            </div>
         {/if}
+        <div class="fixed isolate -z-10 h-full w-full bg-black">
+            <!-- This whole bg is a complete copy of ytmusic, design own at some point (Place for customization w/ album art etc?) (EDIT: Ok, it looks SICK with album art!) -->
+            <div id="background-gradient" class="absolute z-10 h-1/2 w-full bg-cover" />
+            {#if loaded}
+                <!-- May want to add a small blur filter in the event that the album/song image is below a certain resolution -->
+                <img id="background-image" src={backgroundImage} alt="" class="h-1/2 w-full object-cover blur-xl" in:fade={{ duration: 1000 }} />
+            {/if}
+        </div>
+        <slot />
         <AlertBox bind:this={alertBox} />
     </main>
 {/if}

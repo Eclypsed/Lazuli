@@ -1,6 +1,7 @@
 <script>
     import { onMount } from 'svelte'
     import { newestAlert } from '$lib/stores/alertStore.js'
+    import Card from '$lib/components/media/mediaCard.svelte'
 
     export let data
 
@@ -24,18 +25,14 @@
         <p class="text-neutral-400">Click the menu in the top left corner and go to Settings &gt; Connections to link to your accounts</p>
     </main>
 {:else}
-    <main id="recommendations-wrapper" class="p-12 pt-24">
-        <section class="no-scrollbar flex gap-6 overflow-scroll">
-            {#each data.recommendations as recommendation}
-                <div class="aspect-[4/5] w-56 flex-shrink-0">
-                    <!-- Add placeholder image for when recommendation.image is null -->
-                    <img class="aspect-square w-full rounded-md object-cover" src="{recommendation.image}?width=224&height=224" alt="{recommendation.name} art" />
-                    <div class="mt-3 px-1 text-sm">
-                        <div>{recommendation.name}</div>
-                        <div class="text-neutral-400">{Array.from(recommendation.artists, (artist) => artist.name).join(', ')}</div>
-                    </div>
-                </div>
-            {/each}
+    <main id="recommendations-wrapper" class="pt-24">
+        <section>
+            <h1 class="px-12 text-4xl"><strong>Listen Again</strong></h1>
+            <div class="no-scrollbar flex gap-6 overflow-scroll px-12 py-4">
+                {#each data.recommendations as recommendation}
+                    <Card mediaData={recommendation} />
+                {/each}
+            </div>
         </section>
     </main>
 {/if}

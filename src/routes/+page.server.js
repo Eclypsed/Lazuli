@@ -10,8 +10,6 @@ export const load = async ({ locals, fetch }) => {
     const recommendationsData = await recommendationResponse.json()
     const { recommendations, errors } = recommendationsData
 
-    console.log(recommendations[0].artists)
-
     return {
         user: locals.user,
         recommendations,

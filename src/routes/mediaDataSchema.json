@@ -1,17 +1,17 @@
 {
-    "connectionId": "Id of the connection that provides the song",
-    "serviceType": "The type of service that provides the song",
-    "mediaType": "song",
-    "name": "Name of song",
-    "id": "whatever unique identifier the service provides",
-    "duration": "length of song in milliseconds",
-    "artists": [
+    "connectionId": "Id of the connection that provides the song [ALL REQ]",
+    "serviceType": "The type of service that provides the song [ALL REQ]",
+    "mediaType": "song || album || playlist || artist [ALL REQ]",
+    "name": "Name of media [ALL OPT]",
+    "id": "whatever unique identifier the service provides [ALL REQ]",
+    "duration": "length of song in milliseconds [song OPT, album OPT, playlist OPT]",
+    "artists [song OPT]": [
         {
             "name": "Name of artist",
             "id": "service's unique identifier for the artist"
         }
     ],
-    "album": {
+    "album [song OPT]": {
         "name": "Name of album",
         "id": "service's unique identifier for the album",
         "artists": [
@@ -22,10 +22,10 @@
         ],
         "image": "source url of the album art"
     },
-    "image": "source url of image unique to the song, if one does not exist this will be the album art or in the case of videos the thumbnail",
-    "audio": "source url of the audio stream",
-    "video": "source url of the video stream (if this is not null then player will allow for video mode, otherwise use image)",
-    "releaseDate": "Either the date the MV was upload or the release date/year of the album",
+    "image": "source url of image unique to the song, if one does not exist this will be the album art or in the case of videos the thumbnail [ALL OPT]",
+    "audio": "source url of the audio stream [song REQ]",
+    "video": "source url of the video stream (if this is not null then player will allow for video mode, otherwise use image) [song OPT]",
+    "releaseDate": "Either the date the MV was upload or the release date/year of the album [song OPT, album OPT]",
 
     "All of the above data": "Is comprised solely of data that has been read from the respective service and processed by a factory",
     "the above data should not contain or rely on any information that has to be read from the lazuli server": "save for the data that was read to fetch it in the first place (connectionId, serviceType, etc.)",

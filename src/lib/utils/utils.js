@@ -75,11 +75,7 @@ export class JellyfinUtils {
               }
             : null
 
-        const imageSource = songData?.ImageTags?.Primary
-            ? new URL(`Items/${songData.Id}/Images/Primary`, serviceUrl).href
-            : songData?.AlbumPrimaryImageTag
-              ? new URL(`Items/${songData.AlbumId}/Images/Primary`, serviceUrl).href
-              : null
+        const imageSource = songData?.ImageTags?.Primary ? new URL(`Items/${songData.Id}/Images/Primary`, serviceUrl).href : albumData?.image
 
         const audioSearchParams = new URLSearchParams(this.#AUDIO_PRESETS.default)
         audioSearchParams.append('userId', serviceUserId)

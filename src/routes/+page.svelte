@@ -1,7 +1,7 @@
 <script>
     import { onMount } from 'svelte'
     import { newestAlert } from '$lib/stores/alertStore.js'
-    import Card from '$lib/components/media/mediaCard.svelte'
+    import ScrollableCardMenu from '$lib/components/media/scrollableCardMenu.svelte'
 
     export let data
 
@@ -26,13 +26,6 @@
     </main>
 {:else}
     <main id="recommendations-wrapper" class="pt-24">
-        <section>
-            <h1 class="px-12 text-4xl"><strong>Listen Again</strong></h1>
-            <div class="no-scrollbar flex gap-6 overflow-scroll px-12 py-4">
-                {#each data.recommendations as recommendation}
-                    <Card mediaData={recommendation} />
-                {/each}
-            </div>
-        </section>
+        <ScrollableCardMenu header={'Listen Again'} cardDataList={data.recommendations} />
     </main>
 {/if}

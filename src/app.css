@@ -32,7 +32,8 @@
 :root {
     scrollbar-width: thin; /* Default scrollbar width for Firefox */
     scrollbar-color: grey transparent; /* Default scrollbar colors for Firefox */
+    --lazuli-primary: #00a4dc;
     --jellyfin-purple: #aa5cc3;
     --jellyfin-blue: #00a4dc;
-    --lazuli-primary: #ed6713;
+    --youtube-red: #ff0000;
 }

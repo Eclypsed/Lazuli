@@ -4,7 +4,7 @@
     const dispatch = createEventDispatcher()
 </script>
 
-<button class="relative grid aspect-square h-full place-items-center transition-transform duration-75 active:scale-90" on:click={() => dispatch('click')}>
+<button class="relative grid aspect-square h-full place-items-center transition-transform duration-75 active:scale-90" on:click|preventDefault={() => dispatch('click')}>
     <slot name="icon" />
 </button>
 

@@ -9,10 +9,11 @@ export default {
                 notoSans: ["'Noto Sans', 'Noto Sans HK', 'Noto Sans JP', 'Noto Sans KR', 'Noto Sans SC', 'Noto Sans TC'", ...defaultTheme.fontFamily.sans],
             },
             colors: {
-                'lazuli-primary': '#ed6713',
+                'lazuli-primary': '#00a4dc',
                 'neutral-925': 'rgb(16, 16, 16)',
                 'jellyfin-purple': '#aa5cc3',
                 'jellyfin-blue': '#00a4dc',
+                'youtube-red': '#ff0000',
             },
         },
     },

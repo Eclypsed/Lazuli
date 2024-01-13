@@ -3,6 +3,14 @@
     import { spin } from '$lib/utils/animations'
     import { page } from '$app/stores'
 
+    export let alignDropdown = 'left'
+
+    const align = {
+        left: 'left-0',
+        right: 'right-0',
+        center: 'left-1/2 -translate-x-1/2',
+    }[alignDropdown]
+
     let button,
         icon,
         open = false
@@ -33,16 +41,13 @@
         {/if}
     </button>
     {#if open}
-        <section transition:slide={{ duration: 200, axis: 'y' }} id="dropdown" class="absolute w-screen max-w-sm">
+        <section transition:slide={{ axis: 'y' }} class="absolute top-full {align}">
             <slot name="menu-items" />
         </section>
     {/if}
 </div>
 
 <style>
-    #dropdown {
-        top: calc(100% + 0.6rem);
-    }
     #button::before {
         content: '';
         width: 0;

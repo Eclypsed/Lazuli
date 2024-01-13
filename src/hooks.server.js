@@ -7,7 +7,7 @@ export async function handle({ event, resolve }) {
     const nonProtectedRoutes = ['/login']
     const urlpath = event.url.pathname
 
-    if (urlpath.startsWith('/api') && event.request.headers.get('apikey') !== SECRET_INTERNAL_API_KEY) {
+    if (urlpath.startsWith('/api') && event.request.headers.get('apikey') !== SECRET_INTERNAL_API_KEY && event.url.searchParams.get('apikey') !== SECRET_INTERNAL_API_KEY) {
         return new Response('Unauthorized', { status: 400 })
     }
 

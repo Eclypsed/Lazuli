@@ -25,7 +25,7 @@
         <p class="text-neutral-400">Click the menu in the top left corner and go to Settings &gt; Connections to link to your accounts</p>
     </main>
 {:else}
-    <main id="recommendations-wrapper" class="pt-24">
+    <main id="recommendations-wrapper" class="h-screen px-8">
         <ScrollableCardMenu header={'Listen Again'} cardDataList={data.recommendations} />
     </main>
 {/if}

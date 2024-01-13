@@ -1,5 +1,4 @@
 <script>
-    import HamburgerMenu from './hamburgerMenu.svelte'
     import IconButton from './iconButton.svelte'
     import SearchBar from './searchBar.svelte'
     import { goto, afterNavigate } from '$app/navigation'
@@ -15,19 +14,12 @@
 </script>
 
 <svelte:window bind:scrollY={windowY} />
-<nav id="navbar" class="fixed left-0 top-0 isolate z-10 h-16 w-full">
-    <div class="grid h-full grid-cols-3">
-        <div class="flex h-full items-center gap-5 py-4 pl-6">
-            <HamburgerMenu>
-                <ol slot="menu-items" class="overflow-hidden rounded-lg border-2 border-neutral-800 bg-neutral-925 p-2">
-                    <li>
-                        <button class="w-full rounded-md px-3 py-2 text-left hover:bg-neutral-900" on:click={() => goto('/settings')}>
-                            <i class="fa-solid fa-gear mr-1" />
-                            Settings
-                        </button>
-                    </li>
-                </ol>
-            </HamburgerMenu>
+<nav id="navbar" class="sticky left-0 top-0 isolate z-10 h-16">
+    <div class="flex h-full items-center justify-between gap-6 px-6">
+        <div class="w-full max-w-2xl">
+            <SearchBar />
+        </div>
+        <div class="flex h-full gap-4 py-4">
             {#if previousPage && $page.url.pathname !== '/'}
                 <IconButton on:click={() => history.back()}>
                     <i slot="icon" class="fa-solid fa-arrow-left text-xl" />
@@ -39,10 +31,8 @@
                 </IconButton>
             {/if}
         </div>
-        <SearchBar />
     </div>
     {#if windowY > 0}
         <div transition:fade={{ duration: 150 }} id="navbar-background" class="absolute left-0 top-0 -z-10 h-full w-full bg-neutral-925" />
-        <!-- This would be a cool place for personalization -->
     {/if}
 </nav>

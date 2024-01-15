@@ -1,6 +1,6 @@
 <script>
     import { onMount } from 'svelte'
-    import { newestAlert } from '$lib/stores/alertStore.js'
+    import { newestAlert } from '$lib/utils/stores.js'
     import ScrollableCardMenu from '$lib/components/media/scrollableCardMenu.svelte'
 
     export let data
@@ -25,7 +25,7 @@
         <p class="text-neutral-400">Click the menu in the top left corner and go to Settings &gt; Connections to link to your accounts</p>
     </main>
 {:else}
-    <main id="recommendations-wrapper" class="h-screen px-8">
+    <main id="recommendations-wrapper" class="h-[200vh] w-full">
         <ScrollableCardMenu header={'Listen Again'} cardDataList={data.recommendations} />
     </main>
 {/if}

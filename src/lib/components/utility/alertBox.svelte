@@ -27,4 +27,4 @@
     }
 </script>
 
-<div bind:this={alertBox} class="fixed right-4 top-4 z-50 max-h-screen w-full max-w-sm overflow-hidden"></div>
+<div bind:this={alertBox} class="fixed right-0 top-0 z-50 max-h-screen w-full max-w-sm overflow-hidden p-4"></div>

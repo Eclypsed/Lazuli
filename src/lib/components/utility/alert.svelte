@@ -30,7 +30,7 @@
 {#if show}
     <div in:fly={{ duration: 300, x: 500 }} out:slide={{ duration: 300, axis: 'y' }} class="py-1">
         <div class="flex gap-1 overflow-hidden rounded-md">
-            <div class="flex min-h-[3.5rem] w-full items-center px-4 py-2 {bgColors[alertType]}">
+            <div class="flex w-full items-center p-4 {bgColors[alertType]}">
                 {alertMessage}
             </div>
             <button class="w-16 {bgColors[alertType]}" on:click={() => triggerClose()}>

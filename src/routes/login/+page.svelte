@@ -2,7 +2,7 @@
     import { enhance } from '$app/forms'
     import { goto } from '$app/navigation'
     import { fade } from 'svelte/transition'
-    import { newestAlert } from '$lib/stores/alertStore.js'
+    import { newestAlert } from '$lib/utils/stores.js'
 
     export let data
 
@@ -77,11 +77,7 @@
                     Sign In
                     <i class="fa-solid fa-right-to-bracket ml-1" />
                 </button>
-                <button
-                    formaction="?/newUser"
-                    class="h-12 w-1/3 rounded-md transition-all active:scale-[97%]"
-                    style="background-color: {formMode === 'newUser' ? 'var(--lazuli-primary)' : '#262626'};"
-                >
+                <button formaction="?/newUser" class="h-12 w-1/3 rounded-md transition-all active:scale-[97%]" style="background-color: {formMode === 'newUser' ? 'var(--lazuli-primary)' : '#262626'};">
                     Create New User
                     <i class="fa-solid fa-user-plus ml-1" />
                 </button>

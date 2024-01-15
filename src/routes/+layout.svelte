@@ -1,12 +1,13 @@
 <script>
     import '../app.css'
     import '@fortawesome/fontawesome-free/css/all.min.css'
-    import Navbar from '$lib/components/utility/navbar.svelte'
     import AlertBox from '$lib/components/utility/alertBox.svelte'
-    import { page } from '$app/stores'
-    import { newestAlert } from '$lib/stores/alertStore.js'
+    import SubLayouts from './subLayouts.svelte'
+    import { newestAlert, backgroundImage } from '$lib/utils/stores.js'
     import { fade } from 'svelte/transition'
     import { onMount } from 'svelte'
+
+    export let data
 
     let alertBox
     $: addAlert($newestAlert)
@@ -16,35 +17,27 @@
     }
 
     // Might want to change this functionallity to a fetch/preload/await for the image
-    const backgroundImage = 'https://www.gstatic.com/youtube/media/ytm/images/sbg/wsbg@4000x2250.png' // <-- Default youtube music background
+    const ytBg = 'https://www.gstatic.com/youtube/media/ytm/images/sbg/wsbg@4000x2250.png' // <-- Default youtube music background
     let loaded = false
     onMount(() => (loaded = true))
 </script>
 
-<main class="h-screen font-notoSans text-white">
-    <div class="fixed isolate -z-10 h-full w-full bg-black">
+<div class="no-scrollbar h-screen font-notoSans text-white">
+    <div class="fixed isolate -z-10 h-full w-screen bg-black">
         <!-- This whole bg is a complete copy of ytmusic, design own at some point (Place for customization w/ album art etc?) (EDIT: Ok, it looks SICK with album art!) -->
         <div id="background-gradient" class="absolute z-10 h-1/2 w-full bg-cover" />
         {#if loaded}
-            <!-- May want to add a small blur filter in the event that the album/song image is below a certain resolution -->
-            <img id="background-image" src={backgroundImage} alt="" class="h-1/2 w-full object-cover blur-xl" in:fade={{ duration: 1000 }} />
+            {#key $backgroundImage}
+                <!-- May want to add a small blur filter in the event that the album/song image is below a certain resolution -->
+                <img id="background-image" src={$backgroundImage ? $backgroundImage : ytBg} alt="" class="absolute h-1/2 w-full object-cover blur-lg" transition:fade={{ duration: 1000 }} />
+            {/key}
         {/if}
     </div>
-    {#if $page.url.pathname === '/login'}
-        <slot />
-    {:else}
-        <div class="grid h-full grid-cols-[5rem_auto]">
-            <div class="h-full bg-slate-600" />
-            <div class="grid h-full grid-rows-[4rem_auto] gap-8">
-                <Navbar />
-                <div class="no-scrollbar overflow-y-scroll">
-                    <slot />
-                </div>
-            </div>
-        </div>
-        <AlertBox bind:this={alertBox} />
-    {/if}
-</main>
+    <SubLayouts currentPage={data.url}>
+        <slot slot="innerContent" />
+    </SubLayouts>
+    <AlertBox bind:this={alertBox} />
+</div>
 
 <style>
     #background-gradient {

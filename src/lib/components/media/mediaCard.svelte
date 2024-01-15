@@ -3,6 +3,7 @@
 
     import Services from '$lib/services.json'
     import IconButton from '$lib/components/utility/iconButton.svelte'
+    import { backgroundImage } from '$lib/utils/stores.js'
 
     const iconClasses = {
         song: 'fa-solid fa-music',
@@ -29,7 +30,7 @@
 </script>
 
 <a id="card-wrapper" on:mousedown|preventDefault on:mousemove={(event) => rotateCard(event)} on:mouseleave={() => (card.style.transform = null)} href="/details?id={mediaData.id}&service={mediaData.connectionId}">
-    <div bind:this={card} id="card" class="relative h-60 transition-all duration-200 ease-out">
+    <div bind:this={card} id="card" class="relative h-56 transition-all duration-200 ease-out">
         {#if mediaData.image}
             <img id="card-image" class="h-full max-w-none rounded-lg transition-all" src={mediaData.image} alt="{mediaData.name} thumbnail" />
         {:else}
@@ -39,7 +40,7 @@
         {/if}
         <div bind:this={cardGlare} id="card-glare" class="absolute top-0 grid h-full w-full place-items-center rounded-lg opacity-0 transition-opacity duration-200 ease-out">
             <span class="relative h-12">
-                <IconButton on:click={() => console.log(`Play ${mediaData.name}`)}>
+                <IconButton on:click={() => ($backgroundImage = mediaData.image)}>
                     <i slot="icon" class="fa-solid fa-play text-xl" />
                 </IconButton>
             </span>

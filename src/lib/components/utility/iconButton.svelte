@@ -1,15 +1,22 @@
 <script>
+    export let disabled = false
+
     import { createEventDispatcher } from 'svelte'
 
     const dispatch = createEventDispatcher()
 </script>
 
-<button class="relative grid aspect-square h-full place-items-center transition-transform duration-75 active:scale-90" on:click|preventDefault={() => dispatch('click')}>
+<button
+    class:disabled
+    class="relative grid aspect-square h-full place-items-center transition-transform duration-75 active:scale-90 {disabled ? 'text-neutral-600' : ''}"
+    on:click|preventDefault={() => dispatch('click')}
+    {disabled}
+>
     <slot name="icon" />
 </button>
 
 <style>
-    button::before {
+    button:not(.disabled)::before {
         content: '';
         width: 0;
         height: 0;
@@ -19,14 +26,14 @@
         transition-duration: 200ms;
         position: absolute;
     }
-    button:hover::before {
+    button:not(.disabled):hover::before {
         width: 130%;
         height: 130%;
     }
     button :global(> :first-child) {
         transition: color 200ms;
     }
-    button:hover :global(> :first-child) {
+    button:not(.disabled):hover :global(> :first-child) {
         color: var(--lazuli-primary);
     }
 </style>

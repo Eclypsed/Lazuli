@@ -4,7 +4,7 @@
     import { JellyfinUtils } from '$lib/utils/utils'
     import Services from '$lib/services.json'
     import JellyfinAuthBox from './jellyfinAuthBox.svelte'
-    import { newestAlert } from '$lib/stores/alertStore.js'
+    import { newestAlert } from '$lib/utils/stores.js'
     import IconButton from '$lib/components/utility/iconButton.svelte'
     import Toggle from '$lib/components/utility/toggle.svelte'
 

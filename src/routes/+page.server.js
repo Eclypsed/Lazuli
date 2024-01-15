@@ -3,7 +3,7 @@ import { SECRET_INTERNAL_API_KEY } from '$env/static/private'
 export const prerender = false
 
 /** @type {import('./$types').PageServerLoad} */
-export const load = async ({ locals, fetch }) => {
+export const load = async ({ locals, fetch, url }) => {
     const recommendationResponse = await fetch(`/api/user/recommendations?userId=${locals.userId}&limit=10`, {
         headers: {
             apikey: SECRET_INTERNAL_API_KEY,
@@ -13,6 +13,7 @@ export const load = async ({ locals, fetch }) => {
     const { recommendations, errors } = recommendationsData
 
     return {
+        url: url.pathname,
         user: locals.user,
         recommendations,
         fetchingErrors: errors,

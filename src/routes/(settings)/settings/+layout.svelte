@@ -17,7 +17,7 @@
     }
 </script>
 
-<main class="mx-auto grid h-full max-w-screen-xl gap-8 p-8 pt-24">
+<main class="mx-auto grid h-full max-w-screen-xl gap-8 p-8">
     <nav class="h-full rounded-lg p-6">
         <h1 class="flex h-6 justify-between text-neutral-400">
             <span>

@@ -2,12 +2,9 @@
     import '../app.css'
     import '@fortawesome/fontawesome-free/css/all.min.css'
     import AlertBox from '$lib/components/utility/alertBox.svelte'
-    import SubLayouts from './subLayouts.svelte'
-    import { newestAlert, backgroundImage } from '$lib/utils/stores.js'
+    import { newestAlert, backgroundImage, pageWidth } from '$lib/utils/stores.js'
     import { fade } from 'svelte/transition'
     import { onMount } from 'svelte'
-
-    export let data
 
     let alertBox
     $: addAlert($newestAlert)
@@ -22,6 +19,7 @@
     onMount(() => (loaded = true))
 </script>
 
+<svelte:window bind:innerWidth={$pageWidth} />
 <div class="no-scrollbar h-screen font-notoSans text-white">
     <div class="fixed isolate -z-10 h-full w-screen bg-black">
         <!-- This whole bg is a complete copy of ytmusic, design own at some point (Place for customization w/ album art etc?) (EDIT: Ok, it looks SICK with album art!) -->
@@ -33,9 +31,7 @@
             {/key}
         {/if}
     </div>
-    <SubLayouts currentPage={data.url}>
-        <slot slot="innerContent" />
-    </SubLayouts>
+    <slot />
     <AlertBox bind:this={alertBox} />
 </div>
 

@@ -2,45 +2,34 @@
     import IconButton from './iconButton.svelte'
     import { goto } from '$app/navigation'
     import { page } from '$app/stores'
-
-    let windowY = 0
 </script>
 
-<svelte:window bind:scrollY={windowY} />
-<nav class="sticky top-0 z-10 flex items-center justify-between px-8 duration-300" class:background-active={windowY > 0}>
+<nav class="sticky top-0 z-10 grid grid-cols-[1fr_auto_1fr] items-center duration-300">
     <section class="flex h-full">
-        <IconButton>
-            <i slot="icon" class="fa-solid fa-gear" />
+        <IconButton on:click={() => goto('/settings')}>
+            <i slot="icon" class="fa-solid fa-user-gear" />
         </IconButton>
         {#if $page.url.pathname !== '/'}
-            <IconButton on:click={() => goto('/')}>
-                <i slot="icon" class="fa-solid fa-house" />
-            </IconButton>
             <IconButton on:click={() => history.back()}>
                 <i slot="icon" class="fa-solid fa-arrow-left" />
             </IconButton>
         {/if}
     </section>
-    <section class="flex h-full">
+    <section class="flex h-full justify-center">
+        <slot name="center-content" />
+    </section>
+    <section class="flex h-full justify-end">
         <IconButton>
             <i slot="icon" class="fa-solid fa-magnifying-glass" />
-        </IconButton>
-        <IconButton>
-            <i slot="icon" class="fa-solid fa-user" />
         </IconButton>
     </section>
 </nav>
 
 <style>
     nav {
-        height: 64px;
-        padding-top: 16px;
-        padding-bottom: 16px;
+        padding: 20px 2rem;
         font-size: 20px;
         line-height: 28px;
-    }
-    nav.background-active {
-        background-color: rgb(10, 10, 10);
     }
     section {
         gap: 24px;

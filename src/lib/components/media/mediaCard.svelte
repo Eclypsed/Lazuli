@@ -3,7 +3,7 @@
 
     import Services from '$lib/services.json'
     import IconButton from '$lib/components/utility/iconButton.svelte'
-    import { backgroundImage } from '$lib/utils/stores.js'
+    import { backgroundImage, currentlyPlaying } from '$lib/utils/stores.js'
 
     const iconClasses = {
         song: 'fa-solid fa-music',
@@ -19,7 +19,7 @@
         const x = (2 * (event.x - cardRect.left)) / cardRect.width - 1 // These are simplified calculations to find the x-y coords relative to the center of the card
         const y = (2 * (cardRect.top - event.y)) / cardRect.height + 1
 
-        let angle = Math.atan(x / y) // You'd think it should be y / x but it's actually the inverse
+        const angle = Math.atan(x / y) // You'd think it should be y / x but it's actually the inverse
         const distanceFromCorner = Math.sqrt((x - 1) ** 2 + (y - 1) ** 2) // This is a cool little trick, the -1 on the x an y coordinate is effective the same as saying "make the origin of the glare [1, 1]"
 
         cardGlare.style.backgroundImage = `linear-gradient(${angle}rad, transparent ${distanceFromCorner * 50 + 50}%, rgba(255, 255, 255, 0.1) ${distanceFromCorner * 50 + 60}%, transparent 100%)`
@@ -40,7 +40,12 @@
         {/if}
         <div bind:this={cardGlare} id="card-glare" class="absolute top-0 grid h-full w-full place-items-center rounded-lg opacity-0 transition-opacity duration-200 ease-out">
             <span class="relative h-12">
-                <IconButton on:click={() => ($backgroundImage = mediaData.image)}>
+                <IconButton
+                    on:click={() => {
+                        $currentlyPlaying = mediaData
+                        $backgroundImage = mediaData.image
+                    }}
+                >
                     <i slot="icon" class="fa-solid fa-play text-xl" />
                 </IconButton>
             </span>

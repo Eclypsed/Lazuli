@@ -1,15 +1,6 @@
 <script>
-    import { onMount } from 'svelte'
-    import { createEventDispatcher } from 'svelte'
+    export let value = 0
 
-    export let initialValue = 0
-    onMount(() => (sliderValue = Number(initialValue)))
-
-    export const setValue = (value) => (sliderValue = value)
-
-    const dispatch = createEventDispatcher()
-
-    let sliderValue
     let sliderTrail, sliderThumb
 
     const trackThumb = (sliderPos) => {
@@ -17,17 +8,11 @@
         if (sliderTrail) sliderTrail.style.right = `${100 - sliderPos}%`
     }
 
-    $: trackThumb(sliderValue)
+    $: trackThumb(value)
 
     const handleKeyPress = (key) => {
-        if ((key === 'ArrowRight' || key === 'ArrowUp') && sliderValue < 100) {
-            sliderValue += 1
-            return dispatch('valuechange', { value: sliderValue })
-        }
-        if ((key === 'ArrowLeft' || key === 'ArrowDown') && sliderValue > 0) {
-            sliderValue -= 1
-            return dispatch('valuechange', { value: sliderValue })
-        }
+        if ((key === 'ArrowRight' || key === 'ArrowUp') && value < 100) return (value += 1)
+        if ((key === 'ArrowLeft' || key === 'ArrowDown') && value > 0) return (value -= 1)
     }
 </script>
 
@@ -36,25 +21,14 @@
     class="relative isolate h-1 w-full rounded-full bg-neutral-600"
     role="slider"
     tabindex="0"
-    aria-valuenow={sliderValue}
+    aria-valuenow={value}
     aria-valuemin="0"
     aria-valuemax="100"
     on:keydown={(event) => handleKeyPress(event.key)}
 >
-    <input
-        type="range"
-        class="absolute z-10 h-1 w-full"
-        step="any"
-        min="0"
-        max="100"
-        bind:value={sliderValue}
-        tabindex="-1"
-        aria-hidden="true"
-        aria-disabled="true"
-        on:mouseup={() => dispatch('valuechange', { value: sliderValue })}
-    />
+    <input type="range" class="absolute z-10 h-1 w-full" step="any" min="0" max="100" bind:value tabindex="-1" aria-hidden="true" aria-disabled="true" />
     <span bind:this={sliderTrail} id="slider-trail" class="absolute left-0 h-1 rounded-full bg-white transition-colors" />
-    <span bind:this={sliderThumb} id="slider-thumb" class="absolute top-1/2 aspect-square h-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white opacity-0 transition-opacity duration-300" />
+    <span bind:this={sliderThumb} id="slider-thumb" class="absolute top-1/2 aspect-square h-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white opacity-0 transition-opacity duration-300" />
 </div>
 
 <style>

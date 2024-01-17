@@ -2,7 +2,7 @@ import Joi from 'joi'
 
 export const getVolume = () => {
     const currentVolume = localStorage.getItem('volume')
-    if (currentVolume) return currentVolume
+    if (currentVolume) return Number(currentVolume)
 
     const defaultVolume = 100
     localStorage.setItem('volume', defaultVolume)

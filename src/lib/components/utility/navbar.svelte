@@ -27,7 +27,7 @@
 
 <style>
     nav {
-        padding: 20px 2rem;
+        padding: 18px 2rem;
         font-size: 20px;
         line-height: 28px;
     }

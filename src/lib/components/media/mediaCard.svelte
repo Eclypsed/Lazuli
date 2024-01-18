@@ -50,10 +50,10 @@
                 </IconButton>
             </span>
         </div>
-        <div id="card-label" class="absolute -bottom-3 w-full px-2.5 text-sm">
+        <div class="absolute -bottom-3 w-full px-2.5 text-sm">
             <div class="overflow-hidden text-ellipsis whitespace-nowrap" title={mediaData.name}>{mediaData.name}</div>
             <div class="flex w-full items-center gap-1.5 overflow-hidden text-neutral-400">
-                <span id="artist-list" class="overflow-hidden text-ellipsis" style="font-size: 0;">
+                <span class="overflow-hidden text-ellipsis" style="font-size: 0; line-height: 0;">
                     <!-- the font size of zero is to remove the stupid little gaps between the spans -->
                     {#each mediaData.artists as artist}
                         {@const listIndex = mediaData.artists.indexOf(artist)}

@@ -9,7 +9,9 @@
 
     $: song = $currentlyPlaying
 
-    let songLiked = false
+    let volume
+    let songLiked = false,
+        songPlaying = false
 
     const formatDuration = (timeMilliseconds) => {
         const seconds = Math.floor((timeMilliseconds / 1000) % 60)
@@ -17,22 +19,29 @@
 
         return [minutes.toString(), seconds.toString().padStart(2, '0')].join(':')
     }
-
-    let volume
-    $: console.log(volume)
 </script>
 
 {#if song}
-    <div id="player-wrapper" class="relative flex w-full justify-center" transition:slide={{ axis: 'y' }}>
+    <div id="player-wrapper" class="relative w-full" transition:slide={{ axis: 'y' }}>
         {#if displayMode === 'vertical'}
             <h1>Vertical Mode</h1>
         {:else}
-            <div class="grid h-full grid-cols-[1fr_auto_1fr] grid-rows-1 items-center gap-10 rounded-full bg-neutral-950 px-8 py-2.5 text-lg">
-                <section class="flex h-full items-center justify-start gap-4 text-sm">
+            <div class="grid h-full grid-cols-3 grid-rows-1 items-center gap-10 overflow-hidden bg-black px-6 text-lg">
+                <section class="flex h-full w-full items-center justify-start gap-4 py-2.5 text-sm">
                     <img class="h-full rounded-lg object-contain" src={song.image} alt="{song.name} thumbnail" />
-                    <div class="flex flex-col gap-1">
-                        <div>{song.name}</div>
-                        <div class="text-xs text-neutral-400">{Array.from(song.artists, (artist) => artist.name).join(', ')}</div>
+                    <div class="flex h-full flex-col justify-center gap-1 overflow-hidden">
+                        <span class="overflow-hidden text-ellipsis" title={song.name}>{song.name}</span>
+                        <span class="overflow-hidden text-ellipsis text-neutral-400" style="font-size: 0; line-height: 0;">
+                            {#each song.artists as artist}
+                                {@const listIndex = song.artists.indexOf(artist)}
+                                <a class="text-xs hover:underline" href="/artist?id={artist.id}&service={song.connectionId}">{artist.name}</a>
+                                {#if listIndex === song.artists.length - 2}
+                                    <span class="mx-0.5 text-xs">&</span>
+                                {:else if listIndex < song.artists.length - 2}
+                                    <span class="mr-0.5 text-xs">,</span>
+                                {/if}
+                            {/each}
+                        </span>
                     </div>
                     <button class="grid aspect-square h-6 place-items-center text-lg transition-all" on:click={() => (songLiked = !songLiked)}>
                         {#if songLiked}
@@ -42,13 +51,13 @@
                         {/if}
                     </button>
                 </section>
-                <section class="flex h-full flex-col justify-center gap-1">
+                <section class="flex h-full w-full flex-col justify-center gap-1 justify-self-center">
                     <div class="flex h-6 items-center justify-center gap-4">
                         <IconButton halo={false}>
                             <i slot="icon" class="fa-solid fa-backward-step" />
                         </IconButton>
-                        <IconButton halo={false}>
-                            <i slot="icon" class="fa-solid fa-play" />
+                        <IconButton halo={false} on:click={() => (songPlaying = !songPlaying)}>
+                            <i slot="icon" class="fa-solid {songPlaying ? 'fa-pause' : 'fa-play'}" />
                         </IconButton>
                         <IconButton halo={false} on:click={() => ($currentlyPlaying = null)}>
                             <i slot="icon" class="fa-solid fa-stop" />
@@ -57,15 +66,21 @@
                             <i slot="icon" class="fa-solid fa-forward-step" />
                         </IconButton>
                     </div>
-                    <div class="flex w-96 items-center gap-2 text-sm text-neutral-400">
+                    <div class="flex items-center gap-2 text-sm text-neutral-400">
                         <div class="whitespace-nowrap">0:00</div>
                         <Slider />
                         <div class="whitespace-nowrap">{formatDuration(song.duration)}</div>
                     </div>
                 </section>
-                <section class="flex h-full items-center justify-end gap-4 py-3">
+                <section class="flex h-full items-center justify-end gap-1 py-5">
                     <VolumeSlider bind:volume />
-                    <IconButton>
+                    <IconButton halo={false}>
+                        <i slot="icon" class="fa-solid fa-shuffle" />
+                    </IconButton>
+                    <IconButton halo={false}>
+                        <i slot="icon" class="fa-solid fa-repeat" />
+                    </IconButton>
+                    <IconButton halo={false}>
                         <i slot="icon" class="fa-solid fa-ellipsis-vertical" />
                     </IconButton>
                 </section>
@@ -76,6 +91,6 @@
 
 <style>
     #player-wrapper {
-        height: 72px;
+        height: 80px;
     }
 </style>

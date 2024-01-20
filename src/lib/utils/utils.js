@@ -13,6 +13,13 @@ export const setVolume = (volume) => {
     if (Number.isFinite(volume)) localStorage.setItem('volume', Math.round(volume))
 }
 
+export const formatDuration = (timeMilliseconds) => {
+    const seconds = Math.floor((timeMilliseconds / 1000) % 60)
+    const minutes = Math.floor((timeMilliseconds / 1000 / 60) % 60)
+
+    return [minutes.toString(), seconds.toString().padStart(2, '0')].join(':')
+}
+
 export class JellyfinUtils {
     static #AUDIO_PRESETS = {
         default: {

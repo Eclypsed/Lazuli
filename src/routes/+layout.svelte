@@ -37,7 +37,7 @@
 
 <style>
     #background-gradient {
-        background-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.6), black);
+        background-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.7), black);
     }
     #background-image {
         mask-image: linear-gradient(to bottom, black, rgba(0, 0, 0, 0.3));

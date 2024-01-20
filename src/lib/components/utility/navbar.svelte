@@ -1,37 +1,25 @@
 <script>
     import IconButton from './iconButton.svelte'
+    import SearchBar from './searchBar.svelte'
     import { goto } from '$app/navigation'
     import { page } from '$app/stores'
 </script>
 
-<nav class="sticky top-0 z-10 grid grid-cols-[1fr_auto_1fr] items-center duration-300">
-    <section class="flex h-full">
-        <IconButton on:click={() => goto('/settings')}>
-            <i slot="icon" class="fa-solid fa-user-gear" />
+<nav class="sticky top-0 z-10 flex items-center justify-between p-3 text-base duration-300" style="height: 4rem;">
+    <SearchBar />
+    <!-- <section class="flex h-14">
+        <IconButton halo={false} on:click={() => goto('/settings')}>
+            <i slot="icon" class="fa-solid fa-user" />
         </IconButton>
         {#if $page.url.pathname !== '/'}
-            <IconButton on:click={() => history.back()}>
+            <IconButton halo={false} on:click={() => history.back()}>
                 <i slot="icon" class="fa-solid fa-arrow-left" />
             </IconButton>
+            <IconButton halo={false}>
+                <i slot="icon" class="fa-solid fa-magnifying-glass" />
+            </IconButton>
         {/if}
-    </section>
-    <section class="flex h-full justify-center">
-        <slot name="center-content" />
-    </section>
-    <section class="flex h-full justify-end">
-        <IconButton>
-            <i slot="icon" class="fa-solid fa-magnifying-glass" />
-        </IconButton>
-    </section>
+    </section> -->
 </nav>
 
-<style>
-    nav {
-        padding: 18px 2rem;
-        font-size: 20px;
-        line-height: 28px;
-    }
-    section {
-        gap: 24px;
-    }
-</style>
+<!-- New Idea: We're going to do a search button, but it will toggle a floating search bar that flys in from the top and autofocuses -->

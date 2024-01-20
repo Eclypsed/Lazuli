@@ -24,7 +24,7 @@
 <search
     role="search"
     bind:this={searchBar}
-    class="relative my-2.5 flex w-full items-center gap-2.5 justify-self-center rounded-full border-2 border-transparent px-4 py-1.5"
+    class="relative flex h-full w-full max-w-xl items-center gap-2.5 justify-self-center rounded-full border-2 border-transparent px-4 py-1.5"
     on:focusout={() => {
         setTimeout(() => {
             // This is a completely stupid thing you have to do, if there is not timeout, the active element will be the body of the document and not the newly focused element

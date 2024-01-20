@@ -1,5 +1,4 @@
 <script>
-    import Navbar from '$lib/components/utility/navbar.svelte'
     import MiniPlayer from '$lib/components/media/miniPlayer.svelte'
     import { fly, fade } from 'svelte/transition'
     import { goto } from '$app/navigation'
@@ -12,17 +11,13 @@
             header: 'Home',
             icon: 'fa-solid fa-house',
         },
-        '/artist': {
-            header: 'Artists',
-            icon: 'fa-solid fa-guitar',
-        },
-        '/playlist': {
-            header: 'Playlists',
-            icon: 'fa-solid fa-bars-staggered',
-        },
         '/library': {
             header: 'Libray',
-            icon: 'fa-solid fa-book-open',
+            icon: 'fa-solid fa-bars-staggered',
+        },
+        '/search': {
+            header: 'Search',
+            icon: 'fa-solid fa-search',
         },
     }
 
@@ -49,66 +44,94 @@
 
     const calculateBar = (activeTab) => {
         if (activeTab && indicatorBar && tabList) {
-            const listRect = tabList.getBoundingClientRect()
-            const tabRec = activeTab.getBoundingClientRect()
-            indicatorBar.style.top = `${listRect.height}px`
-            if (direction === 1) {
-                indicatorBar.style.right = `${listRect.right - tabRec.right}px`
-                setTimeout(() => (indicatorBar.style.left = `${tabRec.left - listRect.left}px`), pageTransitionTime)
+            if ($pageWidth >= 768) {
+                const listRect = tabList.getBoundingClientRect()
+                const tabRec = activeTab.getBoundingClientRect()
+                if (direction === 1) {
+                    indicatorBar.style.bottom = `${listRect.bottom - tabRec.bottom}px`
+                    setTimeout(() => (indicatorBar.style.top = `${tabRec.top - listRect.top}px`), pageTransitionTime)
+                } else {
+                    indicatorBar.style.top = `${tabRec.top - listRect.top}px`
+                    setTimeout(() => (indicatorBar.style.bottom = `${listRect.bottom - tabRec.bottom}px`), pageTransitionTime)
+                }
             } else {
-                indicatorBar.style.left = `${tabRec.left - listRect.left}px`
-                setTimeout(() => (indicatorBar.style.right = `${listRect.right - tabRec.right}px`), pageTransitionTime)
+                const listRect = tabList.getBoundingClientRect()
+                const tabRec = activeTab.getBoundingClientRect()
+                if (direction === 1) {
+                    indicatorBar.style.right = `${listRect.right - tabRec.right}px`
+                    setTimeout(() => (indicatorBar.style.left = `${tabRec.left - listRect.left}px`), pageTransitionTime)
+                } else {
+                    indicatorBar.style.left = `${tabRec.left - listRect.left}px`
+                    setTimeout(() => (indicatorBar.style.right = `${listRect.right - tabRec.right}px`), pageTransitionTime)
+                }
             }
         }
     }
 </script>
 
-<div id="main-grid" class="h-full">
-    <Navbar />
-    <section id="content-grid" class="overflow-hidden">
-        <section id="sidebar">
-            {#if $pageWidth >= 768}
-                <div class="mr-4 flex h-full flex-col gap-8 rounded-lg px-3 py-6">
-                    {#each Object.entries(contentTabs) as [page, tabData]}
-                        <button
-                            class="{data.url === page ? 'pointer-events-none text-white' : 'text-neutral-400 hover:text-lazuli-primary'} aspect-square w-14 transition-colors"
-                            disabled={data.url === page}
-                            on:click={() => goto(page)}
-                        >
-                            <i class="{tabData.icon} text-xl" />
-                            <span class="text-xs">{tabData.header}</span>
-                        </button>
-                    {/each}
-                    <!-- {#if data.url in contentTabs}
-                            <div bind:this={indicatorBar} transition:fade class="absolute h-0.5 bg-lazuli-primary transition-all duration-300 ease-in-out" />
-                        {/if} -->
-                </div>
+{#if $pageWidth >= 768}
+    <div id="content-grid" class="h-full overflow-hidden">
+        <section class="relative mr-4 flex h-full flex-col gap-6 rounded-lg px-3 py-6" bind:this={tabList}>
+            {#each Object.entries(contentTabs) as [page, tabData]}
+                {#if data.url === page}
+                    <button bind:this={activeTab} class="pointer-events-none aspect-square w-14 text-white transition-colors" disabled="true">
+                        <i class="{tabData.icon} text-xl" />
+                        <span class="text-xs">{tabData.header}</span>
+                    </button>
+                {:else}
+                    <button class="aspect-square w-14 text-neutral-400 transition-colors hover:text-lazuli-primary" on:click={() => goto(page)}>
+                        <i class="{tabData.icon} text-xl" />
+                        <span class="text-xs">{tabData.header}</span>
+                    </button>
+                {/if}
+            {/each}
+            {#if data.url in contentTabs}
+                <div bind:this={indicatorBar} transition:fade class="absolute left-0 w-[0.2rem] rounded-full bg-white transition-all duration-300 ease-in-out" />
             {/if}
         </section>
+        <section class="no-scrollbar relative overflow-y-scroll">
+            {#key previousPage}
+                <div in:fly={{ y: -50 * direction, duration: pageTransitionTime, delay: pageTransitionTime }} out:fly={{ y: 50 * direction, duration: pageTransitionTime }} class="absolute w-full pr-[5vw] pt-16">
+                    <slot />
+                </div>
+            {/key}
+        </section>
+        <footer class="fixed bottom-0 flex w-full flex-col items-center justify-center">
+            <MiniPlayer displayMode={'horizontal'} />
+        </footer>
+    </div>
+{:else}
+    <div class="h-full overflow-hidden">
         {#key previousPage}
             <section
-                id="page"
                 in:fly={{ x: 200 * direction, duration: pageTransitionTime, delay: pageTransitionTime }}
                 out:fly={{ x: -200 * direction, duration: pageTransitionTime }}
-                class="no-scrollbar h-full overflow-y-scroll px-[5vw] pt-4 md:pl-[0rem]"
+                class="no-scrollbar h-full overflow-y-scroll px-[5vw] pt-16"
             >
                 <slot />
             </section>
         {/key}
-    </section>
-    <footer class="fixed bottom-0 flex w-full flex-col items-center justify-center">
-        <MiniPlayer displayMode={$pageWidth > 768 ? 'horizontal' : 'vertical'} />
-        {#if $pageWidth < 768}
-            <h1 id="tabList" class="relative flex w-full items-center justify-around bg-black">
+        <footer class="fixed bottom-0 flex w-full flex-col items-center justify-center">
+            <MiniPlayer displayMode={'vertical'} />
+            <div bind:this={tabList} id="bottom-tab-list" class="relative flex w-full items-center justify-around bg-black">
                 {#each Object.entries(contentTabs) as [page, tabData]}
-                    <button class="{data.url === page ? 'pointer-events-none text-white' : 'text-neutral-400 hover:text-lazuli-primary'} transition-colors" disabled={data.url === page} on:click={() => goto(page)}>
-                        <i class={tabData.icon} />
-                    </button>
+                    {#if data.url === page}
+                        <button bind:this={activeTab} class="pointer-events-none text-white transition-colors" disabled="true">
+                            <i class={tabData.icon} />
+                        </button>
+                    {:else}
+                        <button class="text-neutral-400 transition-colors hover:text-lazuli-primary" on:click={() => goto(page)}>
+                            <i class={tabData.icon} />
+                        </button>
+                    {/if}
                 {/each}
-            </h1>
-        {/if}
-    </footer>
-</div>
+                {#if data.url in contentTabs}
+                    <div bind:this={indicatorBar} transition:fade class="absolute bottom-0 h-1 rounded-full bg-white transition-all duration-300 ease-in-out" />
+                {/if}
+            </div>
+        </footer>
+    </div>
+{/if}
 
 <style>
     #content-grid {
@@ -116,12 +139,7 @@
         grid-template-columns: max-content auto;
         grid-template-rows: 100%;
     }
-    #main-grid {
-        display: grid;
-        grid-template-rows: max-content auto;
-        grid-template-columns: 100%;
-    }
-    #tabList {
+    #bottom-tab-list {
         padding: 16px 0px;
         font-size: 20px;
         line-height: 28px;

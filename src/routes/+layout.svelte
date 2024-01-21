@@ -20,7 +20,7 @@
 </script>
 
 <svelte:window bind:innerWidth={$pageWidth} />
-<div class="no-scrollbar h-screen font-notoSans text-white">
+<div class="no-scrollbar relative h-screen font-notoSans text-white">
     <div class="fixed isolate -z-10 h-full w-screen bg-black">
         <!-- This whole bg is a complete copy of ytmusic, design own at some point (Place for customization w/ album art etc?) (EDIT: Ok, it looks SICK with album art!) -->
         <div id="background-gradient" class="absolute z-10 h-1/2 w-full bg-cover" />

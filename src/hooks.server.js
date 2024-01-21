@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken'
 
 /** @type {import('@sveltejs/kit').Handle} */
 export async function handle({ event, resolve }) {
-    const nonProtectedRoutes = ['/login']
+    const nonProtectedRoutes = ['/login', '/api']
     const urlpath = event.url.pathname
 
     if (urlpath.startsWith('/api') && event.request.headers.get('apikey') !== SECRET_INTERNAL_API_KEY && event.url.searchParams.get('apikey') !== SECRET_INTERNAL_API_KEY) {

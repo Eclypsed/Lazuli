@@ -11,13 +11,17 @@
             header: 'Home',
             icon: 'fa-solid fa-house',
         },
-        '/library': {
-            header: 'Libray',
-            icon: 'fa-solid fa-bars-staggered',
+        '/account': {
+            header: data.username,
+            icon: 'fa-solid fa-user',
         },
         '/search': {
             header: 'Search',
             icon: 'fa-solid fa-search',
+        },
+        '/library': {
+            header: 'Libray',
+            icon: 'fa-solid fa-bars-staggered',
         },
     }
 
@@ -71,17 +75,21 @@
 
 {#if $pageWidth >= 768}
     <div id="content-grid" class="h-full overflow-hidden">
-        <section class="relative mr-4 flex h-full flex-col gap-6 rounded-lg px-3 py-6" bind:this={tabList}>
+        <section class="relative mr-10 flex h-full flex-col gap-6 rounded-lg px-3 py-12" bind:this={tabList}>
             {#each Object.entries(contentTabs) as [page, tabData]}
                 {#if data.url === page}
-                    <button bind:this={activeTab} class="pointer-events-none aspect-square w-14 text-white transition-colors" disabled="true">
-                        <i class="{tabData.icon} text-xl" />
-                        <span class="text-xs">{tabData.header}</span>
+                    <button bind:this={activeTab} class="pointer-events-none grid aspect-square w-14 place-items-center text-white transition-colors" disabled="true">
+                        <span class="text-xs">
+                            <i class="{tabData.icon} mb-2 text-xl" />
+                            {tabData.header}
+                        </span>
                     </button>
                 {:else}
-                    <button class="aspect-square w-14 text-neutral-400 transition-colors hover:text-lazuli-primary" on:click={() => goto(page)}>
-                        <i class="{tabData.icon} text-xl" />
-                        <span class="text-xs">{tabData.header}</span>
+                    <button class="grid aspect-square w-14 place-items-center text-neutral-400 transition-colors hover:text-lazuli-primary" on:click={() => goto(page)}>
+                        <span class="text-xs">
+                            <i class="{tabData.icon} mb-2 text-xl" />
+                            {tabData.header}
+                        </span>
                     </button>
                 {/if}
             {/each}

@@ -1,0 +1,51 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+HK:wght@500&family=Noto+Sans+JP:wght@500&family=Noto+Sans+KR:wght@500&family=Noto+Sans+SC:wght@500&family=Noto+Sans+TC:wght@500&family=Noto+Sans:wght@500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+img {
+    max-width: 100%;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.no-scrollbar {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+}
+
+/* Default scrollbar for Chrome, Safari, Edge and Opera */
+::-webkit-scrollbar {
+    width: 20px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    border-radius: 10px;
+    box-shadow: inset 10px 10px rgba(100, 100, 100, 0.6);
+    border: solid 7px transparent;
+}
+/* Default scrollbar for Chrome, Safari, Edge, and Opera */
+
+:root {
+    scrollbar-width: thin; /* Default scrollbar width for Firefox */
+    scrollbar-color: grey transparent; /* Default scrollbar colors for Firefox */
+    --lazuli-primary: #00a4dc;
+    --jellyfin-purple: #aa5cc3;
+    --jellyfin-blue: #00a4dc;
+    --youtube-red: #ff0000;
+}
+
+@media screen and (max-width: 768px) {
+    :root {
+        font-size: 0.7rem;
+    }
+}

@@ -56,6 +56,26 @@
                 <div class="p-4">
                     <input name="username" type="text" autocomplete="off" placeholder="Username" class="h-10 w-full border-b-2 border-lazuli-primary bg-transparent px-1 outline-none" />
                 </div>
+                <div class="flex">
+                    <div class="w-full p-4">
+                        <input name="password" type="password" placeholder="Password" class="h-10 w-full border-b-2 border-lazuli-primary bg-transparent px-1 outline-none" />
+                    </div>
+                    <div class="overflow-hidden py-4 transition-[width] duration-300" style="width: {formMode === 'newUser' ? '100%': 0};" aria-hidden={formMode !== 'newUser'}>
+                        <div class="px-4">
+                            <input name="confirmPassword" type="password" placeholder="Confirm Password" class="h-10 w-full border-b-2 border-lazuli-primary bg-transparent px-1 outline-none" tabindex="{formMode === 'newUser' ? 0 : -1}" />
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <section class="mt-6 flex items-center justify-around">
+                <button formaction="?/signIn" class="h-12 w-1/3 rounded-md transition-all active:scale-[97%]" style="background-color: {formMode === 'signIn' ? 'var(--lazuli-primary)' : '#262626'};">
+                    Sign In
+                    <i class="fa-solid fa-right-to-bracket ml-1" />
+                </button>
+                <button formaction="?/newUser" class="h-12 w-1/3 rounded-md transition-all active:scale-[97%]" style="background-color: {formMode === 'newUser' ? 'var(--lazuli-primary)' : '#262626'};">
+                    Create New User
+                    <i class="fa-solid fa-user-plus ml-1" />
+                </button>
             </section>
         </form>
     </main>

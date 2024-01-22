@@ -10,14 +10,13 @@
 </script>
 
 <svelte:window bind:innerWidth={$pageWidth} />
-<div class="no-scrollbar relative font-notoSans text-white">
+<div class="no-scrollbar relative h-screen font-notoSans text-white">
     <div class="fixed isolate -z-10 h-full w-screen bg-black">
         <div id="background-gradient" class="absolute z-10 h-1/2 w-full bg-cover" />
         {#key $backgroundImage}
             <img id="background-image" src={$backgroundImage} alt="" class="absolute blur-lg h-1/2 w-full object-cover" transition:fade={{ duration: 1000 }} />
         {/key}
     </div>
-    <button class="w-14 aspect-square bg-neutral-500" on:click={() => $newestAlert = ['success', 'Test message!']} />
     <slot />
     <AlertBox bind:this={alertBox} />
 </div>

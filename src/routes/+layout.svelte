@@ -5,8 +5,8 @@
     import { newestAlert, backgroundImage, pageWidth } from '$lib/stores'
     import { fade } from 'svelte/transition'
 
-    let alertBox: AlertBox;
-    $: if ($newestAlert !== null && alertBox) alertBox.addAlert(...$newestAlert);
+    let alertBox: AlertBox
+    $: if ($newestAlert !== null && alertBox) alertBox.addAlert(...$newestAlert)
 </script>
 
 <svelte:window bind:innerWidth={$pageWidth} />
@@ -14,7 +14,7 @@
     <div class="fixed isolate -z-10 h-full w-screen bg-black">
         <div id="background-gradient" class="absolute z-10 h-1/2 w-full bg-cover" />
         {#key $backgroundImage}
-            <img id="background-image" src={$backgroundImage} alt="" class="absolute blur-lg h-1/2 w-full object-cover" transition:fade={{ duration: 1000 }} />
+            <img id="background-image" src={$backgroundImage} alt="" class="absolute h-1/2 w-full object-cover blur-lg" transition:fade={{ duration: 1000 }} />
         {/key}
     </div>
     <slot />

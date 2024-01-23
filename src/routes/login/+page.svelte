@@ -1,20 +1,17 @@
 <script lang="ts">
-    import { enhance } from "$app/forms";
-    import { goto } from "$app/navigation";
-    import { fade } from "svelte/transition";
-    import { newestAlert } from "$lib/stores";
-    import type { PageServerData } from "../$types";
-    import type { SubmitFunction } from "@sveltejs/kit";
+    import { enhance } from '$app/forms'
+    import { goto } from '$app/navigation'
+    import { fade } from 'svelte/transition'
+    import { newestAlert } from '$lib/stores'
+    import type { PageServerData } from '../$types'
+    import type { SubmitFunction } from '@sveltejs/kit'
 
     // export let data: PageServerData
 
     type FormMode = 'signIn' | 'newUser'
     let formMode: FormMode = 'signIn'
 
-    let passwordInput: string, confirmPasswordInput: string
-    let passwordsMatch: boolean = false
-    $: passwordsMatch = (passwordInput === confirmPasswordInput)
-    $: console.log(passwordsMatch)
+    let passwordVisible: boolean = false
 
     const handleForm: SubmitFunction = ({ formData, cancel, action }) => {
         const actionType: string = action.search.substring(2)
@@ -45,16 +42,16 @@
             }
         }
 
-        console.log("Passed all checks")
+        console.log('Passed all checks')
         cancel()
     }
 </script>
 
-<div class="grid h-full place-items-center">
-    <main class="w-full max-w-4xl">
+<div class="grid h-full place-items-center overflow-clip px-8">
+    <main class="relative w-full max-w-3xl">
         <div class="flex h-14 justify-center">
             {#key formMode}
-                <h1 class="absolute text-5xl" transition:fade={{ duration: 100 }}>{formMode === 'signIn' ? 'Sign In' : 'Create New User'}</h1>
+                <h1 class="absolute whitespace-nowrap text-5xl" transition:fade={{ duration: 100 }}>{formMode === 'signIn' ? 'Sign In' : 'Create New User'}</h1>
             {/key}
         </div>
         <form method="post" use:enhance={handleForm}>
@@ -62,23 +59,30 @@
                 <div class="p-4">
                     <input name="username" type="text" autocomplete="off" placeholder="Username" class="h-10 w-full border-b-2 border-lazuli-primary bg-transparent px-1 outline-none" />
                 </div>
-                <div class="flex">
-                    <div class="w-full p-4">
-                        <input bind:value={passwordInput} name="password" type="password" placeholder="Password" class="h-10 w-full border-b-2 border-lazuli-primary bg-transparent px-1 outline-none" />
+                <div class="flex items-center gap-4 p-4">
+                    <div class="w-full">
+                        <input name="password" type={passwordVisible ? 'text' : 'password'} placeholder="Password" class="h-10 w-full border-b-2 border-lazuli-primary bg-transparent px-1 outline-none" />
                     </div>
-                    <div class="overflow-hidden py-4 transition-[width] duration-300" style="width: {formMode === 'newUser' ? '100%': 0};" aria-hidden={formMode !== 'newUser'}>
-                        <div class="px-4">
-                            <input bind:value={confirmPasswordInput} name="confirmPassword" type="password" placeholder="Confirm Password" class="h-10 w-full border-b-2 border-lazuli-primary bg-transparent px-1 outline-none" tabindex="{formMode === 'newUser' ? 0 : -1}" />
-                        </div>
+                    <div class="overflow-hidden transition-[width] duration-300" style="width: {formMode === 'newUser' ? '100%' : 0};" aria-hidden={formMode !== 'newUser'}>
+                        <input
+                            name="confirmPassword"
+                            type={passwordVisible ? 'text' : 'password'}
+                            placeholder="Confirm Password"
+                            class="h-10 w-full border-b-2 border-lazuli-primary bg-transparent px-1 outline-none"
+                            tabindex={formMode === 'newUser' ? 0 : -1}
+                        />
                     </div>
+                    <button on:click|preventDefault={() => (passwordVisible = !passwordVisible)} class="aspect-square h-9 rounded-full bg-neutral-800 transition-transform duration-100 active:scale-90">
+                        <i class="fa-solid {passwordVisible ? 'fa-eye' : 'fa-eye-slash'}" />
+                    </button>
                 </div>
             </section>
             <section class="mt-6 flex items-center justify-around gap-2">
-                <button formaction="?/signIn" class="h-12 w-1/3 rounded-md transition-all active:scale-[97%]" style="background-color: {formMode === 'signIn' ? 'var(--lazuli-primary)' : '#262626'};">
+                <button formaction="?/signIn" class="h-12 w-1/3 overflow-clip whitespace-nowrap rounded-md transition-all active:scale-[97%] {formMode === 'signIn' ? 'bg-lazuli-primary' : 'bg-neutral-800'}">
                     Sign In
                     <i class="fa-solid fa-right-to-bracket ml-1" />
                 </button>
-                <button formaction="?/newUser" class="h-12 w-1/3 rounded-md transition-all active:scale-[97%]" style="background-color: {formMode === 'newUser' ? 'var(--lazuli-primary)' : '#262626'};">
+                <button formaction="?/newUser" class="h-12 w-1/3 overflow-clip whitespace-nowrap rounded-md transition-all active:scale-[97%] {formMode === 'newUser' ? 'bg-lazuli-primary' : 'bg-neutral-800'}">
                     Create New User
                     <i class="fa-solid fa-user-plus ml-1" />
                 </button>

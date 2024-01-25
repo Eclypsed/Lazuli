@@ -1,5 +1,5 @@
-import { writable } from 'svelte/store'
-import type { Writable } from 'svelte/store'
+import { writable, type Writable } from 'svelte/store'
+import type { AlertType } from '$lib/components/util/alert.svelte'
 
 export const pageWidth: Writable<number> = writable(0)
 

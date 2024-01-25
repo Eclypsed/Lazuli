@@ -3,10 +3,10 @@
     import { goto } from '$app/navigation'
     import { fade } from 'svelte/transition'
     import { newestAlert } from '$lib/stores'
-    import type { PageServerData } from '../$types'
+    import type { PageData } from './$types'
     import type { SubmitFunction } from '@sveltejs/kit'
 
-    // export let data: PageServerData
+    export let data: PageData
 
     type FormMode = 'signIn' | 'newUser'
     let formMode: FormMode = 'signIn'
@@ -42,8 +42,12 @@
             }
         }
 
-        console.log('Passed all checks')
-        cancel()
+        if (data.redirectLocation) formData.append('redirectLocation', data.redirectLocation)
+
+        return async ({ result }) => {
+            if (result.type === 'failure') return ($newestAlert = ['warning', result.data?.message])
+            if (result.type === 'redirect') return goto(result.location)
+        }
     }
 </script>
 

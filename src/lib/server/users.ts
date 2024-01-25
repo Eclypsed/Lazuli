@@ -11,17 +11,21 @@ db.exec(initUsersTable)
 db.exec(initServicesTable)
 db.exec(initConnectionsTable)
 
-export interface User {
+interface User {
     id: string
     username: string
-    password: string
+    password?: string
 }
 
-export type serviceType = 'jellyfin' | 'youtube-music'
+type UserQueryParams = {
+    includePassword?: boolean
+}
 
-export interface Service {
+type ServiceType = 'jellyfin' | 'youtube-music'
+
+interface Service {
     id: string
-    type: serviceType
+    type: ServiceType
     userId: string
     url: URL
 }
@@ -33,7 +37,7 @@ interface DBServiceRow {
     url: string
 }
 
-export interface Connection {
+interface Connection {
     id: string
     user: User
     service: Service
@@ -47,46 +51,86 @@ interface DBConnectionRow {
     userId: string
     serviceId: string
     accessToken: string
-    refreshToken: string
-    expiry: number
+    refreshToken: string | null
+    expiry: number | null
 }
 
 export class Users {
-    static getUser = (id: string): User => {
-        return db.prepare('SELECT * FROM Users WHERE id = ?').get(id) as User
+    static getUser = (id: string, params: UserQueryParams | null = null): User | undefined => {
+        const user = db.prepare('SELECT * FROM Users WHERE id = ?').get(id) as User | undefined
+        if (user && !params?.includePassword) delete user.password
+        return user
+    }
+
+    static getUsername = (username: string, params: UserQueryParams | null = null): User | undefined => {
+        const user = db.prepare('SELECT * FROM Users WHERE lower(username) = ?').get(username.toLowerCase()) as User | undefined
+        if (user && !params?.includePassword) delete user.password
+        return user
+    }
+
+    static allUsers = (includePassword: boolean = false): User[] => {
+        const users = db.prepare('SELECT * FROM Users').all() as User[]
+        if (!includePassword) users.forEach((user) => delete user.password)
+        return users
     }
 
     static addUser = (username: string, hashedPassword: string): User => {
         const userId = generateUUID()
         db.prepare('INSERT INTO Users(id, username, password) VALUES(?, ?, ?)').run(userId, username, hashedPassword)
-        return this.getUser(userId)
+        return this.getUser(userId)!
+    }
+
+    static deleteUser = (id: string): void => {
+        const commandInfo = db.prepare('DELETE FROM Users WHERE id = ?').run(id)
+        if (commandInfo.changes === 0) throw new Error(`User with id ${id} does not exist`)
     }
 }
 
 export class Services {
     static getService = (id: string): Service => {
         const { type, userId, url } = db.prepare('SELECT * FROM Users WHERE id = ?').get(id) as DBServiceRow
-        const service: Service = { id, type: type as serviceType, userId, url: new URL(url) }
+        const service: Service = { id, type: type as ServiceType, userId, url: new URL(url) }
         return service
     }
 
-    static addService = (type: serviceType, userId: string, url: URL): Service => {
+    static addService = (type: ServiceType, userId: string, url: URL): Service => {
         const serviceId = generateUUID()
         db.prepare('INSERT INTO Services(id, type, userId, url) VALUES(?, ?, ?, ?)').run(serviceId, type, userId, url.origin)
         return this.getService(serviceId)
+    }
+
+    static deleteService = (id: string): void => {
+        const commandInfo = db.prepare('DELETE FROM Services WHERE id = ?').run(id)
+        if (commandInfo.changes === 0) throw new Error(`Serivce with id ${id} does not exist`)
     }
 }
 
 export class Connections {
     static getConnection = (id: string): Connection => {
         const { userId, serviceId, accessToken, refreshToken, expiry } = db.prepare('SELECT * FROM Connections WHERE id = ?').get(id) as DBConnectionRow
-        const connection: Connection = { id, user: Users.getUser(userId), service: Services.getService(serviceId), accessToken, refreshToken, expiry }
+        const connection: Connection = { id, user: Users.getUser(userId)!, service: Services.getService(serviceId), accessToken, refreshToken, expiry }
         return connection
+    }
+
+    static getUserConnections = (userId: string): Connection[] => {
+        const connectionRows = db.prepare('SELECT * FROM Connections WHERE userId = ?').all(userId) as DBConnectionRow[]
+        const connections: Connection[] = []
+        const user = Users.getUser(userId)!
+        connectionRows.forEach((row) => {
+            const { id, serviceId, accessToken, refreshToken, expiry } = row
+            connections.push({ id, user, service: Services.getService(serviceId), accessToken, refreshToken, expiry })
+        })
+        return connections
     }
 
     static addConnection = (userId: string, serviceId: string, accessToken: string, refreshToken: string | null, expiry: number | null): Connection => {
         const connectionId = generateUUID()
         db.prepare('INSERT INTO Connections(id, userId, serviceId, accessToken, refreshToken, expiry) VALUES(?, ?, ?, ?, ?, ?)').run(connectionId, userId, serviceId, accessToken, refreshToken, expiry)
         return this.getConnection(connectionId)
+    }
+
+    static deleteConnection = (id: string): void => {
+        const commandInfo = db.prepare('DELETE FROM Connections WHERE id = ?').run(id)
+        if (commandInfo.changes === 0) throw new Error(`Connection with id: ${id} does not exist`)
     }
 }

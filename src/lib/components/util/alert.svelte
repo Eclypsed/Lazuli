@@ -1,3 +1,7 @@
+<script context="module" lang="ts">
+    export type AlertType = 'info' | 'success' | 'warning' | 'caution'
+</script>
+
 <script lang="ts">
     export let alertType: AlertType
     export let alertMessage: string

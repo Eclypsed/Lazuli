@@ -8,8 +8,6 @@ declare global {
         // interface PageState {}
         // interface Platform {}
     }
-
-    type AlertType = 'info' | 'success' | 'warning' | 'caution'
 }
 
 export {}

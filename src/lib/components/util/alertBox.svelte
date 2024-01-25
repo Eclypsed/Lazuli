@@ -1,5 +1,6 @@
 <script lang="ts">
     import Alert from './alert.svelte'
+    import type { AlertType } from './alert.svelte'
 
     let alertBox: HTMLDivElement
     let alertQueue: Alert[] = []

@@ -11,12 +11,6 @@ db.exec(initUsersTable)
 db.exec(initServicesTable)
 db.exec(initConnectionsTable)
 
-interface User {
-    id: string
-    username: string
-    password?: string
-}
-
 type UserQueryParams = {
     includePassword?: boolean
 }

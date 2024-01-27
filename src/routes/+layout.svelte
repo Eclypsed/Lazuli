@@ -6,7 +6,7 @@
     import { fade } from 'svelte/transition'
 
     let alertBox: AlertBox
-    $: if ($newestAlert !== null && alertBox) alertBox.addAlert(...$newestAlert)
+    $: if ($newestAlert && alertBox) alertBox.addAlert(...$newestAlert)
 </script>
 
 <svelte:window bind:innerWidth={$pageWidth} />

@@ -19,10 +19,10 @@
     type PageTransitionDirection = 'up' | 'down'
     let direction: PageTransitionDirection = 'down'
 
-    const calculateDirection = (newPage: string, currentPage: string): void => {
+    const calculateDirection = (newPage: string, currentPage: string): PageTransitionDirection => {
         const newPageIndex = navTabs.findIndex((tab) => tab.pathname === newPage)
         const currentPageIndex = navTabs.findIndex((tab) => tab.pathname === currentPage)
-        newPageIndex > currentPageIndex ? (direction = 'down') : (direction = 'up')
+        return newPageIndex > currentPageIndex ? 'down' : 'up'
     }
 
     let activeTab: HTMLButtonElement, indicatorBar: HTMLDivElement, tabList: HTMLDivElement
@@ -56,7 +56,7 @@
             <button
                 class="grid aspect-square w-14 place-items-center text-neutral-400 transition-colors hover:text-lazuli-primary"
                 on:click={() => {
-                    calculateDirection(tabData.pathname, currentPathname)
+                    direction = calculateDirection(tabData.pathname, currentPathname)
                     dispatch('navigate', { direction, pathname: tabData.pathname })
                 }}
             >

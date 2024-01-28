@@ -12,7 +12,7 @@
     export let transitionTime: number = 200
 
     import { fade } from 'svelte/transition'
-    import { createEventDispatcher } from 'svelte'
+    import { createEventDispatcher, onMount } from 'svelte'
 
     const dispatch = createEventDispatcher()
 
@@ -25,41 +25,39 @@
         return newPageIndex > currentPageIndex ? 'right' : 'left'
     }
 
-    let activeTab: HTMLButtonElement, indicatorBar: HTMLDivElement, tabList: HTMLDivElement
-    $: calculateBar(activeTab)
+    let indicatorBar: HTMLDivElement, tabList: HTMLDivElement
 
-    const calculateBar = (activeTab: HTMLButtonElement) => {
-        if (activeTab && indicatorBar && tabList) {
-            const listRect = tabList.getBoundingClientRect()
-            const tabRec = activeTab.getBoundingClientRect()
+    const calculateBar = (newPathname: string) => {
+        const newTab = document.querySelector(`button[data-tab="${newPathname}"]`)
+        if (newTab && indicatorBar && tabList) {
+            const listRect = tabList.getBoundingClientRect(),
+                tabRec = newTab.getBoundingClientRect()
+            const shiftRight = () => (indicatorBar.style.right = `${listRect.right - tabRec.right}px`),
+                shiftLeft = () => (indicatorBar.style.left = `${tabRec.left - listRect.left}px`)
             if (direction === 'right') {
-                indicatorBar.style.right = `${listRect.right - tabRec.right}px`
-                setTimeout(() => (indicatorBar.style.left = `${tabRec.left - listRect.left}px`), transitionTime)
+                shiftRight()
+                setTimeout(shiftLeft, transitionTime)
             } else {
-                indicatorBar.style.left = `${tabRec.left - listRect.left}px`
-                setTimeout(() => (indicatorBar.style.right = `${listRect.right - tabRec.right}px`), transitionTime)
+                shiftLeft()
+                setTimeout(shiftRight, transitionTime)
             }
         }
     }
 </script>
 
-<div bind:this={tabList} id="bottom-tab-list" class="relative flex w-full items-center justify-around bg-black">
+<div bind:this={tabList} id="tab-list" class="relative flex w-full items-center justify-around bg-black">
     {#each navTabs as tabData}
-        {#if currentPathname === tabData.pathname}
-            <button bind:this={activeTab} class="pointer-events-none text-white transition-colors" disabled>
-                <i class={tabData.icon} />
-            </button>
-        {:else}
-            <button
-                class="text-neutral-400 transition-colors hover:text-lazuli-primary"
-                on:click={() => {
-                    direction = calculateDirection(tabData.pathname, currentPathname)
-                    dispatch('navigate', { direction, pathname: tabData.pathname })
-                }}
-            >
-                <i class={tabData.icon} />
-            </button>
-        {/if}
+        <button
+            class="transition-colors"
+            data-tab={tabData.pathname}
+            disabled={currentPathname === tabData.pathname}
+            on:click={() => {
+                direction = calculateDirection(tabData.pathname, currentPathname)
+                dispatch('navigate', { direction, pathname: tabData.pathname })
+            }}
+        >
+            <i class="{tabData.icon} pointer-events-none" />
+        </button>
     {/each}
     {#if navTabs.some((tab) => tab.pathname === currentPathname)}
         <div bind:this={indicatorBar} transition:fade class="absolute bottom-0 h-1 rounded-full bg-white transition-all duration-300 ease-in-out" />
@@ -67,9 +65,16 @@
 </div>
 
 <style>
-    #bottom-tab-list {
+    #tab-list {
         padding: 16px 0px;
         font-size: 20px;
         line-height: 28px;
+    }
+    button:not(:disabled) {
+        cursor: pointer;
+        color: rgb(163 163, 163);
+    }
+    button:not(:disabled):hover {
+        color: var(--lazuli-primary);
     }
 </style>

@@ -15,9 +15,7 @@ type UserQueryParams = {
     includePassword?: boolean
 }
 
-type ServiceType = 'jellyfin' | 'youtube-music'
-
-interface Service {
+interface DBServiceData {
     id: string
     type: ServiceType
     userId: string
@@ -31,10 +29,10 @@ interface DBServiceRow {
     url: string
 }
 
-interface Connection {
+interface DBConnectionData {
     id: string
     user: User
-    service: Service
+    service: DBServiceData
     accessToken: string
     refreshToken: string | null
     expiry: number | null
@@ -81,13 +79,13 @@ export class Users {
 }
 
 export class Services {
-    static getService = (id: string): Service => {
+    static getService = (id: string): DBServiceData => {
         const { type, userId, url } = db.prepare('SELECT * FROM Users WHERE id = ?').get(id) as DBServiceRow
-        const service: Service = { id, type: type as ServiceType, userId, url: new URL(url) }
+        const service: DBServiceData = { id, type: type as ServiceType, userId, url: new URL(url) }
         return service
     }
 
-    static addService = (type: ServiceType, userId: string, url: URL): Service => {
+    static addService = (type: ServiceType, userId: string, url: URL): DBServiceData => {
         const serviceId = generateUUID()
         db.prepare('INSERT INTO Services(id, type, userId, url) VALUES(?, ?, ?, ?)').run(serviceId, type, userId, url.origin)
         return this.getService(serviceId)
@@ -100,15 +98,15 @@ export class Services {
 }
 
 export class Connections {
-    static getConnection = (id: string): Connection => {
+    static getConnection = (id: string): DBConnectionData => {
         const { userId, serviceId, accessToken, refreshToken, expiry } = db.prepare('SELECT * FROM Connections WHERE id = ?').get(id) as DBConnectionRow
-        const connection: Connection = { id, user: Users.getUser(userId)!, service: Services.getService(serviceId), accessToken, refreshToken, expiry }
+        const connection: DBConnectionData = { id, user: Users.getUser(userId)!, service: Services.getService(serviceId), accessToken, refreshToken, expiry }
         return connection
     }
 
-    static getUserConnections = (userId: string): Connection[] => {
+    static getUserConnections = (userId: string): DBConnectionData[] => {
         const connectionRows = db.prepare('SELECT * FROM Connections WHERE userId = ?').all(userId) as DBConnectionRow[]
-        const connections: Connection[] = []
+        const connections: DBConnectionData[] = []
         const user = Users.getUser(userId)!
         connectionRows.forEach((row) => {
             const { id, serviceId, accessToken, refreshToken, expiry } = row
@@ -117,7 +115,7 @@ export class Connections {
         return connections
     }
 
-    static addConnection = (userId: string, serviceId: string, accessToken: string, refreshToken: string | null, expiry: number | null): Connection => {
+    static addConnection = (userId: string, serviceId: string, accessToken: string, refreshToken: string | null, expiry: number | null): DBConnectionData => {
         const connectionId = generateUUID()
         db.prepare('INSERT INTO Connections(id, userId, serviceId, accessToken, refreshToken, expiry) VALUES(?, ?, ?, ?, ?, ?)').run(connectionId, userId, serviceId, accessToken, refreshToken, expiry)
         return this.getConnection(connectionId)

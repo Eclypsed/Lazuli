@@ -3,8 +3,9 @@
     import { goto, beforeNavigate } from '$app/navigation'
     import { pageWidth } from '$lib/stores'
     import type { LayoutData } from './$types'
-    import type { Tab } from './+layout'
     import { onMount } from 'svelte'
+    import NavTabComponent, { type NavTab } from '$lib/components/navbar/navTab.svelte'
+    import PlaylistTabComponent, { type PlaylistTab } from '$lib/components/navbar/playlistTab.svelte'
 
     export let data: LayoutData
 
@@ -21,81 +22,55 @@
         return (pathname.startsWith(rootPathname) && rootPathname !== '/') || (pathname === '/' && rootPathname === '/')
     }
 
-    const calculateDirection = (newTab: Tab): void => {
-        const newTabIndex = data.tabs.findIndex((tab) => tab === newTab)
-        directionMultiplier = newTabIndex > currentTabIndex ? -1 : 1
-        currentTabIndex = newTabIndex
-    }
+    // const calculateDirection = (newTab: Tab): void => {
+    //     const newTabIndex = data.tabs.findIndex((tab) => tab === newTab)
+    //     directionMultiplier = newTabIndex > currentTabIndex ? -1 : 1
+    //     currentTabIndex = newTabIndex
+    // }
 
-    const navigate = (newPathname: string): void => {
-        const newTabIndex = data.tabs.findIndex((tab) => inPathnameHeirarchy(newPathname, tab.pathname))
+    // const navigate = (newPathname: string): void => {
+    //     const newTabIndex = data.tabs.findIndex((tab) => inPathnameHeirarchy(newPathname, tab.pathname))
 
-        if (newTabIndex < 0) indicatorBar.style.opacity = '0'
+    //     if (newTabIndex < 0) indicatorBar.style.opacity = '0'
 
-        const newTab = data.tabs[newTabIndex]
-        if (!newTab?.button) return
+    //     const newTab = data.tabs[newTabIndex]
+    //     if (!newTab?.button) return
 
-        const tabRec = newTab.button.getBoundingClientRect(),
-            listRect = tabList.getBoundingClientRect()
+    //     const tabRec = newTab.button.getBoundingClientRect(),
+    //         listRect = tabList.getBoundingClientRect()
 
-        const shiftTop = () => (indicatorBar.style.top = `${tabRec.top - listRect.top}px`),
-            shiftBottom = () => (indicatorBar.style.bottom = `${listRect.bottom - tabRec.bottom}px`)
+    //     const shiftTop = () => (indicatorBar.style.top = `${tabRec.top - listRect.top}px`),
+    //         shiftBottom = () => (indicatorBar.style.bottom = `${listRect.bottom - tabRec.bottom}px`)
 
-        if (directionMultiplier > 0) {
-            shiftTop()
-            setTimeout(shiftBottom, pageTransitionTime)
-        } else {
-            shiftBottom()
-            setTimeout(shiftTop, pageTransitionTime)
-        }
+    //     if (directionMultiplier > 0) {
+    //         shiftTop()
+    //         setTimeout(shiftBottom, pageTransitionTime)
+    //     } else {
+    //         shiftBottom()
+    //         setTimeout(shiftTop, pageTransitionTime)
+    //     }
 
-        setTimeout(() => (indicatorBar.style.opacity = '100%'), pageTransitionTime + 300)
-    }
+    //     setTimeout(() => (indicatorBar.style.opacity = '100%'), pageTransitionTime + 300)
+    // }
 
-    onMount(() => setTimeout(() => navigate(data.url.pathname))) // More stupid fucking non-blocking event loop shit
-    beforeNavigate(({ to }) => {
-        if (to) navigate(to.url.pathname)
-    })
+    // onMount(() => setTimeout(() => navigate(data.url.pathname))) // More stupid fucking non-blocking event loop shit
+    // beforeNavigate(({ to }) => {
+    //     if (to) navigate(to.url.pathname)
+    // })
 </script>
 
 {#if $pageWidth >= 768}
     <div class="grid h-full grid-rows-1 gap-8 overflow-hidden">
-        <div class="no-scrollbar fixed left-0 top-0 z-10 grid h-full grid-cols-1 grid-rows-[min-content_auto] gap-6 p-3 pt-12" bind:this={tabList}>
+        <div class="no-scrollbar fixed left-0 top-0 z-10 grid h-full grid-cols-1 grid-rows-[min-content_auto] gap-6 p-3 pt-12 w-20" bind:this={tabList}>
             <div class="flex flex-col gap-6">
-                {#each data.tabs.filter((tab) => tab.type === 'nav') as nav, index}
-                    <button
-                        class="navTab grid aspect-square w-14 place-items-center transition-colors"
-                        bind:this={data.tabs[index].button}
-                        disabled={inPathnameHeirarchy(data.url.pathname, nav.pathname)}
-                        on:click={() => {
-                            calculateDirection(nav)
-                            goto(nav.pathname)
-                        }}
-                    >
-                        <span class="pointer-events-none flex flex-col gap-2 text-xs">
-                            <i class="{nav.icon} text-xl" />
-                            {nav.name}
-                        </span>
-                    </button>
+                {#each data.navTabs as nav}
+                    <NavTabComponent {nav} disabled={inPathnameHeirarchy(data.url.pathname, nav.pathname)}/>
                 {/each}
-                <div bind:this={indicatorBar} class="absolute left-0 w-[0.2rem] rounded-full bg-white transition-all duration-300 ease-in-out" />
+                <!-- <div bind:this={indicatorBar} class="absolute left-0 w-[0.2rem] rounded-full bg-white transition-all duration-300 ease-in-out" /> -->
             </div>
-            <div class="no-scrollbar flex flex-col gap-6 overflow-y-scroll">
-                {#each data.tabs.filter((tab) => tab.type === 'playlist') as playlist}
-                    <div class="playlistTab-wrapper flex items-center gap-1">
-                        <button
-                            title={playlist.name}
-                            disabled={new URLSearchParams(data.url.search).get('playlist') === new URLSearchParams(playlist.pathname.split('?')[1]).get('playlist')}
-                            class="playlistTab relative aspect-square w-14 rounded-lg bg-cover bg-center transition-all"
-                            style="background-image: url({playlist.icon});"
-                            on:click={() => {
-                                calculateDirection(playlist)
-                                goto(playlist.pathname)
-                            }}
-                        >
-                        </button>
-                        <span class="translate-x-3 overflow-clip text-ellipsis whitespace-nowrap rounded-md bg-slate-600 px-2 py-1 text-sm">{playlist.name}</span>
-                    </div>
+            <div class="flex flex-col gap-6">
+                {#each data.playlistTabs as playlist}
+                    <PlaylistTabComponent {playlist} disabled={new URLSearchParams(data.url.search).get('playlist') === playlist.id} />
                 {/each}
             </div>
         </div>
@@ -139,18 +114,3 @@
         </footer>
     </div>
 {/if}
-
-<style>
-    .navTab:not(:disabled) {
-        color: rgb(163 163, 163);
-    }
-    .navTab:not(:disabled):hover {
-        color: var(--lazuli-primary);
-    }
-    .playlistTab-wrapper:hover > span {
-        display: block;
-    }
-    .playlistTab:not(:disabled):not(:hover) {
-        filter: brightness(50%);
-    }
-</style>

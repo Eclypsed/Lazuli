@@ -59,46 +59,52 @@
 </script>
 
 {#if $pageWidth >= 768}
-    <div id="content-grid" class="grid h-full grid-rows-1 gap-8 overflow-hidden">
-        <div id="sidebar" class="relative grid h-full grid-cols-1 gap-6 overflow-clip p-3 pt-12" bind:this={tabList}>
-            {#each data.tabs.filter((tab) => tab.type === 'nav') as nav, index}
-                <button
-                    class="navTab grid aspect-square w-14 place-items-center transition-colors"
-                    bind:this={data.tabs[index].button}
-                    disabled={inPathnameHeirarchy(data.url.pathname, nav.pathname)}
-                    on:click={() => {
-                        calculateDirection(nav)
-                        goto(nav.pathname)
-                    }}
-                >
-                    <span class="pointer-events-none flex flex-col gap-2 text-xs">
-                        <i class="{nav.icon} text-xl" />
-                        {nav.name}
-                    </span>
-                </button>
-            {/each}
-            <section class="no-scrollbar flex flex-col gap-4 overflow-y-scroll px-1">
-                {#each data.tabs.filter((tab) => tab.type === 'playlist') as playlist}
+    <div class="grid h-full grid-rows-1 gap-8 overflow-hidden">
+        <div class="no-scrollbar fixed left-0 top-0 z-10 grid h-full grid-cols-1 grid-rows-[min-content_auto] gap-6 p-3 pt-12" bind:this={tabList}>
+            <div class="flex flex-col gap-6">
+                {#each data.tabs.filter((tab) => tab.type === 'nav') as nav, index}
                     <button
-                        title={playlist.name}
-                        disabled={new URLSearchParams(data.url.search).get('playlist') === new URLSearchParams(playlist.pathname.split('?')[1]).get('playlist')}
-                        class="playlistTab aspect-square w-full rounded-lg border-white bg-cover bg-center transition-all"
-                        style="background-image: url({playlist.icon});"
+                        class="navTab grid aspect-square w-14 place-items-center transition-colors"
+                        bind:this={data.tabs[index].button}
+                        disabled={inPathnameHeirarchy(data.url.pathname, nav.pathname)}
                         on:click={() => {
-                            calculateDirection(playlist)
-                            goto(playlist.pathname)
+                            calculateDirection(nav)
+                            goto(nav.pathname)
                         }}
-                    ></button>
+                    >
+                        <span class="pointer-events-none flex flex-col gap-2 text-xs">
+                            <i class="{nav.icon} text-xl" />
+                            {nav.name}
+                        </span>
+                    </button>
                 {/each}
-            </section>
-            <div bind:this={indicatorBar} class="absolute left-0 w-[0.2rem] rounded-full bg-white transition-all duration-300 ease-in-out" />
+                <div bind:this={indicatorBar} class="absolute left-0 w-[0.2rem] rounded-full bg-white transition-all duration-300 ease-in-out" />
+            </div>
+            <div class="no-scrollbar flex flex-col gap-6 overflow-y-scroll">
+                {#each data.tabs.filter((tab) => tab.type === 'playlist') as playlist}
+                    <div class="playlistTab-wrapper flex items-center gap-1">
+                        <button
+                            title={playlist.name}
+                            disabled={new URLSearchParams(data.url.search).get('playlist') === new URLSearchParams(playlist.pathname.split('?')[1]).get('playlist')}
+                            class="playlistTab relative aspect-square w-14 rounded-lg bg-cover bg-center transition-all"
+                            style="background-image: url({playlist.icon});"
+                            on:click={() => {
+                                calculateDirection(playlist)
+                                goto(playlist.pathname)
+                            }}
+                        >
+                        </button>
+                        <span class="translate-x-3 overflow-clip text-ellipsis whitespace-nowrap rounded-md bg-slate-600 px-2 py-1 text-sm">{playlist.name}</span>
+                    </div>
+                {/each}
+            </div>
         </div>
         <section class="no-scrollbar relative overflow-y-scroll">
             {#key data.url}
                 <div
                     in:fly={{ y: -50 * directionMultiplier, duration: pageTransitionTime, delay: pageTransitionTime }}
                     out:fly={{ y: 50 * directionMultiplier, duration: pageTransitionTime }}
-                    class="absolute w-full pr-[5vw] pt-16"
+                    class="absolute w-full px-[clamp(7rem,_5vw,_24rem)] pt-16"
                 >
                     <slot />
                 </div>
@@ -135,17 +141,14 @@
 {/if}
 
 <style>
-    #content-grid {
-        grid-template-columns: max-content auto;
-    }
-    #sidebar {
-        grid-template-rows: repeat(4, min-content) auto;
-    }
     .navTab:not(:disabled) {
         color: rgb(163 163, 163);
     }
     .navTab:not(:disabled):hover {
         color: var(--lazuli-primary);
+    }
+    .playlistTab-wrapper:hover > span {
+        display: block;
     }
     .playlistTab:not(:disabled):not(:hover) {
         filter: brightness(50%);

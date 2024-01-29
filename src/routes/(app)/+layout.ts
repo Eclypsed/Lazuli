@@ -8,7 +8,7 @@ export interface Tab {
     button?: HTMLButtonElement
 }
 
-export const load: LayoutLoad = ({ url }) => {
+export const load: LayoutLoad = () => {
     const navTabs: Tab[] = [
         {
             type: 'nav',
@@ -48,6 +48,42 @@ export const load: LayoutLoad = ({ url }) => {
             pathname: '/library?playlist=Fionaredica',
             name: 'Fionaredica',
             icon: 'https://f4.bcbits.com/img/a2436961975_10.jpg',
+        },
+        {
+            type: 'playlist',
+            pathname: '/library?playlist=Machinate',
+            name: 'Machinate',
+            icon: 'https://f4.bcbits.com/img/a3587136348_10.jpg',
+        },
+        {
+            type: 'playlist',
+            pathname: '/library?playlist=MAGGOD',
+            name: 'MAGGOD',
+            icon: 'https://f4.bcbits.com/img/a3641603617_10.jpg',
+        },
+        {
+            type: 'playlist',
+            pathname: '/library?playlist=The Requiem',
+            name: 'The Requiem',
+            icon: 'https://f4.bcbits.com/img/a2458067285_10.jpg',
+        },
+        {
+            type: 'playlist',
+            pathname: '/library?playlist=IRREPARABLE HARDCORE IS BACK 2 -Horai Gekka-',
+            name: 'IRREPARABLE HARDCORE IS BACK 2 -Horai Gekka-',
+            icon: 'https://f4.bcbits.com/img/a1483629734_10.jpg',
+        },
+        {
+            type: 'playlist',
+            pathname: '/library?playlist=妄殺オタクティクス',
+            name: '妄殺オタクティクス',
+            icon: 'https://f4.bcbits.com/img/a1653481367_10.jpg',
+        },
+        {
+            type: 'playlist',
+            pathname: '/library?playlist=Collapse',
+            name: 'Collapse',
+            icon: 'https://f4.bcbits.com/img/a0524413952_10.jpg',
         },
     ]
 

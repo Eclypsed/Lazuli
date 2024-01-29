@@ -1,2 +1,7 @@
-<h1>Welcome to SvelteKit</h1>
-<p>Visit <a href="https://kit.svelte.dev">kit.svelte.dev</a> to read the documentation</p>
+<div id="test-box" class="h-[200vh]"></div>
+
+<style>
+    #test-box {
+        background: linear-gradient(to bottom, white, black);
+    }
+</style>

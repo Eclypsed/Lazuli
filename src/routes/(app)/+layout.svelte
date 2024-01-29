@@ -68,7 +68,7 @@
                 {/each}
                 <!-- <div bind:this={indicatorBar} class="absolute left-0 w-[0.2rem] rounded-full bg-white transition-all duration-300 ease-in-out" /> -->
             </div>
-            <div class="flex flex-col gap-6">
+            <div class="flex flex-col gap-6 px-1">
                 {#each data.playlistTabs as playlist}
                     <PlaylistTabComponent {playlist} disabled={new URLSearchParams(data.url.search).get('playlist') === playlist.id} />
                 {/each}

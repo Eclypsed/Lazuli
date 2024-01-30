@@ -15,11 +15,11 @@ type UserQueryParams = {
     includePassword?: boolean
 }
 
-interface DBServiceData {
+export interface DBServiceData {
     id: string
     type: ServiceType
     userId: string
-    url: URL
+    url: string
 }
 
 interface DBServiceRow {
@@ -29,7 +29,7 @@ interface DBServiceRow {
     url: string
 }
 
-interface DBConnectionData {
+export interface DBConnectionData {
     id: string
     user: User
     service: DBServiceData
@@ -81,7 +81,7 @@ export class Users {
 export class Services {
     static getService = (id: string): DBServiceData => {
         const { type, userId, url } = db.prepare('SELECT * FROM Users WHERE id = ?').get(id) as DBServiceRow
-        const service: DBServiceData = { id, type: type as ServiceType, userId, url: new URL(url) }
+        const service: DBServiceData = { id, type: type as ServiceType, userId, url }
         return service
     }
 

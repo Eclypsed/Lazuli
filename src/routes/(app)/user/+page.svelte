@@ -1,7 +1,7 @@
 <script lang="ts">
     import IconButton from '$lib/components/util/iconButton.svelte'
-    import type { LayoutData } from '../$types'
     import { goto } from '$app/navigation'
+    import type { LayoutData } from '../$types'
 
     export let data: LayoutData
 </script>

@@ -47,9 +47,3 @@ img {
     --jellyfin-blue: #00a4dc;
     --youtube-red: #ff0000;
 }
-
-@media screen and (max-width: 768px) {
-    :root {
-        font-size: 0.7rem;
-    }
-}

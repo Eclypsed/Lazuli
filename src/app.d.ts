@@ -11,6 +11,16 @@ declare global {
         // interface Platform {}
     }
 
+    namespace Jellyfin {
+        interface AuthData {
+            User: {
+                Name: string
+                Id: string
+            }
+            AccessToken: string
+        }
+    }
+
     interface User {
         id: string
         username: string

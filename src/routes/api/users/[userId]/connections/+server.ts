@@ -1,15 +1,7 @@
 import { Services, Connections } from '$lib/server/users'
+import { isValidURL } from '$lib/utils'
 import type { RequestHandler } from '@sveltejs/kit'
 import { z } from 'zod'
-
-const isValidURL = (url: string): boolean => {
-    try {
-        new URL(url)
-        return true
-    } catch {
-        return false
-    }
-}
 
 export const GET: RequestHandler = async ({ params }) => {
     const userId = params.userId as string
@@ -18,17 +10,18 @@ export const GET: RequestHandler = async ({ params }) => {
     return new Response(JSON.stringify(connections))
 }
 
-export const PATCH: RequestHandler = async ({ params, request }) => {
-    const userId = params.userId as string
+const connectionSchema = z.object({
+    serviceType: z.enum(['jellyfin', 'youtube-music']),
+    serviceUserId: z.string(),
+    url: z.string().refine((val) => isValidURL(val)),
+    accessToken: z.string(),
+    refreshToken: z.string().nullable().optional(),
+    expiry: z.number().nullable().optional(),
+})
+export type NewConnection = z.infer<typeof connectionSchema>
 
-    const connectionSchema = z.object({
-        serviceType: z.enum(['jellyfin', 'youtube-music']),
-        serviceUserId: z.string(),
-        url: z.string().refine((val) => isValidURL(val)),
-        accessToken: z.string(),
-        refreshToken: z.string().nullable().optional(),
-        expiry: z.number().nullable().optional(),
-    })
+export const POST: RequestHandler = async ({ params, request }) => {
+    const userId = params.userId as string
 
     const connection = await request.json()
 

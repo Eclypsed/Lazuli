@@ -15,7 +15,7 @@ type UserQueryParams = {
     includePassword?: boolean
 }
 
-interface DBServiceData {
+export interface DBServiceData {
     id: string
     type: ServiceType
     serviceUserId: string
@@ -29,7 +29,7 @@ interface DBServiceRow {
     url: string
 }
 
-interface DBConnectionData {
+export interface DBConnectionData {
     id: string
     user: User
     service: DBServiceData

@@ -4,7 +4,7 @@ import { generateUUID } from '$lib/utils'
 const db = new Database('./src/lib/server/users.db', { verbose: console.info })
 db.pragma('foreign_keys = ON')
 const initUsersTable = 'CREATE TABLE IF NOT EXISTS Users(id VARCHAR(36) PRIMARY KEY, username VARCHAR(30) UNIQUE NOT NULL, password VARCHAR(72) NOT NULL)'
-const initServicesTable = 'CREATE TABLE IF NOT EXISTS Services(id VARCHAR(36) PRIMARY KEY, type VARCHAR(64) NOT NULL, userId TEXT NOT NULL, url TEXT NOT NULL)'
+const initServicesTable = 'CREATE TABLE IF NOT EXISTS Services(id VARCHAR(36) PRIMARY KEY, type VARCHAR(64) NOT NULL, serviceUserId TEXT NOT NULL, url TEXT NOT NULL)'
 const initConnectionsTable =
     'CREATE TABLE IF NOT EXISTS Connections(id VARCHAR(36) PRIMARY KEY, userId VARCHAR(36) NOT NULL, serviceId VARCHAR(36), accessToken TEXT NOT NULL, refreshToken TEXT, expiry INTEGER, FOREIGN KEY(userId) REFERENCES Users(id), FOREIGN KEY(serviceId) REFERENCES Services(id))'
 db.exec(initUsersTable)
@@ -15,21 +15,21 @@ type UserQueryParams = {
     includePassword?: boolean
 }
 
-export interface DBServiceData {
+interface DBServiceData {
     id: string
     type: ServiceType
-    userId: string
+    serviceUserId: string
     url: string
 }
 
 interface DBServiceRow {
     id: string
     type: string
-    userId: string
+    serviceUserId: string
     url: string
 }
 
-export interface DBConnectionData {
+interface DBConnectionData {
     id: string
     user: User
     service: DBServiceData
@@ -80,14 +80,14 @@ export class Users {
 
 export class Services {
     static getService = (id: string): DBServiceData => {
-        const { type, userId, url } = db.prepare('SELECT * FROM Users WHERE id = ?').get(id) as DBServiceRow
-        const service: DBServiceData = { id, type: type as ServiceType, userId, url }
+        const { type, serviceUserId, url } = db.prepare('SELECT * FROM Users WHERE id = ?').get(id) as DBServiceRow
+        const service: DBServiceData = { id, type: type as ServiceType, serviceUserId, url }
         return service
     }
 
-    static addService = (type: ServiceType, userId: string, url: URL): DBServiceData => {
+    static addService = (type: ServiceType, serviceUserId: string, url: URL): DBServiceData => {
         const serviceId = generateUUID()
-        db.prepare('INSERT INTO Services(id, type, userId, url) VALUES(?, ?, ?, ?)').run(serviceId, type, userId, url.origin)
+        db.prepare('INSERT INTO Services(id, type, serviceUserId, url) VALUES(?, ?, ?, ?)').run(serviceId, type, serviceUserId, url.origin)
         return this.getService(serviceId)
     }
 

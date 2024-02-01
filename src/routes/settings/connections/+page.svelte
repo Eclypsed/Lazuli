@@ -3,13 +3,14 @@
     import { fly } from 'svelte/transition'
     import Services from '$lib/services.json'
     import JellyfinAuthBox from './jellyfinAuthBox.svelte'
-    import { newestAlert } from '$lib/stores'
+    import { newestAlert } from '$lib/stores.js'
     import IconButton from '$lib/components/util/iconButton.svelte'
     import Toggle from '$lib/components/util/toggle.svelte'
+    import type { PageServerData } from './$types.js'
     import type { SubmitFunction } from '@sveltejs/kit'
 
-    export let data
-    let connectionProfiles = data.connectionProfiles
+    export let data: PageServerData
+    let connections = data.userConnections
 
     const submitCredentials: SubmitFunction = ({ formData, action, cancel }) => {
         switch (action.search) {
@@ -39,32 +40,26 @@
         return async ({ result }) => {
             switch (result.type) {
                 case 'failure':
-                    $newestAlert = ['warning', result.data.message]
-                    return
+                    return ($newestAlert = ['warning', result.data?.message])
                 case 'success':
-                    modal = null
                     if (result.data?.newConnection) {
-                        const newConnection = result.data.newConnection
-                        connectionProfiles = [newConnection, ...connectionProfiles]
+                        const newConnection: Connection = result.data.newConnection
+                        connections = [newConnection, ...connections]
 
-                        $newestAlert = ['success', `Added ${Services[newConnection.serviceType].displayName}`]
-                        return
+                        return ($newestAlert = ['success', `Added ${Services[newConnection.service.type].displayName}`])
                     } else if (result.data?.deletedConnectionId) {
                         const id = result.data.deletedConnectionId
-                        const indexToDelete = connectionProfiles.findIndex((profile) => profile.connectionId === id)
-                        const serviceType = connectionProfiles[indexToDelete].serviceType
+                        const indexToDelete = connections.findIndex((connection) => connection.id === id)
+                        const serviceType = connections[indexToDelete].service.type
 
-                        connectionProfiles.splice(indexToDelete, 1)
-                        connectionProfiles = connectionProfiles
+                        connections.splice(indexToDelete, 1)
+                        connections = connections
 
-                        $newestAlert = ['success', `Deleted ${Services[serviceType].displayName}`]
-                        return
+                        return ($newestAlert = ['success', `Deleted ${Services[serviceType].displayName}`])
                     }
             }
         }
     }
-
-    let modal
 </script>
 
 <main>
@@ -72,35 +67,29 @@
         <h1 class="py-2 text-xl">Add Connection</h1>
         <div class="flex flex-wrap gap-2 pb-4">
             {#each Object.entries(Services) as [serviceType, serviceData]}
-                <button
-                    class="bg-ne h-14 rounded-md"
-                    style="background-image: linear-gradient(to bottom, rgb(30, 30, 30), rgb(10, 10, 10));"
-                    on:click={() => {
-                        if (serviceType === 'jellyfin') modal = JellyfinAuthBox
-                    }}
-                >
+                <button class="bg-ne h-14 rounded-md" style="background-image: linear-gradient(to bottom, rgb(30, 30, 30), rgb(10, 10, 10));">
                     <img src={serviceData.icon} alt="{serviceData.displayName} icon" class="aspect-square h-full p-2" />
                 </button>
             {/each}
         </div>
     </section>
     <div class="grid gap-8">
-        {#each connectionProfiles as connectionProfile}
-            {@const serviceData = Services[connectionProfile.serviceType]}
+        {#each connections as connection}
+            {@const serviceData = Services[connection.service.type]}
             <section class="overflow-hidden rounded-lg" style="background-color: rgba(82, 82, 82, 0.25);" transition:fly={{ x: 50 }}>
                 <header class="flex h-20 items-center gap-4 p-4">
                     <img src={serviceData.icon} alt="{serviceData.displayName} icon" class="aspect-square h-full p-1" />
                     <div>
-                        <div>{connectionProfile?.username ? connectionProfile.username : 'Placeholder Account Name'}</div>
+                        <div>{connection.service?.username ? connection.service.username : 'Placeholder Account Name'}</div>
                         <div class="text-sm text-neutral-500">
                             {serviceData.displayName}
-                            {#if connectionProfile.serviceType === 'jellyfin' && connectionProfile?.serverName}
-                                - {connectionProfile.serverName}
+                            {#if connection.service.type === 'jellyfin' && connection.service?.serverName}
+                                - {connection.service.serverName}
                             {/if}
                         </div>
                     </div>
                     <div class="ml-auto h-8">
-                        <IconButton on:click={() => (modal = `delete-${connectionProfile.connectionId}`)}>
+                        <IconButton>
                             <i slot="icon" class="fa-solid fa-link-slash" />
                         </IconButton>
                     </div>
@@ -115,12 +104,12 @@
             </section>
         {/each}
     </div>
-    {#if modal}
+    <!-- {#if modal}
         <form method="post" use:enhance={submitCredentials} transition:fly={{ y: -15 }} class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
             {#if typeof modal === 'string'}
                 {@const connectionId = modal.replace('delete-', '')}
-                {@const connection = connectionProfiles.find((profile) => profile.connectionId === connectionId)}
-                {@const serviceData = Services[connection.serviceType]}
+                {@const connection = connections.find((connection) => connection.id === connectionId)}
+                {@const serviceData = Services[connection.service.type]}
                 <div class="rounded-lg bg-neutral-900 p-5">
                     <h1 class="pb-4 text-center">Delete {serviceData.displayName} connection?</h1>
                     <div class="flex w-60 justify-around">
@@ -133,5 +122,5 @@
                 <svelte:component this={modal} on:close={() => (modal = null)} />
             {/if}
         </form>
-    {/if}
+    {/if} -->
 </main>

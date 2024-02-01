@@ -29,6 +29,21 @@ declare global {
 
     type ServiceType = 'jellyfin' | 'youtube-music'
 
+    interface Service {
+        type: ServiceType
+        userId: string
+        urlOrigin: string
+        username?: string
+        serverName?: string
+    }
+
+    interface Connection {
+        id: string
+        user: User
+        service: Service
+        accessToken: string
+    }
+
     interface MediaItem {
         connectionId: string
         serviceType: string

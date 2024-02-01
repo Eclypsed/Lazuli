@@ -64,10 +64,10 @@
                     <input name="username" type="text" autocomplete="off" placeholder="Username" class="h-10 w-full border-b-2 border-lazuli-primary bg-transparent px-1 outline-none" />
                 </div>
                 <div class="flex items-center gap-4 p-4">
-                    <div class="w-full">
+                    <div class="w-full flex-shrink">
                         <input name="password" type={passwordVisible ? 'text' : 'password'} placeholder="Password" class="h-10 w-full border-b-2 border-lazuli-primary bg-transparent px-1 outline-none" />
                     </div>
-                    <div class="overflow-hidden transition-[width] duration-300" style="width: {formMode === 'newUser' ? '100%' : 0};" aria-hidden={formMode !== 'newUser'}>
+                    <div class="flex-shrink overflow-hidden transition-[width] duration-300" style="width: {formMode === 'newUser' ? '100%' : 0};" aria-hidden={formMode !== 'newUser'}>
                         <input
                             name="confirmPassword"
                             type={passwordVisible ? 'text' : 'password'}

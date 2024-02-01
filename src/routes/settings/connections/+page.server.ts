@@ -1,16 +1,15 @@
 import { fail } from '@sveltejs/kit'
 import { SECRET_INTERNAL_API_KEY } from '$env/static/private'
-import type { DBConnectionData } from '$lib/server/users'
 import type { NewConnection } from '../../api/users/[userId]/connections/+server'
 import type { PageServerLoad, Actions } from './$types'
 
 export const load: PageServerLoad = async ({ fetch, locals }) => {
-    const connectionsResponse = await fetch(`/api/user/${locals.user.id}/connections`, {
+    const connectionsResponse = await fetch(`/api/users/${locals.user.id}/connections`, {
         method: 'GET',
         headers: { apikey: SECRET_INTERNAL_API_KEY },
     })
 
-    const userConnections: DBConnectionData[] = await connectionsResponse.json()
+    const userConnections: Connection[] = await connectionsResponse.json()
     return { userConnections }
 }
 
@@ -32,7 +31,7 @@ export const actions: Actions = {
 
         const authData: Jellyfin.AuthData = await jellyfinAuthResponse.json()
         const newConnectionPayload: NewConnection = {
-            url: serverUrl.toString(),
+            urlOrigin: serverUrl.toString(),
             serviceType: 'jellyfin',
             serviceUserId: authData.User.Id,
             accessToken: authData.AccessToken,
@@ -45,7 +44,21 @@ export const actions: Actions = {
 
         if (!newConnectionResponse.ok) return fail(500, { message: 'Internal Server Error' })
 
-        const newConnection: DBConnectionData = await newConnectionResponse.json()
+        const newConnection: Connection = await newConnectionResponse.json()
         return { newConnection }
+    },
+    deleteConnection: async ({ request, fetch, locals }) => {
+        const formData = await request.formData()
+        const connectionId = formData.get('connectionId')
+
+        const deleteConnectionResponse = await fetch(`/api/users/${locals.user.id}/connections`, {
+            method: 'DELETE',
+            headers: { apikey: SECRET_INTERNAL_API_KEY },
+            body: JSON.stringify({ connectionId }),
+        })
+
+        if (!deleteConnectionResponse.ok) return fail(500, { message: 'Internal Server Error' })
+
+        return { deletedConnectionId: connectionId }
     },
 }

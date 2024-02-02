@@ -9,3 +9,12 @@ export const isValidURL = (url: string): boolean => {
         return false
     }
 }
+
+export const getDeviceUUID = (): string => {
+    const existingUUID = localStorage.getItem('deviceUUID')
+    if (existingUUID) return existingUUID
+
+    const newUUID = generateUUID()
+    localStorage.setItem('deviceUUID', newUUID)
+    return newUUID
+}

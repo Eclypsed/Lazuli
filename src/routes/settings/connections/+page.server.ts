@@ -1,6 +1,5 @@
 import { fail } from '@sveltejs/kit'
 import { SECRET_INTERNAL_API_KEY } from '$env/static/private'
-import type { NewConnection } from '../../api/users/[userId]/connections/+server'
 import type { PageServerLoad, Actions } from './$types'
 
 export const load: PageServerLoad = async ({ fetch, locals }) => {
@@ -25,26 +24,44 @@ export const actions: Actions = {
         })
 
         if (!jellyfinAuthResponse.ok) {
-            const authError = await jellyfinAuthResponse.text()
-            return fail(jellyfinAuthResponse.status, { message: authError })
+            if (jellyfinAuthResponse.status === 404) {
+                return fail(404, { message: 'Request failed, check Server URL' })
+            } else if (jellyfinAuthResponse.status === 401) {
+                return fail(401, { message: 'Invalid Credentials' })
+            }
+
+            return fail(500, { message: 'Internal Server Error' })
         }
 
         const authData: Jellyfin.AuthData = await jellyfinAuthResponse.json()
-        const newConnectionPayload: NewConnection = {
+
+        const userUrl = new URL(`Users/${authData.User.Id}`, serverUrl.toString()).href
+        const systemUrl = new URL('System/Info', serverUrl.toString()).href
+
+        const reqHeaders = new Headers({ Authorization: `MediaBrowser Token="${authData.AccessToken}"` })
+
+        const userResponse = await fetch(userUrl, { headers: reqHeaders })
+        const systemResponse = await fetch(systemUrl, { headers: reqHeaders })
+
+        const userData: Jellyfin.User = await userResponse.json()
+        const systemData: Jellyfin.System = await systemResponse.json()
+
+        const serviceData: Jellyfin.JFService = {
+            type: 'jellyfin',
+            userId: authData.User.Id,
             urlOrigin: serverUrl.toString(),
-            serviceType: 'jellyfin',
-            serviceUserId: authData.User.Id,
-            accessToken: authData.AccessToken,
+            username: userData.Name,
+            serverName: systemData.ServerName,
         }
         const newConnectionResponse = await fetch(`/api/users/${locals.user.id}/connections`, {
             method: 'POST',
             headers: { apikey: SECRET_INTERNAL_API_KEY },
-            body: JSON.stringify(newConnectionPayload),
+            body: JSON.stringify({ service: serviceData, accessToken: authData.AccessToken }),
         })
 
         if (!newConnectionResponse.ok) return fail(500, { message: 'Internal Server Error' })
 
-        const newConnection: Connection = await newConnectionResponse.json()
+        const newConnection: Jellyfin.JFConnection = await newConnectionResponse.json()
         return { newConnection }
     },
     deleteConnection: async ({ request, fetch, locals }) => {

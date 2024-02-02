@@ -11,16 +11,6 @@ declare global {
         // interface Platform {}
     }
 
-    namespace Jellyfin {
-        interface AuthData {
-            User: {
-                Name: string
-                Id: string
-            }
-            AccessToken: string
-        }
-    }
-
     interface User {
         id: string
         username: string
@@ -33,8 +23,6 @@ declare global {
         type: ServiceType
         userId: string
         urlOrigin: string
-        username?: string
-        serverName?: string
     }
 
     interface Connection {
@@ -42,6 +30,48 @@ declare global {
         user: User
         service: Service
         accessToken: string
+    }
+
+    namespace Jellyfin {
+        // The jellyfin API will not always return the data it says it will, for example /Users/AuthenticateByName says it will
+        // retrun the ServerName, it wont. This must be fetched from /System/Info.
+        // So, ONLY DEFINE THE INTERFACES FOR DATA THAT IS GARUNTEED TO BE RETURNED (unless the data value itself is inherently optional)
+        interface JFService extends Service {
+            type: 'jellyfin'
+            username: string
+            serverName: string
+        }
+
+        interface JFConnection extends Connection {
+            service: JFService
+        }
+
+        interface AuthData {
+            User: {
+                Id: string
+            }
+            AccessToken: string
+        }
+
+        interface User {
+            Name: string
+            Id: string
+        }
+
+        interface System {
+            ServerName: string
+        }
+    }
+
+    namespace YouTubeMusic {
+        interface YTService extends Service {
+            type: 'youtube-music'
+            username: string
+        }
+
+        interface YTConnection extends Connection {
+            service: YTService
+        }
     }
 
     interface MediaItem {

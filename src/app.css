@@ -4,10 +4,6 @@
 @tailwind components;
 @tailwind utilities;
 
-* {
-    flex-shrink: 0;
-}
-
 img {
     max-width: 100%;
 }

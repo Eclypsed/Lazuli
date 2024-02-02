@@ -7,7 +7,7 @@ export const handle: Handle = async ({ event, resolve }) => {
     const urlpath = event.url.pathname
 
     if (urlpath.startsWith('/api') && event.request.headers.get('apikey') !== SECRET_INTERNAL_API_KEY && event.url.searchParams.get('apikey') !== SECRET_INTERNAL_API_KEY) {
-        return new Response('Unauthorized', { status: 400 })
+        return new Response('Unauthorized', { status: 401 })
     }
 
     if (!nonJwtProtectedRoutes.some((route) => urlpath.startsWith(route))) {

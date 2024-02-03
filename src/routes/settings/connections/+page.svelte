@@ -1,5 +1,4 @@
 <script lang="ts">
-    import { fly } from 'svelte/transition'
     import Services from '$lib/services.json'
     import JellyfinAuthBox from './jellyfinAuthBox.svelte'
     import { newestAlert } from '$lib/stores.js'
@@ -38,26 +37,25 @@
         }
 
         return async ({ result }) => {
-            switch (result.type) {
-                case 'failure':
-                    return ($newestAlert = ['warning', result.data?.message])
-                case 'success':
-                    if (result.data?.newConnection) {
-                        const newConnection: Connection = result.data.newConnection
-                        connections = [newConnection, ...connections]
+            if (result.type === 'failure') {
+                return ($newestAlert = ['warning', result.data?.message])
+            } else if (result.type === 'success') {
+                if (result.data?.newConnection) {
+                    const newConnection: Connection = result.data.newConnection
+                    connections = [newConnection, ...connections]
 
-                        newConnectionModal = null
-                        return ($newestAlert = ['success', `Added ${Services[newConnection.service.type].displayName}`])
-                    } else if (result.data?.deletedConnectionId) {
-                        const id = result.data.deletedConnectionId
-                        const indexToDelete = connections.findIndex((connection) => connection.id === id)
-                        const serviceType = connections[indexToDelete].service.type
+                    newConnectionModal = null
+                    return ($newestAlert = ['success', `Added ${Services[newConnection.service.type].displayName}`])
+                } else if (result.data?.deletedConnectionId) {
+                    const id = result.data.deletedConnectionId
+                    const indexToDelete = connections.findIndex((connection) => connection.id === id)
+                    const serviceType = connections[indexToDelete].service.type
 
-                        connections.splice(indexToDelete, 1)
-                        connections = connections
+                    connections.splice(indexToDelete, 1)
+                    connections = connections
 
-                        return ($newestAlert = ['success', `Deleted ${Services[serviceType].displayName}`])
-                    }
+                    return ($newestAlert = ['success', `Deleted ${Services[serviceType].displayName}`])
+                }
             }
         }
     }
@@ -82,7 +80,9 @@
             <ConnectionProfile {connection} submitFunction={submitCredentials} />
         {/each}
     </div>
-    <svelte:component this={newConnectionModal} submitFunction={submitCredentials} on:close={() => (newConnectionModal = null)} />
+    {#if newConnectionModal !== null}
+        <svelte:component this={newConnectionModal} submitFunction={submitCredentials} on:close={() => (newConnectionModal = null)} />
+    {/if}
 </main>
 
 <style>

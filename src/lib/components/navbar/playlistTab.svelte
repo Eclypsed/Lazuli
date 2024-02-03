@@ -33,7 +33,7 @@
 <button
     {disabled}
     bind:this={button}
-    class="relative aspect-square w-full rounded-lg bg-cover bg-center transition-all"
+    class="relative aspect-square w-full flex-shrink-0 rounded-lg bg-cover bg-center transition-all"
     style="background-image: url({playlist.thumbnail});"
     on:mouseenter={() => dispatch('mouseenter', { ...calculateCenter(button), content: playlist.name })}
     on:mouseleave={() => dispatch('mouseleave')}

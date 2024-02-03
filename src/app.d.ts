@@ -17,10 +17,8 @@ declare global {
         password?: string
     }
 
-    type ServiceType = 'jellyfin' | 'youtube-music'
-
     interface Service {
-        type: ServiceType
+        type: 'jellyfin' | 'youtube-music'
         userId: string
         urlOrigin: string
     }
@@ -30,6 +28,39 @@ declare global {
         user: User
         service: Service
         accessToken: string
+    }
+
+    interface MediaItem {
+        connection: Connection
+        id: string
+        name: string
+        duration: number
+        thumbnail?: string
+    }
+
+    interface Song extends MediaItem {
+        artists?: Artist[]
+        albumId?: string
+        audio: string
+        video?: string
+        releaseDate: string
+    }
+
+    interface Album extends MediaItem {
+        artists: Artist[]
+        songs: Song[]
+        releaseDate: string
+    }
+
+    interface Playlist extends MediaItem {
+        songs: Song[]
+        description?: string
+    }
+
+    interface Artist {
+        id: string
+        name: string
+        // Add more here in the future
     }
 
     namespace Jellyfin {
@@ -61,6 +92,50 @@ declare global {
         interface System {
             ServerName: string
         }
+
+        interface MediaItem {
+            Name: string
+            Id: string
+            RunTimeTicks: number
+            Type: 'Audio' | 'MusicAlbum' | 'Playlist'
+            ImageTags?: {
+                Primary?: string
+            }
+        }
+
+        interface Song extends Jellyfin.MediaItem {
+            ProductionYear: number
+            Type: 'Audio'
+            ArtistItems?: {
+                Name: string
+                Id: string
+            }[]
+            Album?: string
+            AlbumId?: string
+            AlbumPrimaryImageTag?: string
+            AlbumArtists?: {
+                Name: string
+                Id: string
+            }[]
+        }
+
+        interface Album extends Jellyfin.MediaItem {
+            ProductionYear: number
+            Type: 'MusicAlbum'
+            ArtistItems?: {
+                Name: string
+                Id: string
+            }[]
+            AlbumArtists?: {
+                Name: string
+                Id: string
+            }[]
+        }
+
+        interface Playlist extends Jellyfin.MediaItem {
+            Type: 'Playlist'
+            ChildCount: number
+        }
     }
 
     namespace YouTubeMusic {
@@ -72,53 +147,6 @@ declare global {
         interface YTConnection extends Connection {
             service: YTService
         }
-    }
-
-    interface MediaItem {
-        connectionId: string
-        serviceType: string
-        id: string
-        name: string
-        duration: number
-        thumbnail: string
-    }
-
-    interface Song extends MediaItem {
-        artists: {
-            id: string
-            name: string
-        }[]
-        album?: {
-            id: string
-            name: string
-            artists: {
-                id: string
-                name: string
-            }[]
-        }
-        audio: string
-        video?: string
-        releaseDate: string
-    }
-
-    interface Album extends MediaItem {
-        artists: {
-            id: string
-            name: string
-        }[]
-        songs: Song[]
-        releaseDate: string
-    }
-
-    interface Playlist extends MediaItem {
-        songs: Song[]
-        description?: string
-    }
-
-    interface Artist {
-        id: string
-        name: string
-        // Add more here in the future
     }
 }
 

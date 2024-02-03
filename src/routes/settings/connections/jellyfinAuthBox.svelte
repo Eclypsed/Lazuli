@@ -1,5 +1,6 @@
 <script lang="ts">
     import type { SubmitFunction } from '@sveltejs/kit'
+    import { scale } from 'svelte/transition'
     import { createEventDispatcher } from 'svelte'
     import { enhance } from '$app/forms'
 
@@ -8,7 +9,7 @@
     const dispatch = createEventDispatcher()
 </script>
 
-<form method="post" use:enhance={submitFunction} class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+<form method="post" use:enhance={submitFunction} class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" transition:scale>
     <div id="main-box" class="relative flex aspect-video w-screen max-w-2xl flex-col justify-center gap-9 rounded-xl bg-neutral-925 px-8">
         <h1 class="text-center text-4xl">Jellyfin Sign In</h1>
         <div class="flex w-full flex-col gap-5">

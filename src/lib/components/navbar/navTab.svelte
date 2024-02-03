@@ -10,10 +10,7 @@
     export let disabled = false
     export let nav: NavTab
 
-    import { createEventDispatcher } from 'svelte'
     import { goto } from '$app/navigation'
-
-    const dispatch = createEventDispatcher()
 
     let button: HTMLButtonElement
 </script>

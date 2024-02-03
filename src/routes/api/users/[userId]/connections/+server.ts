@@ -7,7 +7,7 @@ export const GET: RequestHandler = async ({ params }) => {
     const userId = params.userId as string
 
     const connections = Connections.getUserConnections(userId)
-    return new Response(JSON.stringify(connections))
+    return Response.json(connections)
 }
 
 // This schema should be identical to the Connection Data Type but without the id and userId
@@ -30,7 +30,7 @@ export const POST: RequestHandler = async ({ params, request }) => {
 
     const { service, accessToken } = connection
     const newConnection = Connections.addConnection(userId, service, accessToken)
-    return new Response(JSON.stringify(newConnection))
+    return Response.json(newConnection)
 }
 
 export const DELETE: RequestHandler = async ({ request }) => {

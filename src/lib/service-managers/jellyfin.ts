@@ -10,24 +10,27 @@ export class Jellyfin {
         }
     }
 
-    static mediaItemFactory = (item: Jellyfin.MediaItem, connection: Connection): MediaItem => {}
-
-    static songFactory = (song: Jellyfin.Song, connection: Connection): Song => {
+    static songFactory = (song: Jellyfin.Song, connection: Jellyfin.JFConnection): Song => {
         const { id, service } = connection
+        const thumbnail = song.ImageTags?.Primary
+            ? new URL(`Items/${song.Id}/Images/Primary`, service.urlOrigin).href
+            : song.AlbumPrimaryImageTag
+              ? new URL(`Items/${song.AlbumId}/Images/Primary`, service.urlOrigin).href
+              : undefined
 
-        const artists: Artist[] | undefined = song.ArtistItems
+        const artists = song.ArtistItems
             ? Array.from(song.ArtistItems, (artist) => {
-                  return { name: artist.Name, id: artist.Id }
+                  return { id: artist.Id, name: artist.Name }
               })
-            : undefined
-
-        const thumbnail = song.ImageTags?.Primary ? new URL(`Items/${song.Id}/Images/Primary`, service.urlOrigin).href : song.AlbumPrimaryImageTag ? new URL(`Items/${song.AlbumId}/Images/Primary`).href : undefined
+            : []
 
         const audoSearchParams = new URLSearchParams(this.audioPresets(service.userId))
         const audioSource = new URL(`Audio/${song.Id}/universal?${audoSearchParams.toString()}`, service.urlOrigin).href
 
-        const factorySong: Song = {
-            connection,
+        return {
+            connectionId: id,
+            service,
+            type: 'song',
             id: song.Id,
             name: song.Name,
             duration: Math.floor(song.RunTimeTicks / 10000),
@@ -37,6 +40,64 @@ export class Jellyfin {
             audio: audioSource,
             releaseDate: String(song.ProductionYear),
         }
-        return factorySong
+    }
+
+    static albumFactory = (album: Jellyfin.Album, connection: Jellyfin.JFConnection): Album => {
+        const { id, service } = connection
+        const thumbnail = album.ImageTags?.Primary ? new URL(`Items/${album.Id}/Images/Primary`, service.urlOrigin).href : undefined
+
+        const albumArtists = album.AlbumArtists
+            ? Array.from(album.AlbumArtists, (artist) => {
+                  return { id: artist.Id, name: artist.Name }
+              })
+            : []
+
+        const artists = album.ArtistItems
+            ? Array.from(album.ArtistItems, (artist) => {
+                  return { id: artist.Id, name: artist.Name }
+              })
+            : []
+
+        return {
+            connectionId: id,
+            service,
+            type: 'album',
+            id: album.Id,
+            name: album.Name,
+            duration: Math.floor(album.RunTimeTicks / 10000),
+            thumbnail,
+            albumArtists,
+            artists,
+            releaseDate: String(album.ProductionYear),
+        }
+    }
+
+    static playListFactory = (playlist: Jellyfin.Playlist, connection: Jellyfin.JFConnection): Playlist => {
+        const { id, service } = connection
+        const thumbnail = playlist.ImageTags?.Primary ? new URL(`Items/${playlist.Id}/Images/Primary`, service.urlOrigin).href : undefined
+
+        return {
+            connectionId: id,
+            service,
+            type: 'playlist',
+            id: playlist.Id,
+            name: playlist.Name,
+            duration: Math.floor(playlist.RunTimeTicks / 10000),
+            thumbnail,
+        }
+    }
+
+    static artistFactory = (artist: Jellyfin.Artist, connection: Jellyfin.JFConnection): Artist => {
+        const { id, service } = connection
+        const thumbnail = artist.ImageTags?.Primary ? new URL(`Items/${artist.Id}/Images/Primary`, service.urlOrigin).href : undefined
+
+        return {
+            connectionId: id,
+            service,
+            type: 'artist',
+            id: artist.Id,
+            name: artist.Name,
+            thumbnail,
+        }
     }
 }

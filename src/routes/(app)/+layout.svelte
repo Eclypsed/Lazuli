@@ -38,7 +38,7 @@
                 <div class="overflow-clip text-ellipsis text-neutral-400">Playlist &bull; {data.user.username}</div>
             </div>
         </div>
-        <section class="no-scrollbar overflow-y-scroll px-[max(7rem,_5vw)] pt-16">
+        <section class="no-scrollbar overflow-y-scroll px-[max(7rem,_7vw)] pt-16">
             <slot />
         </section>
         <footer class="fixed bottom-0 flex w-full flex-col items-center justify-center">

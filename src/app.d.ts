@@ -11,6 +11,10 @@ declare global {
         // interface Platform {}
     }
 
+    // General Interface Desing tips:
+    // Use possibly undefined `?:` for when a property is optional, meaning it could be there, or it could be not applicable
+    // Use possibly null `| nulll` for when the property is expected to be there but could possbily be explicitly empty
+
     interface User {
         id: string
         username: string
@@ -30,16 +34,25 @@ declare global {
         accessToken: string
     }
 
+    // These Schemas should only contain general info data that is necessary for data fetching purposes.
+    // They are NOT meant to be stores for large amounts of data, i.e. Don't include the data for every single song the Playlist type.
+    // Big data should be fetched as needed in the app, these exist to ensure that the info necessary to fetch that data is there.
     interface MediaItem {
-        connection: Connection
+        connectionId: string
+        service: Service
+        type: 'song' | 'album' | 'playlist' | 'artist'
         id: string
         name: string
-        duration: number
         thumbnail?: string
     }
 
     interface Song extends MediaItem {
-        artists?: Artist[]
+        type: 'song'
+        duration: number
+        artists: {
+            id: string
+            name: string
+        }[]
         albumId?: string
         audio: string
         video?: string
@@ -47,20 +60,27 @@ declare global {
     }
 
     interface Album extends MediaItem {
-        artists: Artist[]
-        songs: Song[]
+        type: 'album'
+        duration: number
+        albumArtists: {
+            id: string
+            name: string
+        }[]
+        artists: {
+            id: string
+            name: string
+        }[]
         releaseDate: string
     }
 
     interface Playlist extends MediaItem {
-        songs: Song[]
+        type: 'playlist'
+        duration: number
         description?: string
     }
 
-    interface Artist {
-        id: string
-        name: string
-        // Add more here in the future
+    interface Artist extends MediaItem {
+        type: 'artist'
     }
 
     namespace Jellyfin {
@@ -96,45 +116,51 @@ declare global {
         interface MediaItem {
             Name: string
             Id: string
-            RunTimeTicks: number
-            Type: 'Audio' | 'MusicAlbum' | 'Playlist'
+            Type: 'Audio' | 'MusicAlbum' | 'Playlist' | 'MusicArtist'
             ImageTags?: {
                 Primary?: string
             }
         }
 
         interface Song extends Jellyfin.MediaItem {
+            RunTimeTicks: number
             ProductionYear: number
             Type: 'Audio'
-            ArtistItems?: {
+            ArtistItems: {
                 Name: string
                 Id: string
             }[]
             Album?: string
             AlbumId?: string
             AlbumPrimaryImageTag?: string
-            AlbumArtists?: {
+            AlbumArtists: {
                 Name: string
                 Id: string
             }[]
         }
 
         interface Album extends Jellyfin.MediaItem {
+            RunTimeTicks: number
             ProductionYear: number
             Type: 'MusicAlbum'
-            ArtistItems?: {
+            ArtistItems: {
                 Name: string
                 Id: string
             }[]
-            AlbumArtists?: {
+            AlbumArtists: {
                 Name: string
                 Id: string
             }[]
         }
 
         interface Playlist extends Jellyfin.MediaItem {
+            RunTimeTicks: number
             Type: 'Playlist'
             ChildCount: number
+        }
+
+        interface Artist extends Jellyfin.MediaItem {
+            Type: 'MusicArtist'
         }
     }
 

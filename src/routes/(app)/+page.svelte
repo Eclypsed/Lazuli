@@ -1,7 +1,10 @@
-<div id="test-box" class="h-[200vh]"></div>
+<script lang="ts">
+    import ScrollableCardMenu from '$lib/components/media/scrollableCardMenu.svelte'
+    import type { PageData } from './$types'
 
-<!-- <style>
-    #test-box {
-        background: linear-gradient(to bottom, white, black);
-    }
-</style> -->
+    export let data: PageData
+</script>
+
+<div id="main">
+    <ScrollableCardMenu header={'Listen Again'} cardDataList={data.recommendations} />
+</div>

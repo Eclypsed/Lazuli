@@ -3,6 +3,7 @@
 
     import Services from '$lib/services.json'
     import IconButton from '$lib/components/util/iconButton.svelte'
+    import { goto } from '$app/navigation'
 
     const iconClasses = {
         song: 'fa-solid fa-music',
@@ -34,21 +35,22 @@
 </script>
 
 <div id="card-wrapper" class="w-52 flex-shrink-0">
-    <div bind:this={card} id="card" class="relative transition-all duration-200 ease-out" on:mousemove={(event) => rotateCard(event)} on:mouseleave={() => (card.style.transform = '')} role="menuitem" tabindex="0">
-        {#if mediaItem.thumbnail}
-            <img id="card-image" class="h-full rounded-lg transition-all" src={mediaItem.thumbnail} alt="{mediaItem.name} thumbnail" />
-        {:else}
-            <div id="card-image" class="grid aspect-square h-full place-items-center rounded-lg bg-lazuli-primary transition-all">
-                <i class="fa-solid fa-compact-disc text-7xl" />
-            </div>
-        {/if}
-        <div bind:this={cardGlare} id="card-glare" class="absolute top-0 grid h-full w-full place-items-center rounded-lg opacity-0 transition-opacity duration-200 ease-out">
-            <span class="relative h-12">
-                <IconButton halo={true}>
-                    <i slot="icon" class="fa-solid fa-play text-xl" />
-                </IconButton>
-            </span>
-        </div>
+    <div bind:this={card} id="card" class="relative transition-all duration-200 ease-out grid place-items-center" on:mousemove={(event) => rotateCard(event)} on:mouseleave={() => (card.style.transform = '')} role="menuitem" tabindex="-1">
+        <button on:click={() => goto(`/details/${mediaItem.type}?id=${mediaItem.id}&connection=${mediaItem.connectionId}`)}>
+            {#if mediaItem.thumbnail}
+                <img id="card-image" class="h-full rounded-lg transition-all" src={mediaItem.thumbnail} alt="{mediaItem.name} thumbnail" />
+            {:else}
+                <div id="card-image" class="grid aspect-square h-full place-items-center rounded-lg bg-lazuli-primary transition-all">
+                    <i class="fa-solid fa-compact-disc text-7xl" />
+                </div>
+            {/if}
+            <div bind:this={cardGlare} id="card-glare" class="absolute top-0 h-full w-full rounded-lg opacity-0 transition-opacity duration-200 ease-out" />
+        </button>
+        <span id="play-button" class="h-12 absolute opacity-0 transition-opacity duration-200 ease-out">
+            <IconButton halo={true}>
+                <i slot="icon" class="fa-solid fa-play text-xl" />
+            </IconButton>
+        </span>
     </div>
     <div class="p-2.5 text-sm">
         <div class="overflow-hidden text-ellipsis" title={mediaItem.name}>{mediaItem.name}</div>
@@ -90,7 +92,10 @@
     #card:hover #card-image {
         filter: brightness(50%);
     }
-    #card:hover > #card-glare {
+    #card:hover #card-glare {
+        opacity: 1;
+    }
+    #card:hover #play-button {
         opacity: 1;
     }
 </style>

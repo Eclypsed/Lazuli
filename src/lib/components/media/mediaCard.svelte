@@ -35,7 +35,15 @@
 </script>
 
 <div id="card-wrapper" class="w-52 flex-shrink-0">
-    <div bind:this={card} id="card" class="relative transition-all duration-200 ease-out grid place-items-center" on:mousemove={(event) => rotateCard(event)} on:mouseleave={() => (card.style.transform = '')} role="menuitem" tabindex="-1">
+    <div
+        bind:this={card}
+        id="card"
+        class="relative grid place-items-center transition-all duration-200 ease-out"
+        on:mousemove={(event) => rotateCard(event)}
+        on:mouseleave={() => (card.style.transform = '')}
+        role="menuitem"
+        tabindex="-1"
+    >
         <button on:click={() => goto(`/details/${mediaItem.type}?id=${mediaItem.id}&connection=${mediaItem.connectionId}`)}>
             {#if mediaItem.thumbnail}
                 <img id="card-image" class="h-full rounded-lg transition-all" src={mediaItem.thumbnail} alt="{mediaItem.name} thumbnail" />
@@ -46,7 +54,7 @@
             {/if}
             <div bind:this={cardGlare} id="card-glare" class="absolute top-0 h-full w-full rounded-lg opacity-0 transition-opacity duration-200 ease-out" />
         </button>
-        <span id="play-button" class="h-12 absolute opacity-0 transition-opacity duration-200 ease-out">
+        <span id="play-button" class="absolute h-12 opacity-0 transition-opacity duration-200 ease-out">
             <IconButton halo={true}>
                 <i slot="icon" class="fa-solid fa-play text-xl" />
             </IconButton>
@@ -54,24 +62,22 @@
     </div>
     <div class="p-2.5 text-sm">
         <div class="overflow-hidden text-ellipsis" title={mediaItem.name}>{mediaItem.name}</div>
-        <div class="flex w-full items-center gap-1.5 overflow-hidden text-neutral-400">
-            <span class="overflow-hidden text-ellipsis" style="font-size: 0; line-height: 0;">
-                {#if checkSong(mediaItem) || checkAlbum(mediaItem)}
-                    {#each mediaItem.artists as artist}
-                        {@const listIndex = mediaItem.artists.indexOf(artist)}
-                        <a class="text-sm hover:underline" href="/details/artist?id={artist.id}&connection={mediaItem.connectionId}">{artist.name}</a>
-                        {#if listIndex === mediaItem.artists.length - 2}
-                            <span class="mx-0.5 text-sm">&</span>
-                        {:else if listIndex < mediaItem.artists.length - 2}
-                            <span class="mr-0.5 text-sm">,</span>
-                        {/if}
-                    {/each}
-                {/if}
-            </span>
-            {#if mediaItem.type}
+        <div class="flex w-full items-center overflow-hidden text-neutral-400">
+            {#if checkSong(mediaItem) || checkAlbum(mediaItem)}
+                {#each mediaItem.artists as artist}
+                    {@const listIndex = mediaItem.artists.indexOf(artist)}
+                    <a class="text-sm hover:underline focus:underline" href="/details/artist?id={artist.id}&connection={mediaItem.connectionId}">{artist.name}</a>
+                    {#if listIndex === mediaItem.artists.length - 2}
+                        <span class="mx-0.5 text-sm">&</span>
+                    {:else if listIndex < mediaItem.artists.length - 2}
+                        <span class="mr-0.5 text-sm">,</span>
+                    {/if}
+                {/each}
+            {/if}
+            <!-- {#if mediaItem.type}
                 <span>&bull;</span>
                 <i title="Stream from {Services[mediaItem.service.type].displayName}" class="{iconClasses[mediaItem.type]} text-xs" style="color: var({Services[mediaItem.service.type].primaryColor});" />
-            {/if}
+            {/if} -->
         </div>
     </div>
 </div>
@@ -84,6 +90,9 @@
         filter: brightness(50%);
     }
     #card-wrapper:focus-within #card-glare {
+        opacity: 1;
+    }
+    #card-wrapper:focus-within #play-button {
         opacity: 1;
     }
     #card:hover {

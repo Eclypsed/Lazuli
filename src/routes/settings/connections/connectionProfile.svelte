@@ -3,7 +3,7 @@
     import IconButton from '$lib/components/util/iconButton.svelte'
     import Toggle from '$lib/components/util/toggle.svelte'
     import type { SubmitFunction } from '@sveltejs/kit'
-    import { fly } from 'svelte/transition'
+    import { fly, scale } from 'svelte/transition'
     import { enhance } from '$app/forms'
 
     export let connection: Connection
@@ -31,7 +31,13 @@
                 <i slot="icon" class="fa-solid fa-link-slash" />
             </IconButton>
             {#if showUnlinkModal}
-                <form use:enhance={submitFunction} action="?/deleteConnection" method="post" class="absolute right-full top-0 flex -translate-x-3 flex-col items-center justify-center gap-3 rounded-md bg-neutral-925 p-4">
+                <form
+                    transition:scale={{ start: 0.5 }}
+                    use:enhance={submitFunction}
+                    action="?/deleteConnection"
+                    method="post"
+                    class="absolute right-full top-0 flex -translate-x-3 flex-col items-center justify-center gap-3 rounded-md bg-neutral-925 p-4"
+                >
                     <span class="whitespace-nowrap">Delete Connection</span>
                     <div class="flex gap-4">
                         <button class="w-20 rounded-md bg-red-500 px-2 py-1">Confirm</button>

@@ -1,6 +1,8 @@
 import { fail } from '@sveltejs/kit'
-import { SECRET_INTERNAL_API_KEY } from '$env/static/private'
+import { SECRET_INTERNAL_API_KEY, YOUTUBE_API_CLIENT_SECRET } from '$env/static/private'
+import { PUBLIC_YOUTUBE_API_CLIENT_ID } from '$env/static/public'
 import type { PageServerLoad, Actions } from './$types'
+import { google } from 'googleapis'
 
 export const load: PageServerLoad = async ({ fetch, locals }) => {
     const connectionsResponse = await fetch(`/api/users/${locals.user.id}/connections`, {
@@ -53,16 +55,43 @@ export const actions: Actions = {
             username: userData.Name,
             serverName: systemData.ServerName,
         }
+        const tokenData: Jellyfin.JFTokens = {
+            accessToken: authData.AccessToken,
+        }
         const newConnectionResponse = await fetch(`/api/users/${locals.user.id}/connections`, {
             method: 'POST',
             headers: { apikey: SECRET_INTERNAL_API_KEY },
-            body: JSON.stringify({ service: serviceData, accessToken: authData.AccessToken }),
+            body: JSON.stringify({ service: serviceData, tokens: tokenData }),
         })
 
         if (!newConnectionResponse.ok) return fail(500, { message: 'Internal Server Error' })
 
         const newConnection: Jellyfin.JFConnection = await newConnectionResponse.json()
         return { newConnection }
+    },
+    youtubeMusicLogin: async ({ request }) => {
+        const formData = await request.formData()
+        const { code } = Object.fromEntries(formData)
+        const client = new google.auth.OAuth2({ clientId: PUBLIC_YOUTUBE_API_CLIENT_ID, clientSecret: YOUTUBE_API_CLIENT_SECRET, redirectUri: 'http://localhost:5173' }) // DO NOT SHIP THIS. THE CLIENT SECRET SHOULD NOT BE MADE AVAILABLE TO USERS. MAKE A REQUEST TO THE LAZULI WEBSITE INSTEAD.
+        const { tokens } = await client.getToken(code.toString())
+
+        const tokenData: YouTubeMusic.YTTokens = {
+            accessToken: tokens.access_token as string,
+            refreshToken: tokens.refresh_token as string,
+            expiry: tokens.expiry_date as number,
+        }
+
+        const youtube = google.youtube('v3')
+        const userChannelResponse = await youtube.channels.list({ mine: true, part: ['id', 'snippet'], access_token: tokenData.accessToken })
+        const userChannel = userChannelResponse.data.items![0]
+
+        const serviceData: YouTubeMusic.YTService = {
+            type: 'youtube-music',
+            userId: userChannel.id as string,
+            urlOrigin: 'https://www.googleapis.com/youtube/v3',
+            username: userChannel.snippet?.title as string,
+            profilePicture: userChannel.snippet?.thumbnails?.default?.url as string | undefined,
+        }
     },
     deleteConnection: async ({ request, fetch, locals }) => {
         const formData = await request.formData()

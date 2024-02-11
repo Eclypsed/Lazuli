@@ -17,7 +17,11 @@ const newConnectionSchema = z.object({
         userId: z.string(),
         urlOrigin: z.string().refine((val) => isValidURL(val)),
     }),
-    accessToken: z.string(),
+    tokens: z.object({
+        accessToken: z.string(),
+        refreshToken: z.string().optional(),
+        expiry: z.number().optional(),
+    }),
 })
 
 export const POST: RequestHandler = async ({ params, request }) => {
@@ -28,8 +32,8 @@ export const POST: RequestHandler = async ({ params, request }) => {
     const connectionValidation = newConnectionSchema.safeParse(connection)
     if (!connectionValidation.success) return new Response(connectionValidation.error.message, { status: 400 })
 
-    const { service, accessToken } = connection
-    const newConnection = Connections.addConnection(userId, service, accessToken)
+    const { service, tokens } = connection
+    const newConnection = Connections.addConnection(userId, service, tokens)
     return Response.json(newConnection)
 }
 

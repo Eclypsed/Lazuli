@@ -7,11 +7,13 @@
     import { getDeviceUUID } from '$lib/utils'
     import { SvelteComponent, type ComponentType } from 'svelte'
     import ConnectionProfile from './connectionProfile.svelte'
+    import { enhance } from '$app/forms'
+    import { PUBLIC_YOUTUBE_API_CLIENT_ID } from '$env/static/public'
 
     export let data: PageServerData
     let connections = data.userConnections
 
-    const submitCredentials: SubmitFunction = ({ formData, action, cancel }) => {
+    const submitCredentials: SubmitFunction = async ({ formData, action, cancel }) => {
         switch (action.search) {
             case '?/authenticateJellyfin':
                 const { serverUrl, username, password } = Object.fromEntries(formData)
@@ -30,9 +32,14 @@
                 const deviceId = getDeviceUUID()
                 formData.append('deviceId', deviceId)
                 break
+            case '?/youtubeMusicLogin':
+                const code = await youtubeAuthenication()
+                formData.append('code', code)
+                break
             case '?/deleteConnection':
                 break
             default:
+                console.log(action.search)
                 cancel()
         }
 
@@ -56,11 +63,28 @@
 
                     return ($newestAlert = ['success', `Deleted ${Services[serviceType].displayName}`])
                 }
+            } else if (result.type === 'redirect') {
+                window.open(result.location, '_blank')
             }
         }
     }
 
     let newConnectionModal: ComponentType<SvelteComponent<{ submitFunction: SubmitFunction }>> | null = null
+
+    const youtubeAuthenication = async (): Promise<string> => {
+        return new Promise((resolve) => {
+            // @ts-ignore (google variable is a global variable imported by html script tag)
+            const client = google.accounts.oauth2.initCodeClient({
+                client_id: PUBLIC_YOUTUBE_API_CLIENT_ID,
+                scope: 'https://www.googleapis.com/auth/youtube',
+                ux_mode: 'popup',
+                callback: (response: any) => {
+                    resolve(response.code)
+                },
+            })
+            client.requestCode()
+        })
+    }
 </script>
 
 <main>
@@ -70,9 +94,11 @@
             <button class="add-connection-button h-14 rounded-md" on:click={() => (newConnectionModal = JellyfinAuthBox)}>
                 <img src={Services.jellyfin.icon} alt="{Services.jellyfin.displayName} icon" class="aspect-square h-full p-2" />
             </button>
-            <button class="add-connection-button h-14 rounded-md">
-                <img src={Services['youtube-music'].icon} alt="{Services['youtube-music'].displayName} icon" class="aspect-square h-full p-2" />
-            </button>
+            <form method="post" action="?/youtubeMusicLogin" use:enhance={submitCredentials}>
+                <button class="add-connection-button h-14 rounded-md">
+                    <img src={Services['youtube-music'].icon} alt="{Services['youtube-music'].displayName} icon" class="aspect-square h-full p-2" />
+                </button>
+            </form>
         </div>
     </section>
     <div class="grid gap-8">

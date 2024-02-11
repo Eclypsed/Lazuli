@@ -13,7 +13,7 @@ export const GET: RequestHandler = async ({ params, fetch }) => {
     const recommendations: Song[] = []
 
     for (const connection of userConnections) {
-        const { service, accessToken } = connection
+        const { service, tokens } = connection
 
         switch (service.type) {
             case 'jellyfin':
@@ -26,7 +26,7 @@ export const GET: RequestHandler = async ({ params, fetch }) => {
                 })
 
                 const mostPlayedSongsURL = new URL(`/Users/${service.userId}/Items?${mostPlayedSongsSearchParams.toString()}`, service.urlOrigin).href
-                const requestHeaders = new Headers({ Authorization: `MediaBrowser Token="${accessToken}"` })
+                const requestHeaders = new Headers({ Authorization: `MediaBrowser Token="${tokens.accessToken}"` })
 
                 const mostPlayedResponse = await fetch(mostPlayedSongsURL, { headers: requestHeaders })
                 const mostPlayedData = await mostPlayedResponse.json()

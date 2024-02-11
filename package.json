@@ -32,7 +32,10 @@
 		"@types/jsonwebtoken": "^9.0.5",
 		"bcrypt-ts": "^5.0.1",
 		"better-sqlite3": "^9.3.0",
+		"googleapis": "^133.0.0",
 		"jsonwebtoken": "^9.0.2",
+		"pocketbase": "^0.21.1",
+		"ytdl-core": "^4.11.5",
 		"zod": "^3.22.4"
 	}
 }

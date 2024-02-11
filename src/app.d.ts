@@ -27,11 +27,17 @@ declare global {
         urlOrigin: string
     }
 
+    interface Tokens {
+        accessToken: string
+        refreshToken?: string
+        expiry?: number
+    }
+
     interface Connection {
         id: string
         user: User
         service: Service
-        accessToken: string
+        tokens: Tokens
     }
 
     // These Schemas should only contain general info data that is necessary for data fetching purposes.
@@ -93,8 +99,13 @@ declare global {
             serverName: string
         }
 
+        interface JFTokens implements Tokens {
+            accessToken: string
+        }
+
         interface JFConnection extends Connection {
             service: JFService
+            tokens: JFTokens
         }
 
         interface AuthData {
@@ -168,10 +179,18 @@ declare global {
         interface YTService extends Service {
             type: 'youtube-music'
             username: string
+            profilePicture?: string
+        }
+
+        interface YTTokens implements Tokens {
+            accessToken: string,
+            refreshToken: string,
+            expiry: number
         }
 
         interface YTConnection extends Connection {
             service: YTService
+            tokens: YTTokens
         }
     }
 }

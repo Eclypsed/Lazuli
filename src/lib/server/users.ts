@@ -5,7 +5,7 @@ import { isValidURL } from '$lib/utils'
 const db = new Database('./src/lib/server/users.db', { verbose: console.info })
 db.pragma('foreign_keys = ON')
 const initUsersTable = 'CREATE TABLE IF NOT EXISTS Users(id VARCHAR(36) PRIMARY KEY, username VARCHAR(30) UNIQUE NOT NULL, password VARCHAR(72) NOT NULL)'
-const initConnectionsTable = 'CREATE TABLE IF NOT EXISTS Connections(id VARCHAR(36) PRIMARY KEY, userId VARCHAR(36) NOT NULL, service TEXT NOT NULL, accessToken TEXT NOT NULL, FOREIGN KEY(userId) REFERENCES Users(id))'
+const initConnectionsTable = 'CREATE TABLE IF NOT EXISTS Connections(id VARCHAR(36) PRIMARY KEY, userId VARCHAR(36) NOT NULL, service TEXT NOT NULL, tokens TEXT NOT NULL, FOREIGN KEY(userId) REFERENCES Users(id))'
 db.exec(initUsersTable), db.exec(initConnectionsTable)
 
 type UserQueryParams = {
@@ -16,7 +16,7 @@ interface ConnectionsTableSchema {
     id: string
     userId: string
     service: string
-    accessToken: string
+    tokens: string
 }
 
 export class Users {
@@ -52,8 +52,8 @@ export class Users {
 
 export class Connections {
     static getConnection = (id: string): Connection => {
-        const { userId, service, accessToken } = db.prepare('SELECT * FROM Connections WHERE id = ?').get(id) as ConnectionsTableSchema
-        const connection: Connection = { id, user: Users.getUser(userId)!, service: JSON.parse(service), accessToken }
+        const { userId, service, tokens } = db.prepare('SELECT * FROM Connections WHERE id = ?').get(id) as ConnectionsTableSchema
+        const connection: Connection = { id, user: Users.getUser(userId)!, service: JSON.parse(service), tokens: JSON.parse(tokens) }
         return connection
     }
 
@@ -62,16 +62,16 @@ export class Connections {
         const connections: Connection[] = []
         const user = Users.getUser(userId)!
         connectionRows.forEach((row) => {
-            const { id, service, accessToken } = row
-            connections.push({ id, user, service: JSON.parse(service), accessToken })
+            const { id, service, tokens } = row
+            connections.push({ id, user, service: JSON.parse(service), tokens: JSON.parse(tokens) })
         })
         return connections
     }
 
-    static addConnection = (userId: string, service: Service, accessToken: string): Connection => {
+    static addConnection = (userId: string, service: Service, tokens: Tokens): Connection => {
         const connectionId = generateUUID()
         if (!isValidURL(service.urlOrigin)) throw new Error('Service does not have valid url')
-        db.prepare('INSERT INTO Connections(id, userId, service, accessToken) VALUES(?, ?, ?, ?)').run(connectionId, userId, JSON.stringify(service), accessToken)
+        db.prepare('INSERT INTO Connections(id, userId, service, tokens) VALUES(?, ?, ?, ?)').run(connectionId, userId, JSON.stringify(service), JSON.stringify(tokens))
         return this.getConnection(connectionId)
     }
 

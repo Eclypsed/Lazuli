@@ -1,1 +1,1 @@
-<h1>Welcome to the Search Page!</h1>
+<h1>Search Page</h1>

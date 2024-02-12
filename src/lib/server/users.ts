@@ -53,17 +53,16 @@ export class Users {
 export class Connections {
     static getConnection = (id: string): Connection => {
         const { userId, service, tokens } = db.prepare('SELECT * FROM Connections WHERE id = ?').get(id) as ConnectionsTableSchema
-        const connection: Connection = { id, user: Users.getUser(userId)!, service: JSON.parse(service), tokens: JSON.parse(tokens) }
+        const connection: Connection = { id, userId, service: JSON.parse(service), tokens: JSON.parse(tokens) }
         return connection
     }
 
     static getUserConnections = (userId: string): Connection[] => {
         const connectionRows = db.prepare('SELECT * FROM Connections WHERE userId = ?').all(userId) as ConnectionsTableSchema[]
         const connections: Connection[] = []
-        const user = Users.getUser(userId)!
         connectionRows.forEach((row) => {
             const { id, service, tokens } = row
-            connections.push({ id, user, service: JSON.parse(service), tokens: JSON.parse(tokens) })
+            connections.push({ id, userId, service: JSON.parse(service), tokens: JSON.parse(tokens) })
         })
         return connections
     }

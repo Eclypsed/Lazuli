@@ -40,7 +40,7 @@ declare global {
 
     interface Connection {
         id: string
-        user: User
+        userId: string
         service: Service
         tokens: Tokens
     }
@@ -184,8 +184,8 @@ declare global {
         }
 
         interface YTTokens implements Tokens {
-            accessToken: string,
-            refreshToken: string,
+            accessToken: string
+            refreshToken: string
             expiry: number
         }
 

@@ -111,6 +111,11 @@ declare global {
             tokens: JFTokens
         }
 
+        interface AccountInfo {
+            username: string
+            servername?: string
+        }
+
         interface AuthData {
             User: {
                 Id: string
@@ -192,6 +197,11 @@ declare global {
         interface YTConnection extends Connection {
             service: YTService
             tokens: YTTokens
+        }
+
+        interface AccountInfo {
+            username: string
+            profilePicture?: string
         }
     }
 }

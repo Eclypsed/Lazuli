@@ -15,16 +15,20 @@ declare global {
     // Use possibly undefined `?:` for when a property is optional, meaning it could be there, or it could be not applicable
     // Use possibly null `| null` for when the property is expected to be there but could possbily be explicitly empty
 
+    // Do not store data from other services in the database, only the data necessary to fetch whatever you need.
+    // This avoid syncronization issues. E.g. Store userId, and urlOrigin to fetch the user's name and profile picture.
+
     interface User {
         id: string
         username: string
         password?: string
     }
 
+    type serviceType = 'jellyfin' | 'youtube-music'
+
     interface Service {
-        type: 'jellyfin' | 'youtube-music'
+        type: serviceType
         userId: string
-        username: string
         urlOrigin: string
     }
 
@@ -46,7 +50,7 @@ declare global {
     // Big data should be fetched as needed in the app, these exist to ensure that the info necessary to fetch that data is there.
     interface MediaItem {
         connectionId: string
-        service: Service
+        serviceType: serviceType
         type: 'song' | 'album' | 'playlist' | 'artist'
         id: string
         name: string
@@ -96,7 +100,6 @@ declare global {
         // So, ONLY DEFINE THE INTERFACES FOR DATA THAT IS GARUNTEED TO BE RETURNED (unless the data value itself is inherently optional)
         interface JFService extends Service {
             type: 'jellyfin'
-            serverName: string
         }
 
         interface JFTokens implements Tokens {
@@ -178,7 +181,6 @@ declare global {
     namespace YouTubeMusic {
         interface YTService extends Service {
             type: 'youtube-music'
-            profilePicture?: string
         }
 
         interface YTTokens implements Tokens {

@@ -29,7 +29,7 @@ export class Jellyfin {
 
         return {
             connectionId: id,
-            service,
+            serviceType: service.type,
             type: 'song',
             id: song.Id,
             name: song.Name,
@@ -60,7 +60,7 @@ export class Jellyfin {
 
         return {
             connectionId: id,
-            service,
+            serviceType: service.type,
             type: 'album',
             id: album.Id,
             name: album.Name,
@@ -78,7 +78,7 @@ export class Jellyfin {
 
         return {
             connectionId: id,
-            service,
+            serviceType: service.type,
             type: 'playlist',
             id: playlist.Id,
             name: playlist.Name,
@@ -93,7 +93,7 @@ export class Jellyfin {
 
         return {
             connectionId: id,
-            service,
+            serviceType: service.type,
             type: 'artist',
             id: artist.Id,
             name: artist.Name,

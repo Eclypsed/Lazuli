@@ -51,9 +51,9 @@ export const actions: Actions = {
         const serviceData: Jellyfin.JFService = {
             type: 'jellyfin',
             userId: authData.User.Id,
-            username: userData.Name,
+            // username: userData.Name,
             urlOrigin: serverUrl.toString(),
-            serverName: systemData.ServerName,
+            // serverName: systemData.ServerName,
         }
         const tokenData: Jellyfin.JFTokens = {
             accessToken: authData.AccessToken,
@@ -89,9 +89,9 @@ export const actions: Actions = {
         const serviceData: YouTubeMusic.YTService = {
             type: 'youtube-music',
             userId: userChannel.id as string,
-            username: userChannel.snippet?.title as string,
+            // username: userChannel.snippet?.title as string,
             urlOrigin: 'https://www.googleapis.com/youtube/v3',
-            profilePicture: userChannel.snippet?.thumbnails?.default?.url as string | undefined,
+            // profilePicture: userChannel.snippet?.thumbnails?.default?.url as string | undefined,
         }
 
         const newConnectionResponse = await fetch(`/api/users/${locals.user.id}/connections`, {
@@ -105,9 +105,13 @@ export const actions: Actions = {
         const newConnection: YouTubeMusic.YTConnection = await newConnectionResponse.json()
         return { newConnection }
     },
+    refreshConnection: async ({ request }) => {
+        const formData = await request.formData()
+        const connectionId = formData.get('connectionId')?.toString() as string
+    },
     deleteConnection: async ({ request, fetch, locals }) => {
         const formData = await request.formData()
-        const connectionId = formData.get('connectionId')
+        const connectionId = formData.get('connectionId')?.toString() as string
 
         const deleteConnectionResponse = await fetch(`/api/users/${locals.user.id}/connections`, {
             method: 'DELETE',

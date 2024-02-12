@@ -23,7 +23,7 @@
             {/if}
         </div>
         <div>
-            <div>{connection.service.username}</div>
+            <div>Username</div>
             <div class="text-sm text-neutral-500">
                 {serviceData.displayName}
                 {#if 'serverName' in connection.service}
@@ -39,9 +39,9 @@
                 <form
                     use:enhance={submitFunction}
                     method="post"
-                    class="absolute right-0 top-full flex flex-col items-center justify-center gap-3 rounded-md bg-neutral-900 p-2 text-xs"
+                    class="absolute right-0 top-full flex flex-col items-center justify-center gap-1 rounded-md bg-neutral-900 p-2 text-xs"
                 >
-                    <button formaction="?/deleteConnection" class="py-2 px-3 whitespace-nowrap hover:bg-neutral-800 rounded-md" on:click={() => showModal = false}>
+                    <button formaction="?/deleteConnection" class="py-2 px-3 whitespace-nowrap hover:bg-neutral-800 rounded-md">
                         <i class="fa-solid fa-link-slash mr-1" />
                         Delete Connection
                     </button>

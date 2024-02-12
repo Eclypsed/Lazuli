@@ -74,7 +74,10 @@
         }
     }
 
-    const deleteConnection: SubmitFunction = () => {
+    const profileActions: SubmitFunction = ({ action, cancel }) => {
+        console.log(action)
+        cancel()
+
         return ({ result }) => {
             if (result.type === 'failure') {
                 return ($newestAlert = ['warning', result.data?.message])
@@ -108,9 +111,9 @@
             </form>
         </div>
     </section>
-    <div class="grid gap-8 grid-cols-3">
+    <div id="connection-profile-grid" class="grid gap-8">
         {#each connections as connection}
-            <ConnectionProfile {connection} submitFunction={deleteConnection} />
+            <ConnectionProfile {connection} submitFunction={profileActions} />
         {/each}
     </div>
     {#if newConnectionModal !== null}
@@ -121,5 +124,8 @@
 <style>
     .add-connection-button {
         background-image: linear-gradient(to bottom, rgb(30, 30, 30), rgb(10, 10, 10));
+    }
+    #connection-profile-grid {
+        grid-template-columns: repeat(auto-fit, minmax(24rem, 1fr));
     }
 </style>

@@ -108,7 +108,7 @@
             </form>
         </div>
     </section>
-    <div class="grid gap-8">
+    <div class="grid gap-8 grid-cols-3">
         {#each connections as connection}
             <ConnectionProfile {connection} submitFunction={deleteConnection} />
         {/each}

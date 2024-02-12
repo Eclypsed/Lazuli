@@ -24,6 +24,7 @@ declare global {
     interface Service {
         type: 'jellyfin' | 'youtube-music'
         userId: string
+        username: string
         urlOrigin: string
     }
 
@@ -95,7 +96,6 @@ declare global {
         // So, ONLY DEFINE THE INTERFACES FOR DATA THAT IS GARUNTEED TO BE RETURNED (unless the data value itself is inherently optional)
         interface JFService extends Service {
             type: 'jellyfin'
-            username: string
             serverName: string
         }
 
@@ -178,7 +178,6 @@ declare global {
     namespace YouTubeMusic {
         interface YTService extends Service {
             type: 'youtube-music'
-            username: string
             profilePicture?: string
         }
 

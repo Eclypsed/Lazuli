@@ -51,8 +51,8 @@ export const actions: Actions = {
         const serviceData: Jellyfin.JFService = {
             type: 'jellyfin',
             userId: authData.User.Id,
-            urlOrigin: serverUrl.toString(),
             username: userData.Name,
+            urlOrigin: serverUrl.toString(),
             serverName: systemData.ServerName,
         }
         const tokenData: Jellyfin.JFTokens = {
@@ -89,8 +89,8 @@ export const actions: Actions = {
         const serviceData: YouTubeMusic.YTService = {
             type: 'youtube-music',
             userId: userChannel.id as string,
-            urlOrigin: 'https://www.googleapis.com/youtube/v3',
             username: userChannel.snippet?.title as string,
+            urlOrigin: 'https://www.googleapis.com/youtube/v3',
             profilePicture: userChannel.snippet?.thumbnails?.default?.url as string | undefined,
         }
 

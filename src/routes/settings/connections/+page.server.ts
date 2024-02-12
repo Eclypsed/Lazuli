@@ -58,6 +58,7 @@ export const actions: Actions = {
         const tokenData: Jellyfin.JFTokens = {
             accessToken: authData.AccessToken,
         }
+
         const newConnectionResponse = await fetch(`/api/users/${locals.user.id}/connections`, {
             method: 'POST',
             headers: { apikey: SECRET_INTERNAL_API_KEY },
@@ -69,7 +70,7 @@ export const actions: Actions = {
         const newConnection: Jellyfin.JFConnection = await newConnectionResponse.json()
         return { newConnection }
     },
-    youtubeMusicLogin: async ({ request }) => {
+    youtubeMusicLogin: async ({ request, fetch, locals }) => {
         const formData = await request.formData()
         const { code } = Object.fromEntries(formData)
         const client = new google.auth.OAuth2({ clientId: PUBLIC_YOUTUBE_API_CLIENT_ID, clientSecret: YOUTUBE_API_CLIENT_SECRET, redirectUri: 'http://localhost:5173' }) // DO NOT SHIP THIS. THE CLIENT SECRET SHOULD NOT BE MADE AVAILABLE TO USERS. MAKE A REQUEST TO THE LAZULI WEBSITE INSTEAD.
@@ -92,6 +93,17 @@ export const actions: Actions = {
             username: userChannel.snippet?.title as string,
             profilePicture: userChannel.snippet?.thumbnails?.default?.url as string | undefined,
         }
+
+        const newConnectionResponse = await fetch(`/api/users/${locals.user.id}/connections`, {
+            method: 'POST',
+            headers: { apikey: SECRET_INTERNAL_API_KEY },
+            body: JSON.stringify({ service: serviceData, tokens: tokenData }),
+        })
+
+        if (!newConnectionResponse.ok) return fail(500, { message: 'Internal Server Error' })
+
+        const newConnection: YouTubeMusic.YTConnection = await newConnectionResponse.json()
+        return { newConnection }
     },
     deleteConnection: async ({ request, fetch, locals }) => {
         const formData = await request.formData()

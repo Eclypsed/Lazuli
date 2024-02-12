@@ -44,7 +44,7 @@
 
         if (data.redirectLocation) formData.append('redirectLocation', data.redirectLocation)
 
-        return async ({ result }) => {
+        return ({ result }) => {
             if (result.type === 'failure') return ($newestAlert = ['warning', result.data?.message])
             if (result.type === 'redirect') return goto(result.location)
         }

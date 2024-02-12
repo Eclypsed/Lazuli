@@ -13,7 +13,7 @@ declare global {
 
     // General Interface Desing tips:
     // Use possibly undefined `?:` for when a property is optional, meaning it could be there, or it could be not applicable
-    // Use possibly null `| nulll` for when the property is expected to be there but could possbily be explicitly empty
+    // Use possibly null `| null` for when the property is expected to be there but could possbily be explicitly empty
 
     interface User {
         id: string

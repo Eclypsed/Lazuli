@@ -10,6 +10,7 @@ export const load: PageServerLoad = async ({ fetch, locals }) => {
         headers: { apikey: SECRET_INTERNAL_API_KEY },
     })
 
+    console.log(locals.user.id)
     const userConnections: Connection[] = await connectionsResponse.json()
     return { userConnections }
 }
@@ -37,23 +38,10 @@ export const actions: Actions = {
 
         const authData: Jellyfin.AuthData = await jellyfinAuthResponse.json()
 
-        const userUrl = new URL(`Users/${authData.User.Id}`, serverUrl.toString()).href
-        const systemUrl = new URL('System/Info', serverUrl.toString()).href
-
-        const reqHeaders = new Headers({ Authorization: `MediaBrowser Token="${authData.AccessToken}"` })
-
-        const userResponse = await fetch(userUrl, { headers: reqHeaders })
-        const systemResponse = await fetch(systemUrl, { headers: reqHeaders })
-
-        const userData: Jellyfin.User = await userResponse.json()
-        const systemData: Jellyfin.System = await systemResponse.json()
-
         const serviceData: Jellyfin.JFService = {
             type: 'jellyfin',
             userId: authData.User.Id,
-            // username: userData.Name,
             urlOrigin: serverUrl.toString(),
-            // serverName: systemData.ServerName,
         }
         const tokenData: Jellyfin.JFTokens = {
             accessToken: authData.AccessToken,
@@ -89,9 +77,7 @@ export const actions: Actions = {
         const serviceData: YouTubeMusic.YTService = {
             type: 'youtube-music',
             userId: userChannel.id as string,
-            // username: userChannel.snippet?.title as string,
             urlOrigin: 'https://www.googleapis.com/youtube/v3',
-            // profilePicture: userChannel.snippet?.thumbnails?.default?.url as string | undefined,
         }
 
         const newConnectionResponse = await fetch(`/api/users/${locals.user.id}/connections`, {

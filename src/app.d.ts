@@ -45,6 +45,12 @@ declare global {
         tokens: Tokens
     }
 
+    interface ConnectionInfo {
+        connectionId: string
+        serviceType: serviceType
+        username: string
+    }
+
     // These Schemas should only contain general info data that is necessary for data fetching purposes.
     // They are NOT meant to be stores for large amounts of data, i.e. Don't include the data for every single song the Playlist type.
     // Big data should be fetched as needed in the app, these exist to ensure that the info necessary to fetch that data is there.
@@ -111,9 +117,9 @@ declare global {
             tokens: JFTokens
         }
 
-        interface AccountInfo {
-            username: string
-            servername?: string
+        interface JFConnectionInfo extends ConnectionInfo {
+            serviceType: 'jellyfin'
+            servername: string
         }
 
         interface AuthData {
@@ -199,8 +205,8 @@ declare global {
             tokens: YTTokens
         }
 
-        interface AccountInfo {
-            username: string
+        interface YTConnectionInfo extends ConnectionInfo {
+            serviceType: 'youtube-music'
             profilePicture?: string
         }
     }

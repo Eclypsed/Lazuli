@@ -49,6 +49,8 @@ declare global {
         connectionId: string
         serviceType: serviceType
         username: string
+        serverName?: string
+        profilePicture?: string
     }
 
     // These Schemas should only contain general info data that is necessary for data fetching purposes.
@@ -117,21 +119,14 @@ declare global {
             tokens: JFTokens
         }
 
-        interface JFConnectionInfo extends ConnectionInfo {
-            serviceType: 'jellyfin'
-            servername: string
-        }
-
-        interface AuthData {
-            User: {
-                Id: string
-            }
-            AccessToken: string
-        }
-
         interface User {
             Name: string
             Id: string
+        }
+
+        interface AuthData {
+            User: Jellyfin.User
+            AccessToken: string
         }
 
         interface System {
@@ -203,11 +198,6 @@ declare global {
         interface YTConnection extends Connection {
             service: YTService
             tokens: YTTokens
-        }
-
-        interface YTConnectionInfo extends ConnectionInfo {
-            serviceType: 'youtube-music'
-            profilePicture?: string
         }
     }
 }

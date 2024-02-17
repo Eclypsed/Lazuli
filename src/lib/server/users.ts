@@ -60,10 +60,10 @@ export class Connections {
     static getUserConnections = (userId: string): Connection[] => {
         const connectionRows = db.prepare('SELECT * FROM Connections WHERE userId = ?').all(userId) as ConnectionsTableSchema[]
         const connections: Connection[] = []
-        connectionRows.forEach((row) => {
+        for (const row of connectionRows) {
             const { id, service, tokens } = row
             connections.push({ id, userId, service: JSON.parse(service), tokens: JSON.parse(tokens) })
-        })
+        }
         return connections
     }
 
@@ -77,5 +77,10 @@ export class Connections {
     static deleteConnection = (id: string): void => {
         const commandInfo = db.prepare('DELETE FROM Connections WHERE id = ?').run(id)
         if (commandInfo.changes === 0) throw new Error(`Connection with id: ${id} does not exist`)
+    }
+
+    static updateTokens = (id: string, tokens: Tokens): void => {
+        const commandInfo = db.prepare('UPDATE Connections SET tokens = ? WHERE id = ?').run(JSON.stringify(tokens), id)
+        if (commandInfo.changes === 0) throw new Error('Failed to update tokens')
     }
 }

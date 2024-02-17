@@ -100,4 +100,24 @@ export class Jellyfin {
             thumbnail,
         }
     }
+
+    static connectionInfo = async (connection: Jellyfin.JFConnection): Promise<ConnectionInfo> => {
+        const reqHeaders = new Headers({ Authorization: `MediaBrowser Token="${connection.tokens.accessToken}"` })
+
+        const userUrl = new URL(`Users/${connection.service.userId}`, connection.service.urlOrigin).href
+        const systemUrl = new URL('System/Info', connection.service.urlOrigin).href
+
+        const userResponse = await fetch(userUrl, { headers: reqHeaders })
+        const systemResponse = await fetch(systemUrl, { headers: reqHeaders })
+
+        const userData: Jellyfin.User = await userResponse.json()
+        const systemData: Jellyfin.System = await systemResponse.json()
+
+        return {
+            connectionId: connection.id,
+            serviceType: 'jellyfin',
+            username: userData.Name,
+            serverName: systemData.ServerName,
+        }
+    }
 }

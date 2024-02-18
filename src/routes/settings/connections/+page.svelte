@@ -11,7 +11,7 @@
     import { PUBLIC_YOUTUBE_API_CLIENT_ID } from '$env/static/public'
 
     export let data: PageServerData
-    let connections = data.userConnections
+    let connections: Connection[] = data.connections
 
     const authenticateJellyfin: SubmitFunction = ({ formData, cancel }) => {
         const { serverUrl, username, password } = Object.fromEntries(formData)

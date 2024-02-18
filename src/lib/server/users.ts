@@ -5,7 +5,15 @@ import { isValidURL } from '$lib/utils'
 const db = new Database('./src/lib/server/users.db', { verbose: console.info })
 db.pragma('foreign_keys = ON')
 const initUsersTable = 'CREATE TABLE IF NOT EXISTS Users(id VARCHAR(36) PRIMARY KEY, username VARCHAR(30) UNIQUE NOT NULL, password VARCHAR(72) NOT NULL)'
-const initConnectionsTable = 'CREATE TABLE IF NOT EXISTS Connections(id VARCHAR(36) PRIMARY KEY, userId VARCHAR(36) NOT NULL, service TEXT NOT NULL, tokens TEXT NOT NULL, FOREIGN KEY(userId) REFERENCES Users(id))'
+const initConnectionsTable = `CREATE TABLE IF NOT EXISTS Connections(
+    id VARCHAR(36) PRIMARY KEY,
+    userId VARCHAR(36) NOT NULL,
+    service TEXT NOT NULL,
+    accessToken TEXT NOT NULL,
+    refreshToken TEXT,
+    expiry NUMBER,
+    FOREIGN KEY(userId) REFERENCES Users(id)
+)`
 db.exec(initUsersTable), db.exec(initConnectionsTable)
 
 type UserQueryParams = {
@@ -16,7 +24,9 @@ interface ConnectionsTableSchema {
     id: string
     userId: string
     service: string
-    tokens: string
+    accessToken: string
+    refreshToken?: string
+    expiry?: number
 }
 
 export class Users {
@@ -52,8 +62,8 @@ export class Users {
 
 export class Connections {
     static getConnection = (id: string): Connection => {
-        const { userId, service, tokens } = db.prepare('SELECT * FROM Connections WHERE id = ?').get(id) as ConnectionsTableSchema
-        const connection: Connection = { id, userId, service: JSON.parse(service), tokens: JSON.parse(tokens) }
+        const { userId, service, accessToken, refreshToken, expiry } = db.prepare('SELECT * FROM Connections WHERE id = ?').get(id) as ConnectionsTableSchema
+        const connection: Connection = { id, userId, service: JSON.parse(service), accessToken, refreshToken, expiry }
         return connection
     }
 
@@ -61,16 +71,16 @@ export class Connections {
         const connectionRows = db.prepare('SELECT * FROM Connections WHERE userId = ?').all(userId) as ConnectionsTableSchema[]
         const connections: Connection[] = []
         for (const row of connectionRows) {
-            const { id, service, tokens } = row
-            connections.push({ id, userId, service: JSON.parse(service), tokens: JSON.parse(tokens) })
+            const { id, service, accessToken, refreshToken, expiry } = row
+            connections.push({ id, userId, service: JSON.parse(service), accessToken, refreshToken, expiry })
         }
         return connections
     }
 
-    static addConnection = (userId: string, service: Service, tokens: Tokens): Connection => {
+    static addConnection = (userId: string, service: Service, accessToken: string, refreshToken?: string, expiry?: number): Connection => {
         const connectionId = generateUUID()
         if (!isValidURL(service.urlOrigin)) throw new Error('Service does not have valid url')
-        db.prepare('INSERT INTO Connections(id, userId, service, tokens) VALUES(?, ?, ?, ?)').run(connectionId, userId, JSON.stringify(service), JSON.stringify(tokens))
+        db.prepare('INSERT INTO Connections(id, userId, service, accessToken, refreshToken, expiry) VALUES(?, ?, ?, ?, ?, ?)').run(connectionId, userId, JSON.stringify(service), accessToken, refreshToken, expiry)
         return this.getConnection(connectionId)
     }
 
@@ -79,8 +89,18 @@ export class Connections {
         if (commandInfo.changes === 0) throw new Error(`Connection with id: ${id} does not exist`)
     }
 
-    static updateTokens = (id: string, tokens: Tokens): void => {
-        const commandInfo = db.prepare('UPDATE Connections SET tokens = ? WHERE id = ?').run(JSON.stringify(tokens), id)
+    static updateTokens = (id: string, accessToken: string, refreshToken?: string, expiry?: number): void => {
+        const commandInfo = db.prepare('UPDATE Connections SET accessToken = ?, refreshToken = ?, expiry = ? WHERE id = ?').run(accessToken, refreshToken, expiry, id)
         if (commandInfo.changes === 0) throw new Error('Failed to update tokens')
+    }
+
+    static getExpiredConnections = (userId: string): Connection[] => {
+        const expiredRows = db.prepare('SELECT * FROM Connections WHERE userId = ? AND expiry < ?').all(userId, Date.now()) as ConnectionsTableSchema[]
+        const connections: Connection[] = []
+        for (const row of expiredRows) {
+            const { id, userId, service, accessToken, refreshToken, expiry } = row
+            connections.push({ id, userId, service: JSON.parse(service), accessToken, refreshToken, expiry })
+        }
+        return connections
     }
 }

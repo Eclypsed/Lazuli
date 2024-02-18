@@ -32,17 +32,13 @@ declare global {
         urlOrigin: string
     }
 
-    interface Tokens {
-        accessToken: string
-        refreshToken?: string
-        expiry?: number
-    }
-
     interface Connection {
         id: string
         userId: string
         service: Service
-        tokens: Tokens
+        accessToken: string
+        refreshToken?: string
+        expiry?: number
     }
 
     interface ConnectionInfo {
@@ -106,19 +102,6 @@ declare global {
         // The jellyfin API will not always return the data it says it will, for example /Users/AuthenticateByName says it will
         // retrun the ServerName, it wont. This must be fetched from /System/Info.
         // So, ONLY DEFINE THE INTERFACES FOR DATA THAT IS GARUNTEED TO BE RETURNED (unless the data value itself is inherently optional)
-        interface JFService extends Service {
-            type: 'jellyfin'
-        }
-
-        interface JFTokens implements Tokens {
-            accessToken: string
-        }
-
-        interface JFConnection extends Connection {
-            service: JFService
-            tokens: JFTokens
-        }
-
         interface User {
             Name: string
             Id: string
@@ -184,22 +167,7 @@ declare global {
         }
     }
 
-    namespace YouTubeMusic {
-        interface YTService extends Service {
-            type: 'youtube-music'
-        }
-
-        interface YTTokens implements Tokens {
-            accessToken: string
-            refreshToken: string
-            expiry: number
-        }
-
-        interface YTConnection extends Connection {
-            service: YTService
-            tokens: YTTokens
-        }
-    }
+    namespace YouTubeMusic {}
 }
 
 export {}

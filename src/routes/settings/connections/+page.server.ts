@@ -36,15 +36,15 @@ export const actions: Actions = {
             return fail(500, { message: 'Internal Server Error' })
         }
 
-        const authData: Jellyfin.AuthData = await jellyfinAuthResponse.json()
+        const authData = await jellyfinAuthResponse.json()
 
         const serviceData: Jellyfin.JFService = {
             type: 'jellyfin',
-            userId: authData.User.Id,
+            userId: authData.userId,
             urlOrigin: serverUrl.toString(),
         }
         const tokenData: Jellyfin.JFTokens = {
-            accessToken: authData.AccessToken,
+            accessToken: authData.accessToken,
         }
 
         const newConnectionResponse = await fetch(`/api/users/${locals.user.id}/connections`, {

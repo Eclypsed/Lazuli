@@ -30,8 +30,11 @@ export const POST: RequestHandler = async ({ request, fetch }) => {
         })
         if (!authResponse.ok) return new Response('Failed to authenticate', { status: 401 })
 
-        const authData: Jellyfin.AuthData = await authResponse.json()
-        return Response.json(authData)
+        const authData = await authResponse.json()
+        return Response.json({
+            userId: authData.User.Id,
+            accessToken: authData.AccessToken,
+        })
     } catch {
         return new Response('Fetch request failed', { status: 404 })
     }

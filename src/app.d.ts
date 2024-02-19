@@ -122,13 +122,6 @@ declare global {
             servername: string
         }
 
-        interface AuthData {
-            User: {
-                Id: string
-            }
-            AccessToken: string
-        }
-
         interface User {
             Name: string
             Id: string

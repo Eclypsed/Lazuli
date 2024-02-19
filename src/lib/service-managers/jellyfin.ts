@@ -10,7 +10,7 @@ export class Jellyfin {
         }
     }
 
-    static songFactory = (song: Jellyfin.Song, connection: Jellyfin.JFConnection): Song => {
+    static songFactory = (song: Jellyfin.Song, connection: Connection): Song => {
         const { id, service } = connection
         const thumbnail = song.ImageTags?.Primary
             ? new URL(`Items/${song.Id}/Images/Primary`, service.urlOrigin).href
@@ -42,7 +42,7 @@ export class Jellyfin {
         }
     }
 
-    static albumFactory = (album: Jellyfin.Album, connection: Jellyfin.JFConnection): Album => {
+    static albumFactory = (album: Jellyfin.Album, connection: Connection): Album => {
         const { id, service } = connection
         const thumbnail = album.ImageTags?.Primary ? new URL(`Items/${album.Id}/Images/Primary`, service.urlOrigin).href : undefined
 
@@ -72,7 +72,7 @@ export class Jellyfin {
         }
     }
 
-    static playListFactory = (playlist: Jellyfin.Playlist, connection: Jellyfin.JFConnection): Playlist => {
+    static playListFactory = (playlist: Jellyfin.Playlist, connection: Connection): Playlist => {
         const { id, service } = connection
         const thumbnail = playlist.ImageTags?.Primary ? new URL(`Items/${playlist.Id}/Images/Primary`, service.urlOrigin).href : undefined
 
@@ -87,7 +87,7 @@ export class Jellyfin {
         }
     }
 
-    static artistFactory = (artist: Jellyfin.Artist, connection: Jellyfin.JFConnection): Artist => {
+    static artistFactory = (artist: Jellyfin.Artist, connection: Connection): Artist => {
         const { id, service } = connection
         const thumbnail = artist.ImageTags?.Primary ? new URL(`Items/${artist.Id}/Images/Primary`, service.urlOrigin).href : undefined
 

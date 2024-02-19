@@ -32,23 +32,21 @@ declare global {
         urlOrigin: string
     }
 
-    interface Tokens {
-        accessToken: string
-        refreshToken?: string
-        expiry?: number
-    }
-
     interface Connection {
         id: string
         userId: string
         service: Service
-        tokens: Tokens
+        accessToken: string
+        refreshToken?: string
+        expiry?: number
     }
 
     interface ConnectionInfo {
         connectionId: string
         serviceType: serviceType
         username: string
+        serverName?: string
+        profilePicture?: string
     }
 
     // These Schemas should only contain general info data that is necessary for data fetching purposes.
@@ -104,27 +102,14 @@ declare global {
         // The jellyfin API will not always return the data it says it will, for example /Users/AuthenticateByName says it will
         // retrun the ServerName, it wont. This must be fetched from /System/Info.
         // So, ONLY DEFINE THE INTERFACES FOR DATA THAT IS GARUNTEED TO BE RETURNED (unless the data value itself is inherently optional)
-        interface JFService extends Service {
-            type: 'jellyfin'
-        }
-
-        interface JFTokens implements Tokens {
-            accessToken: string
-        }
-
-        interface JFConnection extends Connection {
-            service: JFService
-            tokens: JFTokens
-        }
-
-        interface JFConnectionInfo extends ConnectionInfo {
-            serviceType: 'jellyfin'
-            servername: string
-        }
-
         interface User {
             Name: string
             Id: string
+        }
+
+        interface AuthData {
+            User: Jellyfin.User
+            AccessToken: string
         }
 
         interface System {
@@ -182,27 +167,7 @@ declare global {
         }
     }
 
-    namespace YouTubeMusic {
-        interface YTService extends Service {
-            type: 'youtube-music'
-        }
-
-        interface YTTokens implements Tokens {
-            accessToken: string
-            refreshToken: string
-            expiry: number
-        }
-
-        interface YTConnection extends Connection {
-            service: YTService
-            tokens: YTTokens
-        }
-
-        interface YTConnectionInfo extends ConnectionInfo {
-            serviceType: 'youtube-music'
-            profilePicture?: string
-        }
-    }
+    namespace YouTubeMusic {}
 }
 
 export {}

@@ -1,0 +1,202 @@
+openapi: 3.0.0
+info:
+  title: Lazuli API
+  version: 1.0.0
+
+servers:
+  - url: http://host[:port]/api
+
+paths:
+  /connections:
+      get:
+        summary: Returns connections by ids
+        tags:
+          - Connections
+        parameters:
+          - in: query
+            name: ids
+            schema:
+              type: array
+              items:
+                type: string
+            description: List of connection ids, comma delimited
+            required: true
+        responses:
+          '200':
+            description: A JSON array of connections
+            content:
+              application/json:
+                schema:
+                  type: object
+                  required:
+                    - connections
+                  properties:
+                    connections:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/Connection'
+          '400':
+            description: Bad Request
+          '401':
+            description: Unauthorized
+  /connections/{connectionId}/info:
+    get:
+      summary: Returns unique info from the specified connection
+      tags:
+        - Connections
+      parameters:
+        - in: path
+          name: connectionId
+          schema:
+            type: string
+          description: The id of the connection
+          required: true
+      responses:
+        '200':
+          description: Any info relevant to the connection, such as username, profile picture, etc.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - info
+                properties:
+                  info:
+                    $ref: '#/components/schemas/ConnectionInfo'
+        '401':
+          description: Unauthorized
+  /users/{userId}/connections:
+    get:
+      summary: Returns all connections for a specified user
+      tags:
+        - Connections
+      parameters:
+        - in: path
+          name: userId
+          schema:
+            type: string
+          description: The user's id
+          required: true
+      responses:
+        '200':
+          description: A JSON array of connections
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - connections
+                properties:
+                  connections:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Connection'
+        '401':
+          description: Unauthorized
+          
+  /users/{userId}/recommendations:
+    get:
+      summary: Returns recommendations for the user from all connections
+      tags:
+        - Recommendations
+      parameters:
+        - in: path
+          name: userId
+          schema:
+            type: string
+          description: The user's id
+          required: true
+      responses:
+        '200':
+          description: A JSON array of media items
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - recommendations
+                properties:
+                  recommendations:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MediaItem'
+        '401':
+          description: Unauthorized
+  
+                
+components:
+  schemas:
+    serviceType:
+      type: string
+      enum: ['jellyfin', 'youtube-music']
+    Service:
+      type: object
+      required:
+        - type
+        - userId
+        - urlOrigin
+      properties:
+        type:
+          $ref: '#/components/schemas/serviceType'
+        userId:
+          type: string
+        urlOrigin:
+          type: string
+    Connection:
+      type: object
+      required:
+        - id
+        - userId
+        - service
+        - accessToken
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        service:
+          $ref: '#/components/schemas/Service'
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        expiry:
+          type: number
+    ConnectionInfo:
+      type: object
+      required:
+        - connectionId
+        - serviceType
+      properties:
+        connectionId:
+          type: string
+        serviceType:
+          $ref: '#/components/schemas/serviceType'
+        username:
+          type: string
+        serverName:
+          type: string
+        profilePicture:
+          type: string
+    MediaItem:
+      type: object
+      required:
+        - connectionId
+        - serviceType
+        - type
+        - id
+        - name
+      properties:
+        connectionId:
+          type: string
+        serviceType:
+          $ref: '#/components/schemas/serviceType'
+        type:
+          type: string
+          enum: ['song', 'album', 'playlist', 'artist']
+        id:
+          type: string
+        name:
+          type: string
+        thumbnail:
+          type: string

@@ -17,7 +17,7 @@ export const handle: Handle = async ({ event, resolve }) => {
         if (!authToken) throw redirect(303, `/login?redirect=${urlpath}`)
 
         try {
-            const tokenData = jwt.verify(authToken, SECRET_JWT_KEY) as User
+            const tokenData = jwt.verify(authToken, SECRET_JWT_KEY) as Omit<User, 'password'>
             event.locals.user = tokenData
         } catch {
             throw redirect(303, `/login?redirect=${urlpath}`)

@@ -4,7 +4,7 @@ declare global {
     namespace App {
         // interface Error {}
         interface Locals {
-            user: User
+            user: Omit<User, 'password'>
         }
         // interface PageData {}
         // interface PageState {}
@@ -21,7 +21,7 @@ declare global {
     interface User {
         id: string
         username: string
-        password?: string
+        password: string
     }
 
     type serviceType = 'jellyfin' | 'youtube-music'
@@ -39,6 +39,7 @@ declare global {
         accessToken: string
         refreshToken?: string
         expiry?: number
+        connectionInfo?: ConnectionInfo
     }
 
     interface ConnectionInfo {

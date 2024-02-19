@@ -1,10 +1,14 @@
-import Database from 'better-sqlite3'
+import Database, { SqliteError } from 'better-sqlite3'
 import { generateUUID } from '$lib/utils'
 import { isValidURL } from '$lib/utils'
 
 const db = new Database('./src/lib/server/users.db', { verbose: console.info })
 db.pragma('foreign_keys = ON')
-const initUsersTable = 'CREATE TABLE IF NOT EXISTS Users(id VARCHAR(36) PRIMARY KEY, username VARCHAR(30) UNIQUE NOT NULL, password VARCHAR(72) NOT NULL)'
+const initUsersTable = `CREATE TABLE IF NOT EXISTS Users(
+    id VARCHAR(36) PRIMARY KEY,
+    username VARCHAR(30) UNIQUE NOT NULL,
+    password VARCHAR(72) NOT NULL
+)`
 const initConnectionsTable = `CREATE TABLE IF NOT EXISTS Connections(
     id VARCHAR(36) PRIMARY KEY,
     userId VARCHAR(36) NOT NULL,
@@ -16,10 +20,6 @@ const initConnectionsTable = `CREATE TABLE IF NOT EXISTS Connections(
 )`
 db.exec(initUsersTable), db.exec(initConnectionsTable)
 
-type UserQueryParams = {
-    includePassword?: boolean
-}
-
 interface ConnectionsTableSchema {
     id: string
     userId: string
@@ -30,25 +30,19 @@ interface ConnectionsTableSchema {
 }
 
 export class Users {
-    static getUser = (id: string, params: UserQueryParams | null = null): User | undefined => {
-        const user = db.prepare('SELECT * FROM Users WHERE id = ?').get(id) as User | undefined
-        if (user && !params?.includePassword) delete user.password
+    static getUser = (id: string): User | null => {
+        const user = db.prepare('SELECT * FROM Users WHERE id = ?').get(id) as User | null
         return user
     }
 
-    static getUsername = (username: string, params: UserQueryParams | null = null): User | undefined => {
-        const user = db.prepare('SELECT * FROM Users WHERE lower(username) = ?').get(username.toLowerCase()) as User | undefined
-        if (user && !params?.includePassword) delete user.password
+    static getUsername = (username: string): User | null => {
+        const user = db.prepare('SELECT * FROM Users WHERE lower(username) = ?').get(username.toLowerCase()) as User | null
         return user
     }
 
-    static allUsers = (includePassword: boolean = false): User[] => {
-        const users = db.prepare('SELECT * FROM Users').all() as User[]
-        if (!includePassword) users.forEach((user) => delete user.password)
-        return users
-    }
+    static addUser = (username: string, hashedPassword: string): User | null => {
+        if (this.getUsername(username)) return null
 
-    static addUser = (username: string, hashedPassword: string): User => {
         const userId = generateUUID()
         db.prepare('INSERT INTO Users(id, username, password) VALUES(?, ?, ?)').run(userId, username, hashedPassword)
         return this.getUser(userId)!

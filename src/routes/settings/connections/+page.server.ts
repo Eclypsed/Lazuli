@@ -12,6 +12,7 @@ export const load: PageServerLoad = async ({ fetch, locals }) => {
     })
 
     const userConnections = await connectionsResponse.json()
+
     return { connections: userConnections.connections }
 }
 

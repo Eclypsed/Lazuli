@@ -15,10 +15,10 @@ export const actions: Actions = {
         const formData = await request.formData()
         const { username, password, redirectLocation } = Object.fromEntries(formData)
 
-        const user = Users.getUsername(username.toString(), { includePassword: true })
+        const user = Users.getUsername(username.toString())
         if (!user) return fail(400, { message: 'Invalid Username' })
 
-        const passwordValid = await compare(password.toString(), user.password!)
+        const passwordValid = await compare(password.toString(), user.password)
         if (!passwordValid) return fail(400, { message: 'Invalid Password' })
 
         const authToken = jwt.sign({ id: user.id, username: user.username }, SECRET_JWT_KEY, { expiresIn: '100d' })
@@ -33,14 +33,11 @@ export const actions: Actions = {
         const formData = await request.formData()
         const { username, password } = Object.fromEntries(formData)
 
-        const existingUsers = Users.allUsers()
-        const existingUsernames = Array.from(existingUsers, (user) => user.username)
-        if (username.toString() in existingUsernames) return fail(400, { message: 'Username already in use' })
-
         const passwordHash = await hash(password.toString(), 10)
         const newUser = Users.addUser(username.toString(), passwordHash)
+        if (!newUser) return fail(400, { message: 'Username already in use' })
 
-        const authToken = jwt.sign(newUser, SECRET_JWT_KEY, { expiresIn: '100d' })
+        const authToken = jwt.sign({ id: newUser.id, username: newUser.username }, SECRET_JWT_KEY, { expiresIn: '100d' })
 
         cookies.set('lazuli-auth', authToken, { path: '/', httpOnly: true, sameSite: 'strict', secure: false, maxAge: 60 * 60 * 24 * 100 })
 

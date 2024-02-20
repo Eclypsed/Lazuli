@@ -73,6 +73,14 @@ export class Connections {
 
     static addConnection = (userId: string, service: Service, accessToken: string, refreshToken?: string, expiry?: number): Connection => {
         const connectionId = generateUUID()
+        const ytConnection: YouTubeMusic.Connection = {
+            id: 'test',
+            userId: 'test',
+            youtubeUserId: 'test',
+            type: 'youtube-music',
+            accessToken: 'test',
+        }
+        const test = this.insertConnection(ytConnection)
         if (!isValidURL(service.urlOrigin)) throw new Error('Service does not have valid url')
         db.prepare('INSERT INTO Connections(id, userId, service, accessToken, refreshToken, expiry) VALUES(?, ?, ?, ?, ?, ?)').run(connectionId, userId, JSON.stringify(service), accessToken, refreshToken, expiry)
         return this.getConnection(connectionId)

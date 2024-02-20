@@ -26,28 +26,10 @@ declare global {
 
     type serviceType = 'jellyfin' | 'youtube-music'
 
-    interface Service {
-        type: serviceType
-        userId: string
-        urlOrigin: string
-    }
-
-    interface Connection {
+    interface BaseConnection {
         id: string
         userId: string
-        service: Service
-        accessToken: string
-        refreshToken?: string
-        expiry?: number
-        connectionInfo?: ConnectionInfo
-    }
-
-    interface ConnectionInfo {
-        connectionId: string
-        serviceType: serviceType
-        username: string
-        serverName?: string
-        profilePicture?: string
+        type: serviceType
     }
 
     // These Schemas should only contain general info data that is necessary for data fetching purposes.
@@ -103,6 +85,19 @@ declare global {
         // The jellyfin API will not always return the data it says it will, for example /Users/AuthenticateByName says it will
         // retrun the ServerName, it wont. This must be fetched from /System/Info.
         // So, ONLY DEFINE THE INTERFACES FOR DATA THAT IS GARUNTEED TO BE RETURNED (unless the data value itself is inherently optional)
+        interface Connection<T = undefined> extends BaseConnection {
+            type: 'jellyfin'
+            jellyfinUserId: string
+            urlOrigin: string
+            accessToken: string
+            info?: T
+        }
+
+        interface ConnectionInfo {
+            username?: string
+            serverName?: string
+        }
+
         interface User {
             Name: string
             Id: string
@@ -168,7 +163,19 @@ declare global {
         }
     }
 
-    namespace YouTubeMusic {}
+    namespace YouTubeMusic {
+        interface Connection<T = undefined> extends BaseConnection {
+            type: 'youtube-music'
+            youtubeUserId: string
+            accessToken: string
+            info?: T
+        }
+
+        interface ConnectionInfo {
+            username?: string
+            profilePicture?: string
+        }
+    }
 }
 
 export {}

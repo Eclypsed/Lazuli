@@ -55,9 +55,9 @@ export class Users {
 }
 
 export class Connections {
-    static getConnection = (id: string): Connection => {
+    static getConnection = (id: string): BaseConnection => {
         const { userId, service, accessToken, refreshToken, expiry } = db.prepare('SELECT * FROM Connections WHERE id = ?').get(id) as ConnectionsTableSchema
-        const connection: Connection = { id, userId, service: JSON.parse(service), accessToken, refreshToken, expiry }
+        const connection: BaseConnection = { id, userId, service: JSON.parse(service), accessToken, refreshToken, expiry }
         return connection
     }
 

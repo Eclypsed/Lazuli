@@ -12,6 +12,7 @@ const initUsersTable = `CREATE TABLE IF NOT EXISTS Users(
 const initConnectionsTable = `CREATE TABLE IF NOT EXISTS Connections(
     id VARCHAR(36) PRIMARY KEY,
     userId VARCHAR(36) NOT NULL,
+    type VARCHAR(36) NOT NULL,
     service TEXT NOT NULL,
     accessToken TEXT NOT NULL,
     refreshToken TEXT,
@@ -23,6 +24,7 @@ db.exec(initUsersTable), db.exec(initConnectionsTable)
 interface ConnectionsTableSchema {
     id: string
     userId: string
+    type: string
     service: string
     accessToken: string
     refreshToken?: string
@@ -71,17 +73,19 @@ export class Connections {
         return connections
     }
 
-    static addConnection = (userId: string, service: Service, accessToken: string, refreshToken?: string, expiry?: number): Connection => {
+    static addConnection = (userId: string, service: Service, accessToken?: string, refreshToken?: string, expiry?: number): Connection => {
         const connectionId = generateUUID()
-        const ytConnection: YouTubeMusic.Connection = {
+        const test: Connection = {
             id: 'test',
             userId: 'test',
-            youtubeUserId: 'test',
-            type: 'youtube-music',
+            type: 'jellyfin',
+            service: {
+                userId: 'test',
+                urlOrigin: 'test',
+            },
             accessToken: 'test',
         }
-        const test = this.insertConnection(ytConnection)
-        if (!isValidURL(service.urlOrigin)) throw new Error('Service does not have valid url')
+        // if (!isValidURL(service.urlOrigin)) throw new Error('Service does not have valid url')
         db.prepare('INSERT INTO Connections(id, userId, service, accessToken, refreshToken, expiry) VALUES(?, ?, ?, ?, ?, ?)').run(connectionId, userId, JSON.stringify(service), accessToken, refreshToken, expiry)
         return this.getConnection(connectionId)
     }

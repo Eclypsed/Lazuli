@@ -4,7 +4,7 @@ declare global {
     namespace App {
         // interface Error {}
         interface Locals {
-            user: Omit<User, 'password'>
+            user: Omit<User, 'passwordHash'>
         }
         // interface PageData {}
         // interface PageState {}
@@ -21,25 +21,12 @@ declare global {
     interface User {
         id: string
         username: string
-        password: string
+        passwordHash: string
     }
 
     type serviceType = 'jellyfin' | 'youtube-music'
 
-    type Service = Jellyfin.Service | YouTubeMusic.Service
-
-    type Tokens<T> = T extends Jellyfin.Service ? Jellyfin.Tokens : T extends YouTubeMusic.Service ? YouTubeMusic.Tokens : {}
-
-    // type ServiceTokenPair = [Jellyfin.Service, Jellyfin.Tokens] | [YouTubeMusic.Service, YouTubeMusic.Tokens]
-
-    interface BaseConnection<T> {
-        id: string
-        userId: string
-        type: T extends Jellyfin.Service ? 'jellyfin' : T extends YouTubeMusic.Service ? 'youtube-music' : serviceType
-        service: T extends undefined ? Service : T
-    }
-
-    type Connection<T extends Service = undefined> = BaseConnection<T> & Tokens<T>
+    type Connection<T extends serviceType> = T extends 'jellyfin' ? Jellyfin.Connection : T extends 'youtube-music' ? YouTubeMusic.Connection : never
 
     // These Schemas should only contain general info data that is necessary for data fetching purposes.
     // They are NOT meant to be stores for large amounts of data, i.e. Don't include the data for every single song the Playlist type.
@@ -94,15 +81,19 @@ declare global {
         // The jellyfin API will not always return the data it says it will, for example /Users/AuthenticateByName says it will
         // retrun the ServerName, it wont. This must be fetched from /System/Info.
         // So, ONLY DEFINE THE INTERFACES FOR DATA THAT IS GARUNTEED TO BE RETURNED (unless the data value itself is inherently optional)
-        interface Service {
+        interface Connection {
+            id: string
             userId: string
-            urlOrigin: string
-            username?: string
-            serverName?: string
-        }
-
-        interface Tokens {
-            accessToken: string
+            type: 'jellyfin'
+            service: {
+                userId: string
+                urlOrigin: string
+                username?: string
+                serverName?: string
+            }
+            tokens: {
+                accessToken: string
+            }
         }
 
         interface User {
@@ -171,16 +162,20 @@ declare global {
     }
 
     namespace YouTubeMusic {
-        interface Service {
+        interface Connection {
+            id: string
             userId: string
-            username?: string
-            profilePicture?: string
-        }
-
-        interface Tokens {
-            accessToken: string
-            refreshToken: string
-            expiry: number
+            type: 'youtube-music'
+            service: {
+                userId: string
+                username?: string
+                profilePicture?: string
+            }
+            tokens: {
+                accessToken: string
+                refreshToken: string
+                expiry: number
+            }
         }
     }
 }

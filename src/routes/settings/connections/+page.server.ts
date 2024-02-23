@@ -43,13 +43,11 @@ export const actions: Actions = {
             return fail(400, { message: 'Could not reach Jellyfin server' })
         }
 
-        const serviceData: Service = {
-            type: 'jellyfin',
-            userId: authData.User.Id,
-            urlOrigin: serverUrl.toString(),
-        }
-
-        const newConnection = Connections.addConnection(locals.user.id, serviceData, authData.AccessToken)
+        const newConnection = Connections.addConnection('jellyfin', {
+            userId: locals.user.id,
+            service: { userId: authData.User.Id, urlOrigin: serverUrl.toString() },
+            tokens: { accessToken: authData.AccessToken },
+        })
 
         return { newConnection }
     },
@@ -63,13 +61,11 @@ export const actions: Actions = {
         const userChannelResponse = await youtube.channels.list({ mine: true, part: ['id', 'snippet'], access_token: tokens.access_token! })
         const userChannel = userChannelResponse.data.items![0]
 
-        const serviceData: Service = {
-            type: 'youtube-music',
-            userId: userChannel.id!,
-            urlOrigin: 'https://www.googleapis.com/youtube/v3',
-        }
-
-        const newConnection = Connections.addConnection(locals.user.id, serviceData, tokens.access_token!, tokens.refresh_token!, tokens.expiry_date!)
+        const newConnection = Connections.addConnection('youtube-music', {
+            userId: locals.user.id,
+            service: { userId: userChannel.id! },
+            tokens: { accessToken: tokens.access_token!, refreshToken: tokens.refresh_token!, expiry: tokens.expiry_date! },
+        })
 
         return { newConnection }
     },

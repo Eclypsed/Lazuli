@@ -18,7 +18,7 @@ export const actions: Actions = {
         const user = Users.getUsername(username.toString())
         if (!user) return fail(400, { message: 'Invalid Username' })
 
-        const passwordValid = await compare(password.toString(), user.password)
+        const passwordValid = await compare(password.toString(), user.passwordHash)
         if (!passwordValid) return fail(400, { message: 'Invalid Password' })
 
         const authToken = jwt.sign({ id: user.id, username: user.username }, SECRET_JWT_KEY, { expiresIn: '100d' })

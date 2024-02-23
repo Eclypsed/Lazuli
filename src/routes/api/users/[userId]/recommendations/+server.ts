@@ -1,6 +1,6 @@
 import type { RequestHandler } from '@sveltejs/kit'
 import { SECRET_INTERNAL_API_KEY } from '$env/static/private'
-import { Jellyfin } from '$lib/service-managers/jellyfin'
+import { Jellyfin } from '$lib/services'
 
 // This is temporary functionally for the sake of developing the app.
 // In the future will implement more robust algorithm for offering recommendations
@@ -13,9 +13,9 @@ export const GET: RequestHandler = async ({ params, fetch }) => {
     const recommendations: MediaItem[] = []
 
     for (const connection of userConnections.connections) {
-        const { service, accessToken } = connection as Connection
+        const { type, service, tokens } = connection as Connection<serviceType>
 
-        switch (service.type) {
+        switch (type) {
             case 'jellyfin':
                 const mostPlayedSongsSearchParams = new URLSearchParams({
                     SortBy: 'PlayCount',
@@ -26,7 +26,7 @@ export const GET: RequestHandler = async ({ params, fetch }) => {
                 })
 
                 const mostPlayedSongsURL = new URL(`/Users/${service.userId}/Items?${mostPlayedSongsSearchParams.toString()}`, service.urlOrigin).href
-                const requestHeaders = new Headers({ Authorization: `MediaBrowser Token="${accessToken}"` })
+                const requestHeaders = new Headers({ Authorization: `MediaBrowser Token="${tokens.accessToken}"` })
 
                 const mostPlayedResponse = await fetch(mostPlayedSongsURL, { headers: requestHeaders })
                 const mostPlayedData = await mostPlayedResponse.json()

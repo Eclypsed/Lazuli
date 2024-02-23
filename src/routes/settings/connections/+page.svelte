@@ -1,5 +1,5 @@
 <script lang="ts">
-    import Services from '$lib/services.json'
+    import { serviceData } from '$lib/services'
     import JellyfinAuthBox from './jellyfinAuthBox.svelte'
     import { newestAlert } from '$lib/stores.js'
     import type { PageServerData } from './$types.js'
@@ -11,7 +11,7 @@
     import { PUBLIC_YOUTUBE_API_CLIENT_ID } from '$env/static/public'
 
     export let data: PageServerData
-    let connections: Connection[] = data.connections
+    let connections: Connection<serviceType>[] = data.connections
 
     const authenticateJellyfin: SubmitFunction = ({ formData, cancel }) => {
         const { serverUrl, username, password } = Object.fromEntries(formData)
@@ -34,11 +34,11 @@
             if (result.type === 'failure') {
                 return ($newestAlert = ['warning', result.data?.message])
             } else if (result.type === 'success') {
-                const newConnection: Connection = result.data!.newConnection
+                const newConnection: Connection<'jellyfin'> = result.data!.newConnection
                 connections = [...connections, newConnection]
 
                 newConnectionModal = null
-                return ($newestAlert = ['success', `Added ${Services[newConnection.service.type].displayName}`])
+                return ($newestAlert = ['success', `Added ${serviceData[newConnection.type].displayName}`])
             }
         }
     }
@@ -67,7 +67,7 @@
             if (result.type === 'failure') {
                 return ($newestAlert = ['warning', result.data?.message])
             } else if (result.type === 'success') {
-                const newConnection: Connection = result.data!.newConnection
+                const newConnection: Connection<'youtube-music'> = result.data!.newConnection
                 connections = [...connections, newConnection]
                 return ($newestAlert = ['success', 'Added Youtube Music'])
             }
@@ -84,12 +84,12 @@
             } else if (result.type === 'success') {
                 const id = result.data!.deletedConnectionId
                 const indexToDelete = connections.findIndex((connection) => connection.id === id)
-                const serviceType = connections[indexToDelete].service.type
+                const serviceType = connections[indexToDelete].type
 
                 connections.splice(indexToDelete, 1)
                 connections = connections
 
-                return ($newestAlert = ['success', `Deleted ${Services[serviceType].displayName}`])
+                return ($newestAlert = ['success', `Deleted ${serviceData[serviceType].displayName}`])
             }
         }
     }
@@ -102,11 +102,11 @@
         <h1 class="py-2 text-xl">Add Connection</h1>
         <div class="flex flex-wrap gap-2 pb-4">
             <button class="add-connection-button h-14 rounded-md" on:click={() => (newConnectionModal = JellyfinAuthBox)}>
-                <img src={Services.jellyfin.icon} alt="{Services.jellyfin.displayName} icon" class="aspect-square h-full p-2" />
+                <img src={serviceData.jellyfin.icon} alt="{serviceData.jellyfin.displayName} icon" class="aspect-square h-full p-2" />
             </button>
             <form method="post" action="?/youtubeMusicLogin" use:enhance={authenticateYouTube}>
                 <button class="add-connection-button h-14 rounded-md">
-                    <img src={Services['youtube-music'].icon} alt="{Services['youtube-music'].displayName} icon" class="aspect-square h-full p-2" />
+                    <img src={serviceData['youtube-music'].icon} alt="{serviceData['youtube-music'].displayName} icon" class="aspect-square h-full p-2" />
                 </button>
             </form>
         </div>

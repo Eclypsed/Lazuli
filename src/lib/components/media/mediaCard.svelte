@@ -1,7 +1,6 @@
 <script lang="ts">
     export let mediaItem: MediaItem
 
-    import Services from '$lib/services.json'
     import IconButton from '$lib/components/util/iconButton.svelte'
     import { goto } from '$app/navigation'
 

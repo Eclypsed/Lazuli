@@ -1,47 +1,43 @@
 <script lang="ts">
-    import Services from '$lib/services.json'
+    import { serviceData } from '$lib/services'
     import IconButton from '$lib/components/util/iconButton.svelte'
     import Toggle from '$lib/components/util/toggle.svelte'
     import type { SubmitFunction } from '@sveltejs/kit'
     import { fly } from 'svelte/transition'
     import { enhance } from '$app/forms'
 
-    export let connection: Connection
+    export let connection: Connection<serviceType>
     export let submitFunction: SubmitFunction
 
-    $: serviceData = Services[connection.service.type]
+    $: reactiveServiceData = serviceData[connection.type]
 
     let showModal = false
 </script>
 
 <section class="rounded-lg" style="background-color: rgba(82, 82, 82, 0.25);" transition:fly={{ x: 50 }}>
     <header class="flex h-20 items-center gap-4 p-4">
-        <div class="h-full aspect-square p-1 relative">
-            <img src={serviceData.icon} alt="{serviceData.displayName} icon" />
+        <div class="relative aspect-square h-full p-1">
+            <img src={reactiveServiceData.icon} alt="{reactiveServiceData.displayName} icon" />
             {#if 'profilePicture' in connection.service && typeof connection.service.profilePicture === 'string'}
-                <img src="{connection.service.profilePicture}" alt="" class="absolute h-5 aspect-square bottom-0 right-0 rounded-full"/>
+                <img src={connection.service.profilePicture} alt="" class="absolute bottom-0 right-0 aspect-square h-5 rounded-full" />
             {/if}
         </div>
         <div>
             <div>Username</div>
             <div class="text-sm text-neutral-500">
-                {serviceData.displayName}
+                {reactiveServiceData.displayName}
                 {#if 'serverName' in connection.service}
                     - {connection.service.serverName}
                 {/if}
             </div>
         </div>
-        <div class="relative ml-auto h-8 flex flex-row-reverse gap-2">
-            <IconButton halo={true} on:click={() => showModal = !showModal}>
+        <div class="relative ml-auto flex h-8 flex-row-reverse gap-2">
+            <IconButton halo={true} on:click={() => (showModal = !showModal)}>
                 <i slot="icon" class="fa-solid fa-ellipsis-vertical text-xl text-neutral-500" />
             </IconButton>
             {#if showModal}
-                <form
-                    use:enhance={submitFunction}
-                    method="post"
-                    class="absolute right-0 top-full flex flex-col items-center justify-center gap-1 rounded-md bg-neutral-900 p-2 text-xs"
-                >
-                    <button formaction="?/deleteConnection" class="py-2 px-3 whitespace-nowrap hover:bg-neutral-800 rounded-md">
+                <form use:enhance={submitFunction} method="post" class="absolute right-0 top-full flex flex-col items-center justify-center gap-1 rounded-md bg-neutral-900 p-2 text-xs">
+                    <button formaction="?/deleteConnection" class="whitespace-nowrap rounded-md px-3 py-2 hover:bg-neutral-800">
                         <i class="fa-solid fa-link-slash mr-1" />
                         Delete Connection
                     </button>

@@ -1,6 +1,7 @@
 import type { RequestHandler } from '@sveltejs/kit'
 import { SECRET_INTERNAL_API_KEY } from '$env/static/private'
-import { Jellyfin } from '$lib/services'
+import { Jellyfin, YouTubeMusic } from '$lib/services'
+import { google } from 'googleapis'
 
 // This is temporary functionally for the sake of developing the app.
 // In the future will implement more robust algorithm for offering recommendations
@@ -32,6 +33,9 @@ export const GET: RequestHandler = async ({ params, fetch }) => {
                 const mostPlayedData = await mostPlayedResponse.json()
 
                 for (const song of mostPlayedData.Items) recommendations.push(Jellyfin.songFactory(song, connection))
+                break
+            case 'youtube-music':
+                YouTubeMusic.getHome(tokens.accessToken)
                 break
         }
     }

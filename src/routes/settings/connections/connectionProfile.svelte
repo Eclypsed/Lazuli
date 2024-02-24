@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { serviceData } from '$lib/services'
+    import Services from '$lib/services.json'
     import IconButton from '$lib/components/util/iconButton.svelte'
     import Toggle from '$lib/components/util/toggle.svelte'
     import type { SubmitFunction } from '@sveltejs/kit'
@@ -9,26 +9,27 @@
     export let connection: Connection<serviceType>
     export let submitFunction: SubmitFunction
 
-    $: reactiveServiceData = serviceData[connection.type]
+    $: serviceData = Services[connection.type]
 
     let showModal = false
+
+    const subHeaderItems: string[] = []
+    if ('username' in connection.service && connection.service.username) subHeaderItems.push(connection.service.username)
+    if ('serverName' in connection.service && connection.service.serverName) subHeaderItems.push(connection.service.serverName)
 </script>
 
 <section class="rounded-lg" style="background-color: rgba(82, 82, 82, 0.25);" transition:fly={{ x: 50 }}>
     <header class="flex h-20 items-center gap-4 p-4">
         <div class="relative aspect-square h-full p-1">
-            <img src={reactiveServiceData.icon} alt="{reactiveServiceData.displayName} icon" />
-            {#if 'profilePicture' in connection.service && typeof connection.service.profilePicture === 'string'}
+            <img src={serviceData.icon} alt="{serviceData.displayName} icon" />
+            {#if 'profilePicture' in connection.service && connection.service.profilePicture}
                 <img src={connection.service.profilePicture} alt="" class="absolute bottom-0 right-0 aspect-square h-5 rounded-full" />
             {/if}
         </div>
         <div>
-            <div>Username</div>
+            <div>{serviceData.displayName}</div>
             <div class="text-sm text-neutral-500">
-                {reactiveServiceData.displayName}
-                {#if 'serverName' in connection.service}
-                    - {connection.service.serverName}
-                {/if}
+                {subHeaderItems.join(' - ')}
             </div>
         </div>
         <div class="relative ml-auto flex h-8 flex-row-reverse gap-2">

@@ -17,6 +17,7 @@ export const GET: RequestHandler = async ({ url }) => {
                 connection.service = await YouTubeMusic.fetchServiceInfo(connection.service.userId, connection.tokens.accessToken)
                 break
         }
+        connections.push(connection)
     }
 
     return Response.json({ connections })

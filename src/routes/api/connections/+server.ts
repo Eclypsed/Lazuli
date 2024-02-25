@@ -1,5 +1,6 @@
 import type { RequestHandler } from '@sveltejs/kit'
-import { Jellyfin, YouTubeMusic } from '$lib/services'
+import { Jellyfin } from '$lib/services'
+import { YouTubeMusic } from '$lib/service-managers/youtube-music'
 import { Connections } from '$lib/server/users'
 
 export const GET: RequestHandler = async ({ url }) => {

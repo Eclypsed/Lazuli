@@ -1,7 +1,7 @@
 import type { RequestHandler } from '@sveltejs/kit'
 import { SECRET_INTERNAL_API_KEY } from '$env/static/private'
-import { Jellyfin, YouTubeMusic } from '$lib/services'
-import { google } from 'googleapis'
+import { Jellyfin } from '$lib/services'
+import { YouTubeMusic } from '$lib/service-managers/youtube-music'
 
 // This is temporary functionally for the sake of developing the app.
 // In the future will implement more robust algorithm for offering recommendations

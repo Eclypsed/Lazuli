@@ -6,5 +6,5 @@
 </script>
 
 <div id="main">
-    <ScrollableCardMenu header={'Listen Again'} cardDataList={data.recommendations} />
+    <!-- <ScrollableCardMenu header={'Listen Again'} cardDataList={data.recommendations} /> -->
 </div>

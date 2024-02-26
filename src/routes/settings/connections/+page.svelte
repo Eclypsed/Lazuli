@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { serviceData } from '$lib/services'
+    import Services from '$lib/services.json'
     import JellyfinAuthBox from './jellyfinAuthBox.svelte'
     import { newestAlert } from '$lib/stores.js'
     import type { PageServerData } from './$types.js'
@@ -38,7 +38,7 @@
                 connections = [...connections, newConnection]
 
                 newConnectionModal = null
-                return ($newestAlert = ['success', `Added ${serviceData[newConnection.type].displayName}`])
+                return ($newestAlert = ['success', `Added ${Services[newConnection.type].displayName}`])
             }
         }
     }
@@ -75,9 +75,6 @@
     }
 
     const profileActions: SubmitFunction = ({ action, cancel }) => {
-        console.log(action)
-        cancel()
-
         return ({ result }) => {
             if (result.type === 'failure') {
                 return ($newestAlert = ['warning', result.data?.message])
@@ -89,7 +86,7 @@
                 connections.splice(indexToDelete, 1)
                 connections = connections
 
-                return ($newestAlert = ['success', `Deleted ${serviceData[serviceType].displayName}`])
+                return ($newestAlert = ['success', `Deleted ${Services[serviceType].displayName}`])
             }
         }
     }
@@ -102,11 +99,11 @@
         <h1 class="py-2 text-xl">Add Connection</h1>
         <div class="flex flex-wrap gap-2 pb-4">
             <button class="add-connection-button h-14 rounded-md" on:click={() => (newConnectionModal = JellyfinAuthBox)}>
-                <img src={serviceData.jellyfin.icon} alt="{serviceData.jellyfin.displayName} icon" class="aspect-square h-full p-2" />
+                <img src={Services.jellyfin.icon} alt="{Services.jellyfin.displayName} icon" class="aspect-square h-full p-2" />
             </button>
             <form method="post" action="?/youtubeMusicLogin" use:enhance={authenticateYouTube}>
                 <button class="add-connection-button h-14 rounded-md">
-                    <img src={serviceData['youtube-music'].icon} alt="{serviceData['youtube-music'].displayName} icon" class="aspect-square h-full p-2" />
+                    <img src={Services['youtube-music'].icon} alt="{Services['youtube-music'].displayName} icon" class="aspect-square h-full p-2" />
                 </button>
             </form>
         </div>

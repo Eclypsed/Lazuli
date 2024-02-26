@@ -1,5 +1,6 @@
 import type { RequestHandler } from '@sveltejs/kit'
-import { Jellyfin, YouTubeMusic } from '$lib/services'
+import { Jellyfin } from '$lib/services'
+import { YouTubeMusic } from '$lib/service-managers/youtube-music'
 import { Connections } from '$lib/server/users'
 
 export const GET: RequestHandler = async ({ url }) => {
@@ -17,6 +18,7 @@ export const GET: RequestHandler = async ({ url }) => {
                 connection.service = await YouTubeMusic.fetchServiceInfo(connection.service.userId, connection.tokens.accessToken)
                 break
         }
+        connections.push(connection)
     }
 
     return Response.json({ connections })

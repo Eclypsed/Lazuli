@@ -43,15 +43,22 @@ export const actions: Actions = {
             return fail(400, { message: 'Could not reach Jellyfin server' })
         }
 
-        const newConnection = Connections.addConnection('jellyfin', {
+        const newConnectionId = Connections.addConnection('jellyfin', {
             userId: locals.user.id,
             service: { userId: authData.User.Id, urlOrigin: serverUrl.toString() },
             tokens: { accessToken: authData.AccessToken },
         })
 
-        return { newConnection }
+        const response = await fetch(`/api/connections?ids=${newConnectionId}`, {
+            method: 'GET',
+            headers: { apikey: SECRET_INTERNAL_API_KEY },
+        })
+
+        const responseData = await response.json()
+
+        return { newConnection: responseData.connections[0] }
     },
-    youtubeMusicLogin: async ({ request, locals }) => {
+    youtubeMusicLogin: async ({ request, fetch, locals }) => {
         const formData = await request.formData()
         const { code } = Object.fromEntries(formData)
         const client = new google.auth.OAuth2({ clientId: PUBLIC_YOUTUBE_API_CLIENT_ID, clientSecret: YOUTUBE_API_CLIENT_SECRET, redirectUri: 'http://localhost:5173' }) // DO NOT SHIP THIS. THE CLIENT SECRET SHOULD NOT BE MADE AVAILABLE TO USERS. MAKE A REQUEST TO THE LAZULI WEBSITE INSTEAD.
@@ -61,13 +68,20 @@ export const actions: Actions = {
         const userChannelResponse = await youtube.channels.list({ mine: true, part: ['id', 'snippet'], access_token: tokens.access_token! })
         const userChannel = userChannelResponse.data.items![0]
 
-        const newConnection = Connections.addConnection('youtube-music', {
+        const newConnectionId = Connections.addConnection('youtube-music', {
             userId: locals.user.id,
             service: { userId: userChannel.id! },
             tokens: { accessToken: tokens.access_token!, refreshToken: tokens.refresh_token!, expiry: tokens.expiry_date! },
         })
 
-        return { newConnection }
+        const response = await fetch(`/api/connections?ids=${newConnectionId}`, {
+            method: 'GET',
+            headers: { apikey: SECRET_INTERNAL_API_KEY },
+        })
+
+        const responseData = await response.json()
+
+        return { newConnection: responseData.connections[0] }
     },
     deleteConnection: async ({ request }) => {
         const formData = await request.formData()

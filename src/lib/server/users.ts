@@ -77,11 +77,11 @@ export class Connections {
         return connections
     }
 
-    static addConnection<T extends serviceType>(type: T, connectionData: Omit<DBConnectionData<T>, 'id' | 'type'>): DBConnectionData<T> {
+    static addConnection<T extends serviceType>(type: T, connectionData: Omit<DBConnectionData<T>, 'id' | 'type'>): string {
         const connectionId = generateUUID()
         const { userId, service, tokens } = connectionData
-        db.prepare(`INSERT INTO Connections(id, userId, type, service, tokens) VALUES(?, ?, ?, ?, ?)`).run(connectionId, userId, type, service, tokens)
-        return this.getConnection(connectionId) as DBConnectionData<T>
+        db.prepare(`INSERT INTO Connections(id, userId, type, service, tokens) VALUES(?, ?, ?, ?, ?)`).run(connectionId, userId, type, JSON.stringify(service), JSON.stringify(tokens))
+        return connectionId
     }
 
     static deleteConnection = (id: string): void => {
@@ -91,7 +91,7 @@ export class Connections {
 
     static updateTokens = (id: string, accessToken?: string, refreshToken?: string, expiry?: number): void => {
         const newTokens = { accessToken, refreshToken, expiry }
-        const commandInfo = db.prepare(`UPDATE Connections SET tokens = ? WHERE id = ?`).run(newTokens, id)
+        const commandInfo = db.prepare(`UPDATE Connections SET tokens = ? WHERE id = ?`).run(JSON.stringify(newTokens), id)
         if (commandInfo.changes === 0) throw new Error('Failed to update tokens')
     }
 

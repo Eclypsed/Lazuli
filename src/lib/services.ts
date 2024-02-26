@@ -1,20 +1,3 @@
-import { google } from 'googleapis'
-
-export const serviceData = {
-    jellyfin: {
-        displayName: 'Jellyfin',
-        type: ['streaming'],
-        icon: 'https://raw.githubusercontent.com/jellyfin/jellyfin-ux/55616553b692b1a6c7d8e786eeb7d8216e9b50df/branding/SVG/icon-transparent.svg',
-        primaryColor: '--jellyfin-blue',
-    },
-    'youtube-music': {
-        displayName: 'YouTube Music',
-        type: ['streaming'],
-        icon: 'https://upload.wikimedia.org/wikipedia/commons/6/6a/Youtube_Music_icon.svg',
-        primaryColor: '--youtube-red',
-    },
-}
-
 export class Jellyfin {
     static audioPresets = (userId: string) => {
         return {
@@ -135,20 +118,6 @@ export class Jellyfin {
             id: artist.Id,
             name: artist.Name,
             thumbnail,
-        }
-    }
-}
-
-export class YouTubeMusic {
-    static fetchServiceInfo = async (userId: string, accessToken: string): Promise<Connection<'youtube-music'>['service']> => {
-        const youtube = google.youtube('v3')
-        const userChannelResponse = await youtube.channels.list({ mine: true, part: ['snippet'], access_token: accessToken })
-        const userChannel = userChannelResponse.data.items![0]
-
-        return {
-            userId,
-            username: userChannel.snippet?.title as string,
-            profilePicture: userChannel.snippet?.thumbnails?.default?.url as string | undefined,
         }
     }
 }

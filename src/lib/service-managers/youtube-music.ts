@@ -17,13 +17,9 @@ declare namespace InnerTube {
                             selected: boolean
                             content: {
                                 sectionListRenderer: {
-                                    contents:
-                                        | {
-                                              musicCarouselShelfRenderer: musicCarouselShelfRenderer
-                                          }[]
-                                        | {
-                                              musicDescriptionShelfRenderer: musicDescriptionShelfRenderer
-                                          }[]
+                                    contents: {
+                                        musicCarouselShelfRenderer: musicCarouselShelfRenderer
+                                    }[]
                                     continuations: [object]
                                     trackingParams: string
                                     header: {
@@ -77,7 +73,6 @@ declare namespace InnerTube {
         }
         contents: {
             musicTwoRowItemRenderer?: musicTwoRowItemRenderer
-            musicResponsiveListItemRenderer?: unknown
         }[]
         trackingParams: string
         itemSize: string
@@ -259,8 +254,26 @@ export class YouTubeMusic {
         console.log(response.status)
         const data: InnerTube.BrowseResponse = await response.json()
         const results = data.contents.singleColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents
-        const home: any[] = []
-        home.push.apply(home, Parsers.parseMixedContent(results))
+        const home: { id: string; name: string }[] = []
+        for (const result of results) {
+            const homeSection = result.musicCarouselShelfRenderer.contents
+            for (const item of homeSection) {
+                if (item.musicTwoRowItemRenderer?.navigationEndpoint) {
+                    let id: string
+                    const navigationEndpoint = item.musicTwoRowItemRenderer.navigationEndpoint
+                    if ('browseEndpoint' in navigationEndpoint) {
+                        id = navigationEndpoint.browseEndpoint.browseId
+                    } else if ('watchEndpoint' in navigationEndpoint) {
+                        id = navigationEndpoint.watchEndpoint.videoId
+                    } else {
+                        continue
+                    }
+                    home.push({ id, name: item.musicTwoRowItemRenderer.title.runs[0].text })
+                }
+            }
+        }
+
+        console.log(JSON.stringify(home))
 
         // const sectionList = data.contents.singleColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer
         // if ('continuations' in sectionList) {

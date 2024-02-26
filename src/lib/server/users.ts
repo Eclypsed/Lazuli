@@ -13,7 +13,7 @@ const initConnectionsTable = `CREATE TABLE IF NOT EXISTS Connections(
     userId VARCHAR(36) NOT NULL,
     type VARCHAR(36) NOT NULL,
     service TEXT,
-    tokens TEXT
+    tokens TEXT,
     FOREIGN KEY(userId) REFERENCES Users(id)
 )`
 db.exec(initUsersTable), db.exec(initConnectionsTable)

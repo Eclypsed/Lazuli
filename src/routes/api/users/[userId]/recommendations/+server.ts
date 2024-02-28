@@ -35,7 +35,8 @@ export const GET: RequestHandler = async ({ params, fetch }) => {
                 for (const song of mostPlayedData.Items) recommendations.push(Jellyfin.songFactory(song, connection))
                 break
             case 'youtube-music':
-                YouTubeMusic.getHome(tokens.accessToken)
+                const youtubeMusic = new YouTubeMusic(connection)
+                youtubeMusic.getHome()
                 break
         }
     }

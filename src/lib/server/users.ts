@@ -16,7 +16,15 @@ const initConnectionsTable = `CREATE TABLE IF NOT EXISTS Connections(
     tokens TEXT,
     FOREIGN KEY(userId) REFERENCES Users(id)
 )`
-db.exec(initUsersTable), db.exec(initConnectionsTable)
+const initPlaylistsTable = `CREATE TABLE IF NOT EXISTS Playlists(
+    id VARCHAR(36) PRIMARY KEY,
+    userId VARCHAR(36) NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    items TEXT,
+    FOREIGN KEY(userId) REFERENCES Users(id)
+)`
+db.exec(initUsersTable), db.exec(initConnectionsTable), db.exec(initPlaylistsTable)
 
 interface ConnectionsTableSchema {
     id: string
@@ -51,10 +59,12 @@ export class Users {
     }
 }
 
+type DBServiceData<T extends serviceType> = T extends 'jellyfin' ? Pick<Jellyfin.Connection['service'], 'userId' | 'urlOrigin'> : T extends 'youtube-music' ? Pick<YouTubeMusic.Connection['service'], 'userId'> : never
+
 type DBConnectionData<T extends serviceType> = T extends 'jellyfin'
-    ? Omit<Jellyfin.Connection, 'service'> & { service: Pick<Jellyfin.Connection['service'], 'userId' | 'urlOrigin'> }
+    ? Omit<Jellyfin.Connection, 'service'> & { service: DBServiceData<'jellyfin'> }
     : T extends 'youtube-music'
-      ? Omit<YouTubeMusic.Connection, 'service'> & { service: Pick<YouTubeMusic.Connection['service'], 'userId'> }
+      ? Omit<YouTubeMusic.Connection, 'service'> & { service: DBServiceData<'youtube-music'> }
       : never
 
 export class Connections {
@@ -77,9 +87,8 @@ export class Connections {
         return connections
     }
 
-    static addConnection<T extends serviceType>(type: T, connectionData: Omit<DBConnectionData<T>, 'id' | 'type'>): string {
+    static addConnection<T extends serviceType>(type: T, userId: string, service: DBServiceData<T>, tokens: Connection<T>['tokens']): string {
         const connectionId = generateUUID()
-        const { userId, service, tokens } = connectionData
         db.prepare(`INSERT INTO Connections(id, userId, type, service, tokens) VALUES(?, ?, ?, ?, ?)`).run(connectionId, userId, type, JSON.stringify(service), JSON.stringify(tokens))
         return connectionId
     }
@@ -105,4 +114,14 @@ export class Connections {
         }
         return connections
     }
+}
+
+class Playlists {
+    static newPlaylist = (userId: string, name: string): string => {
+        const playlistId = generateUUID()
+        db.prepare(`INSERT INTO Playlists(id, userId, name) VALUES(?, ?, ?)`).run(playlistId, userId, name)
+        return playlistId
+    }
+
+    static updateDescription = (id: string, description: string): void => {}
 }

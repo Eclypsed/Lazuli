@@ -32,8 +32,6 @@ declare global {
     // They are NOT meant to be stores for large amounts of data, i.e. Don't include the data for every single song the Playlist type.
     // Big data should be fetched as needed in the app, these exist to ensure that the info necessary to fetch that data is there.
     interface MediaItem {
-        connectionId: string
-        serviceType: serviceType
         type: 'song' | 'album' | 'playlist' | 'artist'
         id: string
         name: string
@@ -41,36 +39,47 @@ declare global {
     }
 
     interface Song extends MediaItem {
+        connectionId: string
+        serviceType: serviceType
         type: 'song'
         duration: number
-        artists: {
+        artists?: {
             id: string
             name: string
         }[]
-        albumId?: string
-        audio: string
-        video?: string
-        releaseDate: string
+        album?: {
+            id: string
+            name: string
+        }
+        // audio: string <--- Because of youtube these will potentially expire. They are also not needed until a user requests that song, so instead fetch them as needed
+        // video?: string
+        releaseDate?: string
     }
 
     interface Album extends MediaItem {
+        connectionId: string
+        serviceType: serviceType
         type: 'album'
         duration: number
-        albumArtists: {
+        albumArtists?: {
             id: string
             name: string
         }[]
-        artists: {
+        artists?: {
             id: string
             name: string
         }[]
-        releaseDate: string
+        releaseDate?: string
     }
 
+    // IMPORTANT: This interface is for Lazuli created and stored playlists. Use service-specific interfaces when pulling playlists from services
     interface Playlist extends MediaItem {
         type: 'playlist'
-        duration: number
         description?: string
+        items: {
+            connectionId: string
+            id: string
+        }[]
     }
 
     interface Artist extends MediaItem {

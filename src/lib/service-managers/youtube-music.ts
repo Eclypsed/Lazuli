@@ -1,4 +1,5 @@
 import { google } from 'googleapis'
+import ytdl from 'ytdl-core'
 
 declare namespace InnerTube {
     interface BrowseResponse {
@@ -177,10 +178,25 @@ declare namespace InnerTube {
             label: string
         }
     }
+
+    interface YouTubeMusicClient {
+        userId: string
+        accessToken: string
+    }
 }
 
 export class YouTubeMusic {
-    static baseHeaders = {
+    connectionId: string
+    userId: string
+    accessToken: string
+
+    constructor(connection: YouTubeMusic.Connection) {
+        this.connectionId = connection.id
+        this.userId = connection.service.userId
+        this.accessToken = connection.tokens.accessToken
+    }
+
+    private BASEHEADERS = {
         'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:88.0) Gecko/20100101 Firefox/88.0',
         accept: '*/*',
         'accept-encoding': 'gzip, deflate',
@@ -190,20 +206,20 @@ export class YouTubeMusic {
         Cookie: 'SOCS=CAI;',
     }
 
-    static fetchServiceInfo = async (userId: string, accessToken: string): Promise<Connection<'youtube-music'>['service']> => {
+    public fetchServiceInfo = async (): Promise<YouTubeMusic.Connection['service']> => {
         const youtube = google.youtube('v3')
-        const userChannelResponse = await youtube.channels.list({ mine: true, part: ['snippet'], access_token: accessToken })
+        const userChannelResponse = await youtube.channels.list({ mine: true, part: ['snippet'], access_token: this.accessToken })
         const userChannel = userChannelResponse.data.items![0]
 
         return {
-            userId,
+            userId: this.userId,
             username: userChannel.snippet?.title as string,
             profilePicture: userChannel.snippet?.thumbnails?.default?.url as string | undefined,
         }
     }
 
-    static getVisitorId = async (accessToken: string): Promise<string> => {
-        const headers = Object.assign(this.baseHeaders, { authorization: `Bearer ${accessToken}`, 'X-Goog-Request-Time': `${Date.now()}` })
+    private getVisitorId = async (): Promise<string> => {
+        const headers = Object.assign(this.BASEHEADERS, { authorization: `Bearer ${this.accessToken}`, 'X-Goog-Request-Time': `${Date.now()}` })
         const visitorIdResponse = await fetch('https://music.youtube.com', { headers })
         const visitorIdText = await visitorIdResponse.text()
         const regex = /ytcfg\.set\s*\(\s*({.+?})\s*\)\s*;/g
@@ -224,17 +240,17 @@ export class YouTubeMusic {
         return visitorId
     }
 
-    static getHome = async (accessToken: string): Promise<MediaItem[]> => {
-        const headers = Object.assign(this.baseHeaders, { authorization: `Bearer ${accessToken}`, 'X-Goog-Request-Time': `${Date.now()}` })
+    private formatDate = (): string => {
+        const currentDate = new Date()
+        const year = currentDate.getUTCFullYear()
+        const month = (currentDate.getUTCMonth() + 1).toString().padStart(2, '0') // Months are zero-based, so add 1
+        const day = currentDate.getUTCDate().toString().padStart(2, '0')
 
-        function formatDate(): string {
-            const currentDate = new Date()
-            const year = currentDate.getUTCFullYear()
-            const month = (currentDate.getUTCMonth() + 1).toString().padStart(2, '0') // Months are zero-based, so add 1
-            const day = currentDate.getUTCDate().toString().padStart(2, '0')
+        return year + month + day
+    }
 
-            return year + month + day
-        }
+    public getHome = async () => {
+        const headers = Object.assign(this.BASEHEADERS, { authorization: `Bearer ${this.accessToken}`, 'X-Goog-Request-Time': `${Date.now()}` })
 
         const response = await fetch(`https://music.youtube.com/youtubei/v1/browse?alt=json`, {
             headers,
@@ -244,7 +260,7 @@ export class YouTubeMusic {
                 context: {
                     client: {
                         clientName: 'WEB_REMIX',
-                        clientVersion: '1.' + formatDate() + '.01.00',
+                        clientVersion: '1.' + this.formatDate() + '.01.00',
                         hl: 'en',
                     },
                 },
@@ -273,14 +289,51 @@ export class YouTubeMusic {
             }
         }
 
-        console.log(JSON.stringify(home))
+        const youtube = google.youtube('v3')
+        const videoInfo = await youtube.videos.list({
+            id: home.map((video) => video.id),
+            part: ['contentDetails', 'snippet', 'statistics'],
+            access_token: this.accessToken,
+        })
+        console.log(JSON.stringify(videoInfo))
+
+        // console.log(JSON.stringify(results[0].musicCarouselShelfRenderer.contents[0]))
 
         // const sectionList = data.contents.singleColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer
         // if ('continuations' in sectionList) {
 
         // }
 
+        // const song: Song = {
+        //     connectionId: this.connectionId,
+        //     serviceType: 'youtube-music',
+        //     type: 'song',
+        //     id: home[0].id,
+        //     name: home[0].name,
+        //     duration:
+        // }
         // return home
+    }
+
+    public getSong = async (videoId: string) => {
+        const headers = Object.assign(this.BASEHEADERS, { authorization: `Bearer ${this.accessToken}`, 'X-Goog-Request-Time': `${Date.now()}` })
+
+        const response = await fetch(`https://music.youtube.com/youtubei/v1/player?alt=json`, {
+            headers,
+            method: 'POST',
+            body: JSON.stringify({
+                playbackContext: {
+                    contentPlaybackContext: { signatureTimestamp: }
+                },
+                context: {
+                    client: {
+                        clientName: 'WEB_REMIX',
+                        clientVersion: '1.' + this.formatDate() + '.01.00',
+                        hl: 'en',
+                    },
+                },
+            }),
+        })
     }
 }
 

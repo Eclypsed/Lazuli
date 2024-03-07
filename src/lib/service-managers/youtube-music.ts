@@ -74,6 +74,7 @@ declare namespace InnerTube {
         }
         contents: {
             musicTwoRowItemRenderer?: musicTwoRowItemRenderer
+            musicResponsiveListItemRenderer?: musicResponsiveListItemRenderer
         }[]
         trackingParams: string
         itemSize: string
@@ -105,6 +106,22 @@ declare namespace InnerTube {
         thumbnailOverlay: unknown
     }
 
+    type musicResponsiveListItemRenderer = {
+        thumbnail: {
+            musicThumbnailRenderer: musicThumbnailRenderer
+        }
+        overlay: unknown
+        flexColumns: {
+            musicResponsiveListItemFlexColumnRenderer: {
+                text: { runs: [runs<'watch' | 'browse'>] }
+            }
+        }[]
+        menu: unknown
+        playlistItemData: {
+            videoId: string
+        }
+    }
+
     type musicThumbnailRenderer = {
         thumbnail: {
             thumbnails: {
@@ -129,19 +146,18 @@ declare namespace InnerTube {
         : { text: string }
 
     type endpointType = 'browse' | 'watch' | 'watchPlaylist'
-    type navigationEndpoint<T extends endpointType> = T extends 'browse'
+    type navigationEndpoint<T extends endpointType> = {
+        clickTrackingParams: string
+    } & T extends 'browse'
         ? {
-              clickTrackingParams: string
               browseEndpoint: browseEndpoint
           }
         : T extends 'watch'
           ? {
-                clickTrackingParams: string
                 watchEndpoint: watchEndpoint
             }
           : T extends 'watchPlaylist'
             ? {
-                  clickTrackingParams: string
                   watchPlaylistEndpoint: watchPlaylistEndpoint
               }
             : never
@@ -177,11 +193,6 @@ declare namespace InnerTube {
         accessibilityData: {
             label: string
         }
-    }
-
-    interface YouTubeMusicClient {
-        userId: string
-        accessToken: string
     }
 }
 
@@ -269,50 +280,30 @@ export class YouTubeMusic {
 
         console.log(response.status)
         const data: InnerTube.BrowseResponse = await response.json()
-        const results = data.contents.singleColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents
-        const home: { id: string; name: string }[] = []
-        for (const result of results) {
-            const homeSection = result.musicCarouselShelfRenderer.contents
-            for (const item of homeSection) {
-                if (item.musicTwoRowItemRenderer?.navigationEndpoint) {
-                    let id: string
-                    const navigationEndpoint = item.musicTwoRowItemRenderer.navigationEndpoint
-                    if ('browseEndpoint' in navigationEndpoint) {
-                        id = navigationEndpoint.browseEndpoint.browseId
-                    } else if ('watchEndpoint' in navigationEndpoint) {
-                        id = navigationEndpoint.watchEndpoint.videoId
-                    } else {
-                        continue
+        const contents = data.contents.singleColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents.flatMap((section) => section.musicCarouselShelfRenderer.contents)
+        console.log(JSON.stringify(contents[0]))
+
+        for (const item of contents) {
+            let artists: Song['artists'], album: Song['album']
+
+            if (item.musicResponsiveListItemRenderer) {
+                for (const column of item.musicResponsiveListItemRenderer.flexColumns) {
+                    const text = column.musicResponsiveListItemFlexColumnRenderer.text.runs[0].text
+                    const endpoint = column.musicResponsiveListItemFlexColumnRenderer.text.runs[0].navigationEndpoint!
+                    if ('watchEndpoint' in endpoint) {
                     }
-                    home.push({ id, name: item.musicTwoRowItemRenderer.title.runs[0].text })
                 }
+            } else {
+                continue
             }
         }
+    }
 
-        const youtube = google.youtube('v3')
-        const videoInfo = await youtube.videos.list({
-            id: home.map((video) => video.id),
-            part: ['contentDetails', 'snippet', 'statistics'],
-            access_token: this.accessToken,
-        })
-        console.log(JSON.stringify(videoInfo))
-
-        // console.log(JSON.stringify(results[0].musicCarouselShelfRenderer.contents[0]))
-
-        // const sectionList = data.contents.singleColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer
-        // if ('continuations' in sectionList) {
-
-        // }
-
-        // const song: Song = {
-        //     connectionId: this.connectionId,
-        //     serviceType: 'youtube-music',
-        //     type: 'song',
-        //     id: home[0].id,
-        //     name: home[0].name,
-        //     duration:
-        // }
-        // return home
+    private getDatestamp = () => {
+        const currentDate = new Date()
+        const epochDate = new Date(0)
+        const daysDifference = Math.floor((currentDate.getTime() - epochDate.getTime()) / (24 * 60 * 60 * 1000))
+        return daysDifference
     }
 
     public getSong = async (videoId: string) => {
@@ -323,8 +314,9 @@ export class YouTubeMusic {
             method: 'POST',
             body: JSON.stringify({
                 playbackContext: {
-                    contentPlaybackContext: { signatureTimestamp: }
+                    contentPlaybackContext: { signatureTimestamp: this.getDatestamp() - 1 },
                 },
+                videoId,
                 context: {
                     client: {
                         clientName: 'WEB_REMIX',
@@ -334,6 +326,10 @@ export class YouTubeMusic {
                 },
             }),
         })
+
+        console.log(response.status)
+        const data = await response.json()
+        console.log(JSON.stringify(data))
     }
 }
 

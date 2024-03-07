@@ -42,7 +42,7 @@ declare global {
         connectionId: string
         serviceType: serviceType
         type: 'song'
-        duration: number
+        duration?: number
         artists?: {
             id: string
             name: string
@@ -60,7 +60,7 @@ declare global {
         connectionId: string
         serviceType: serviceType
         type: 'album'
-        duration: number
+        duration?: number
         albumArtists?: {
             id: string
             name: string

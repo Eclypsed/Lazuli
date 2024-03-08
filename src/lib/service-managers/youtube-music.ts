@@ -1,5 +1,4 @@
 import { google } from 'googleapis'
-import ytdl from 'ytdl-core'
 
 declare namespace InnerTube {
     interface BrowseResponse {
@@ -52,7 +51,7 @@ declare namespace InnerTube {
         header: {
             musicCarouselShelfBasicHeaderRenderer: {
                 title: {
-                    runs: [runs<'browse'>]
+                    runs: [runs]
                 }
                 strapline: [runs]
                 accessibilityData: accessibilityData
@@ -63,7 +62,7 @@ declare namespace InnerTube {
                         text: {
                             runs: [runs]
                         }
-                        navigationEndpoint: navigationEndpoint<'browse'>
+                        navigationEndpoint: navigationEndpoint
                         trackingParams: string
                         accessibilityData: accessibilityData
                     }
@@ -72,10 +71,13 @@ declare namespace InnerTube {
                 trackingParams: string
             }
         }
-        contents: {
-            musicTwoRowItemRenderer?: musicTwoRowItemRenderer
-            musicResponsiveListItemRenderer?: musicResponsiveListItemRenderer
-        }[]
+        contents:
+            | {
+                  musicTwoRowItemRenderer: musicTwoRowItemRenderer
+              }[]
+            | {
+                  musicResponsiveListItemRenderer: musicResponsiveListItemRenderer
+              }[]
         trackingParams: string
         itemSize: string
     }
@@ -95,12 +97,12 @@ declare namespace InnerTube {
         }
         aspectRatio: string
         title: {
-            runs: [runs<'browse'>]
+            runs: [runs]
         }
         subtitle: {
-            runs: runs<'browse'>[]
+            runs: runs[]
         }
-        navigationEndpoint: navigationEndpoint<endpointType>
+        navigationEndpoint: navigationEndpoint
         trackingParams: string
         menu: unknown
         thumbnailOverlay: unknown
@@ -113,7 +115,7 @@ declare namespace InnerTube {
         overlay: unknown
         flexColumns: {
             musicResponsiveListItemFlexColumnRenderer: {
-                text: { runs: [runs<'watch' | 'browse'>] }
+                text: { runs: [runs] }
             }
         }[]
         menu: unknown
@@ -134,33 +136,28 @@ declare namespace InnerTube {
         thumbnailScale: string
         trackingParams: string
         accessibilityData?: accessibilityData
-        onTap?: navigationEndpoint<'browse'>
+        onTap?: navigationEndpoint
         targetId?: string
     }
 
-    type runs<endpoint extends endpointType | undefined = undefined> = endpoint extends endpointType
-        ? {
-              text: string
-              navigationEndpoint?: navigationEndpoint<endpoint>
-          }
-        : { text: string }
+    type runs = {
+        text: string
+        navigationEndpoint?: navigationEndpoint
+    }
 
-    type endpointType = 'browse' | 'watch' | 'watchPlaylist'
-    type navigationEndpoint<T extends endpointType> = {
+    type navigationEndpoint = {
         clickTrackingParams: string
-    } & T extends 'browse'
-        ? {
+    } & (
+        | {
               browseEndpoint: browseEndpoint
           }
-        : T extends 'watch'
-          ? {
-                watchEndpoint: watchEndpoint
-            }
-          : T extends 'watchPlaylist'
-            ? {
-                  watchPlaylistEndpoint: watchPlaylistEndpoint
-              }
-            : never
+        | {
+              watchEndpoint: watchEndpoint
+          }
+        | {
+              watchPlaylistEndpoint: watchPlaylistEndpoint
+          }
+    )
 
     type browseEndpoint = {
         browseId: string
@@ -229,28 +226,6 @@ export class YouTubeMusic {
         }
     }
 
-    private getVisitorId = async (): Promise<string> => {
-        const headers = Object.assign(this.BASEHEADERS, { authorization: `Bearer ${this.accessToken}`, 'X-Goog-Request-Time': `${Date.now()}` })
-        const visitorIdResponse = await fetch('https://music.youtube.com', { headers })
-        const visitorIdText = await visitorIdResponse.text()
-        const regex = /ytcfg\.set\s*\(\s*({.+?})\s*\)\s*;/g
-        const matches = []
-        let match
-
-        while ((match = regex.exec(visitorIdText)) !== null) {
-            const capturedGroup = match[1]
-            matches.push(capturedGroup)
-        }
-
-        let visitorId = ''
-        if (matches.length > 0) {
-            const ytcfg = JSON.parse(matches[0])
-            visitorId = ytcfg.VISITOR_DATA
-        }
-
-        return visitorId
-    }
-
     private formatDate = (): string => {
         const currentDate = new Date()
         const year = currentDate.getUTCFullYear()
@@ -260,7 +235,7 @@ export class YouTubeMusic {
         return year + month + day
     }
 
-    public getHome = async () => {
+    public getHome = async (): Promise<YouTubeMusic.HomeItems> => {
         const headers = Object.assign(this.BASEHEADERS, { authorization: `Bearer ${this.accessToken}`, 'X-Goog-Request-Time': `${Date.now()}` })
 
         const response = await fetch(`https://music.youtube.com/youtubei/v1/browse?alt=json`, {
@@ -280,291 +255,124 @@ export class YouTubeMusic {
 
         console.log(response.status)
         const data: InnerTube.BrowseResponse = await response.json()
-        const contents = data.contents.singleColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents.flatMap((section) => section.musicCarouselShelfRenderer.contents)
-        console.log(JSON.stringify(contents[0]))
+        const contents = data.contents.singleColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents
 
-        for (const item of contents) {
-            let artists: Song['artists'], album: Song['album']
-
-            if (item.musicResponsiveListItemRenderer) {
-                for (const column of item.musicResponsiveListItemRenderer.flexColumns) {
-                    const text = column.musicResponsiveListItemFlexColumnRenderer.text.runs[0].text
-                    const endpoint = column.musicResponsiveListItemFlexColumnRenderer.text.runs[0].navigationEndpoint!
-                    if ('watchEndpoint' in endpoint) {
-                    }
-                }
-            } else {
-                continue
-            }
+        const homeItems: YouTubeMusic.HomeItems = {
+            listenAgain: [],
+            quickPicks: [],
+            newReleases: [],
         }
-    }
 
-    private getDatestamp = () => {
-        const currentDate = new Date()
-        const epochDate = new Date(0)
-        const daysDifference = Math.floor((currentDate.getTime() - epochDate.getTime()) / (24 * 60 * 60 * 1000))
-        return daysDifference
-    }
+        for (const section of contents) {
+            const headerTitle = section.musicCarouselShelfRenderer.header.musicCarouselShelfBasicHeaderRenderer.title.runs[0].text
+            const rawContents = section.musicCarouselShelfRenderer.contents
 
-    public getSong = async (videoId: string) => {
-        const headers = Object.assign(this.BASEHEADERS, { authorization: `Bearer ${this.accessToken}`, 'X-Goog-Request-Time': `${Date.now()}` })
+            const parsedContent: MediaItem[] =
+                'musicTwoRowItemRenderer' in rawContents[0]
+                    ? this.parseTwoRowItemRenderer((rawContents as { musicTwoRowItemRenderer: InnerTube.musicTwoRowItemRenderer }[]).map((item) => item.musicTwoRowItemRenderer))
+                    : this.parseResponsiveListItemRenderer((rawContents as { musicResponsiveListItemRenderer: InnerTube.musicResponsiveListItemRenderer }[]).map((item) => item.musicResponsiveListItemRenderer))
 
-        const response = await fetch(`https://music.youtube.com/youtubei/v1/player?alt=json`, {
-            headers,
-            method: 'POST',
-            body: JSON.stringify({
-                playbackContext: {
-                    contentPlaybackContext: { signatureTimestamp: this.getDatestamp() - 1 },
-                },
-                videoId,
-                context: {
-                    client: {
-                        clientName: 'WEB_REMIX',
-                        clientVersion: '1.' + this.formatDate() + '.01.00',
-                        hl: 'en',
-                    },
-                },
-            }),
-        })
-
-        console.log(response.status)
-        const data = await response.json()
-        console.log(JSON.stringify(data))
-    }
-}
-
-class Parsers {
-    static parseMixedContent = (rows: { musicCarouselShelfRenderer: InnerTube.musicCarouselShelfRenderer }[] | { musicDescriptionShelfRenderer: InnerTube.musicDescriptionShelfRenderer }[]) => {
-        const items = []
-        for (const row of rows) {
-            if ('musicDescriptionShelfRenderer' in row) {
-                const results = row.musicDescriptionShelfRenderer
-                const title = results.header.runs[0].text
-                const contents = results.description.runs[0].text
-                items.push({ title, contents })
-            } else {
-                const results = row.musicCarouselShelfRenderer
-                if (!('contents' in results)) continue
-
-                const title = results.header.musicCarouselShelfBasicHeaderRenderer.title.runs[0].text
-                const contents = []
-                for (const result of results.contents) {
-                    let content
-                    if (result.musicTwoRowItemRenderer) {
-                        const data = result.musicTwoRowItemRenderer
-                        const pageType = data.title.runs[0].navigationEndpoint?.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType
-                        if (!pageType) {
-                            if ('watchPlaylistEndpoint' in data.navigationEndpoint) {
-                                content = this.parseWatchPlaylist(data)
-                            } else {
-                                content = this.parseSong(data)
-                            }
-                        } else if (pageType === 'MUSIC_PAGE_TYPE_ALBUM') {
-                            content = this.parseAlbum(data)
-                        } else if (pageType === 'MUSIC_PAGE_TYPE_ARTIST') {
-                            content = this.parseRelatedArtist(data)
-                        } else if (pageType === 'MUSIC_PAGE_TYPE_PLAYLIST') {
-                            content = this.parsePlaylist(data)
-                        }
-                    } else {
-                        const data = result.musicResponsiveListItemRenderer
-                        if (!data) continue
-                        content = this.parseSongFlat(data)
-                    }
-
-                    contents.push(content)
-                }
-                items.push({ title, contents })
+            if (headerTitle === 'Listen again') {
+                homeItems.listenAgain = parsedContent
+            } else if (headerTitle === 'Quick picks') {
+                homeItems.quickPicks = parsedContent
+            } else if (headerTitle === 'New releases') {
+                homeItems.newReleases = parsedContent
             }
         }
 
-        return items
+        console.log(JSON.stringify(homeItems))
+        return homeItems
     }
 
-    static parseSong = (data: { [K in keyof InnerTube.musicTwoRowItemRenderer]: K extends 'navigationEndpoint' ? InnerTube.navigationEndpoint<'watch'> : InnerTube.musicTwoRowItemRenderer[K] }): Song => {
-        const runs = data.subtitle.runs
-        const parsed: Partial<Song> = { artists: [] }
-        for (let i = 0; i < runs.length; ++i) {
-            if (i % 2) continue
-            const run = runs[i],
-                text = run.text
-
-            if (run.navigationEndpoint) {
-                const item = { name: text, id: run.navigationEndpoint.browseEndpoint.browseId }
-
-                if (item.id.startsWith('MPRE') || item.id.includes('release_detail')) {
-                    parsed.albumId = run.navigationEndpoint.browseEndpoint.browseId
-                } else {
-                    parsed.artists?.push({ id: run.navigationEndpoint.browseEndpoint.browseId, name: text })
+    private parseTwoRowItemRenderer = (rowContent: InnerTube.musicTwoRowItemRenderer[]): MediaItem[] => {
+        const parsedContent: MediaItem[] = []
+        for (const data of rowContent) {
+            const title = data.title.runs[0].text
+            const subtitles = data.subtitle.runs
+            const artists: Song['artists'] | Album['artists'] = []
+            for (const subtitle of subtitles) {
+                if (subtitle.navigationEndpoint && 'browseEndpoint' in subtitle.navigationEndpoint) {
+                    artists.push({ id: subtitle.navigationEndpoint.browseEndpoint.browseId, name: subtitle.text })
                 }
-            } else {
-                if (/^(\d+:)*\d+:\d+$/.test(text)) {
-                    parsed.duration = this.parseDuration(text)
-                } else if (/^\d{4}$/.test(text)) {
-                    parsed.releaseDate = text
+            }
+
+            if ('browseEndpoint' in data.navigationEndpoint && data.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType === 'MUSIC_PAGE_TYPE_ALBUM') {
+                const album: Album = {
+                    connectionId: this.connectionId,
+                    serviceType: 'youtube-music',
+                    type: 'album',
+                    id: data.navigationEndpoint.browseEndpoint.browseId,
+                    name: title,
+                    thumbnail: this.refineThumbnailUrl(data.thumbnailRenderer.musicThumbnailRenderer.thumbnail.thumbnails[0].url),
                 }
+                if (artists.length > 0) album.artists = artists
+                parsedContent.push(album)
+            } else if ('watchEndpoint' in data.navigationEndpoint) {
+                const song: Song = {
+                    connectionId: this.connectionId,
+                    serviceType: 'youtube-music',
+                    type: 'song',
+                    id: data.navigationEndpoint.watchEndpoint.videoId,
+                    name: title,
+                    thumbnail: this.refineThumbnailUrl(data.thumbnailRenderer.musicThumbnailRenderer.thumbnail.thumbnails[0].url),
+                }
+                if (artists.length > 0) song.artists = artists
+                parsedContent.push(song)
             }
         }
 
-        const song: Song = {
-            serviceType: 'youtube-music',
-            type: 'song',
-            id: data.navigationEndpoint.watchEndpoint.videoId,
-            name: data.title.runs[0].text,
-            thumbnail: data.thumbnailRenderer.musicThumbnailRenderer.thumbnail.thumbnails.reduce((largest, current) => {
-                return current.width * current.height > largest.width * largest.height ? current : largest
-            }).url,
-            duration: parsed.d,
-        }
-        return song
+        return parsedContent
     }
 
-    static parseSongRuns = (runs: any) => {
-        const parsed: Record<string, any> = { artists: [] }
-        for (let i = 0; i < runs.length; ++i) {
-            if (i % 2) continue
+    private parseResponsiveListItemRenderer = (listContent: InnerTube.musicResponsiveListItemRenderer[]): Song[] => {
+        const parsedContent: Song[] = []
+        for (const data of listContent) {
+            const title = data.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.text.runs[0].text,
+                id = (data.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.text.runs[0].navigationEndpoint! as { watchEndpoint: InnerTube.watchEndpoint }).watchEndpoint.videoId
 
-            const run = runs[i],
-                text = run.text
-            if ('navigationEndpoint' in run) {
-                const item = { name: text, id: run?.navigationEndpoint?.browseEndpoint?.browseId }
-
-                if (item.id && (item.id.startsWith('MPRE') || item.id.includes('release_detail'))) {
-                    parsed.album = item
-                } else {
-                    parsed.artists.push(item)
-                }
-            } else {
-                if (/^\d([^ ])* [^ ]*$/.test(text) && i > 0) {
-                    parsed.views = text.split(' ')[0]
-                } else if (/^(\d+:)*\d+:\d+$/.test(text)) {
-                    parsed.duration = text
-                    parsed.durationSeconds = this.parseDuration(text)
-                } else if (/^\d{4}$/.test(text)) {
-                    parsed.year = text
-                } else {
-                    parsed.artists.push({ name: text, id: null })
+            const artists: Song['artists'] = []
+            for (const run of data.flexColumns[1].musicResponsiveListItemFlexColumnRenderer.text.runs) {
+                if ('navigationEndpoint' in run && 'browseEndpoint' in run.navigationEndpoint!) {
+                    artists.push({ id: run.navigationEndpoint.browseEndpoint.browseId, name: run.text })
                 }
             }
+
+            const thumbnail: MediaItem['thumbnail'] = this.refineThumbnailUrl(data.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails[0].url)
+
+            const song: Song = {
+                connectionId: this.connectionId,
+                serviceType: 'youtube-music',
+                type: 'song',
+                id,
+                name: title,
+                thumbnail,
+            }
+
+            if (artists.length > 0) song.artists = artists
+            // This is like the ONE situation where `text` might not have a run
+            if (data.flexColumns[2].musicResponsiveListItemFlexColumnRenderer.text?.runs) {
+                song.album = {
+                    id: (data.flexColumns[2].musicResponsiveListItemFlexColumnRenderer.text.runs[0].navigationEndpoint! as { browseEndpoint: InnerTube.browseEndpoint }).browseEndpoint.browseId,
+                    name: data.flexColumns[2].musicResponsiveListItemFlexColumnRenderer.text.runs[0].text,
+                }
+            }
+
+            parsedContent.push(song)
         }
 
-        return parsed
+        return parsedContent
     }
 
-    static parseSongFlat = (data: any) => {
-        const columns = []
-        for (let i = 0; i < data.flexColumns.length; ++i) columns.push(this.getFlexColumnItem(data, i))
-        const song: Record<string, any> = {
-            title: columns[0].text.runs[0].text,
-            videoId: columns[0].text.runs[0]?.navigationEndpoint?.watchEndpoint?.videoId,
-            artists: this.parseSongArtists(data, 1),
-            thumbnails: data.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails,
-            isExplicit: Boolean(data?.badges?.at(0)?.musicInlineBadgeRenderer?.accessibilityData?.accessibilityData?.label),
-        }
-        if (columns.length > 2 && columns[2] && 'navigationEndpoint' in columns[2].text.runs[0]) {
-            song.album = {
-                name: columns[2].text.runs[0].text,
-                id: columns[2].text.runs[0].navigationEndpoint.browseEndpoint.browseId,
-            }
+    private refineThumbnailUrl = (urlString: string): string => {
+        const url = new URL(urlString)
+        if (url.origin === 'https://i.ytimg.com') {
+            return urlString.slice(0, urlString.indexOf('?'))
+        } else if (url.origin === 'https://lh3.googleusercontent.com' || url.origin === 'https://yt3.googleusercontent.com' || url.origin === 'https://yt3.ggpht.com') {
+            return urlString.slice(0, urlString.indexOf('='))
         } else {
-            song.views = columns[1].text.runs.at(-1).text.split(' ')[0]
+            console.log(urlString)
+            throw new Error('Invalid thumbnail url origin')
         }
-
-        return song
-    }
-
-    static parseAlbum = (data: InnerTube.musicTwoRowItemRenderer) => {
-        return {
-            title: data.title.runs[0].text,
-            type: data.subtitle.runs[0].text,
-            year: data.subtitle.runs[2].text,
-            artists: Array.from(data.subtitle.runs, (x: any) => {
-                if ('navigationEndpoint' in x) return this.parseIdName(x)
-            }),
-            browseId: data.title.runs[0].navigationEndpoint.browseEndpoint.browseId,
-            audioPlaylistId: data?.thumbnailOverlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchPlaylistEndpoint?.playlistId,
-            thumbnails: data.thumbnailRenderer.musicThumbnailRenderer.thumbnail.thumbnails,
-            isExplicit: Boolean(data?.subtitleBadges?.at(0)?.musicInlineBadgeRenderer.accessibilityData.accessibilityData.label),
-        }
-    }
-
-    static parseSongArtists = (data: any, index: number) => {
-        const flexItem = this.getFlexColumnItem(data, index)
-        if (!flexItem) {
-            console.log('fired')
-            return null
-        } else {
-            const runs = flexItem.text.runs
-            return this.parseSongArtistRuns(runs)
-        }
-    }
-
-    static parseRelatedArtist = (data: InnerTube.musicTwoRowItemRenderer) => {
-        let subscribers = data?.subtitle?.runs[0]?.text
-        if (subscribers) subscribers = subscribers.split(' ')[0]
-        return {
-            title: data.title.runs[0].text,
-            browseId: data.title.runs[0].navigationEndpoint.browseEndpoint.browseId,
-            subscribers,
-            thumbnails: data.thumbnailRenderer.musicThumbnailRenderer.thumbnail.thumbnails,
-        }
-    }
-
-    static parseSongArtistRuns = (runs: any) => {
-        const artists = []
-        for (let j = 0; j <= Math.floor(runs.length / 2); j++) {
-            artists.push({ name: runs[j * 2].text, id: runs[j * 2]?.navigationEndpoint?.browseEndpoint?.browseId })
-        }
-        return artists
-    }
-
-    static parseDuration = (duration: string): number => {
-        const mappedIncrements = [1, 60, 3600],
-            reversedTimes = duration.split(':').reverse()
-        const seconds = mappedIncrements.reduce((accumulator, multiplier, index) => {
-            return accumulator + multiplier * parseInt(reversedTimes[index])
-        }, 0)
-        return seconds
-    }
-
-    static parseIdName = (data: any) => {
-        return {
-            id: data?.navigationEndpoint?.browseEndpoint?.browseId,
-            name: data?.text,
-        }
-    }
-
-    static parsePlaylist = (data: InnerTube.musicTwoRowItemRenderer) => {
-        const playlist: Record<string, any> = {
-            title: data.title.runs[0].text,
-            playlistId: data.title.runs[0].navigationEndpoint.browseEndpoint.browseId.slice(2),
-            thumbnails: data.thumbnailRenderer.musicThumbnailRenderer.thumbnail.thumbnails,
-        }
-        const subtitle = data.subtitle
-        if ('runs' in subtitle) {
-            playlist.description = Array.from(subtitle.runs, (run: any) => {
-                return run.text
-            }).join('')
-            if (subtitle.runs.length === 3 && data.subtitle.runs[2].text.match(/\d+ /)) {
-                playlist.count = data.subtitle.runs[2].text.split(' ')[0]
-                playlist.author = this.parseSongArtistRuns(subtitle.runs.slice(0, 1))
-            }
-        }
-        return playlist
-    }
-
-    static parseWatchPlaylist = (data: InnerTube.musicTwoRowItemRenderer) => {
-        return {
-            title: data.title.runs[0].text,
-            playlistId: data.navigationEndpoint.watchPlaylistEndpoint.playlistId,
-            thumbnails: data.thumbnailRenderer.musicThumbnailRenderer.thumbnail.thumbnails,
-        }
-    }
-
-    static getFlexColumnItem = (item: any, index: number) => {
-        if (item.flexColumns.length <= index || !('text' in item.flexColumns[index].musicResponsiveListItemFlexColumnRenderer) || !('runs' in item.flexColumns[index].musicResponsiveListItemFlexColumnRenderer.text)) {
-            return null
-        }
-        return item.flexColumns[index].musicResponsiveListItemFlexColumnRenderer
     }
 }

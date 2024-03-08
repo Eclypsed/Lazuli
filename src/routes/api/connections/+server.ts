@@ -15,7 +15,8 @@ export const GET: RequestHandler = async ({ url }) => {
                 connection.service = await Jellyfin.fetchSerivceInfo(connection.service.userId, connection.service.urlOrigin, connection.tokens.accessToken)
                 break
             case 'youtube-music':
-                connection.service = await YouTubeMusic.fetchServiceInfo(connection.service.userId, connection.tokens.accessToken)
+                const ytmusic = new YouTubeMusic(connection)
+                connection.service = await ytmusic.fetchServiceInfo()
                 break
         }
         connections.push(connection)

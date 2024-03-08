@@ -61,11 +61,8 @@ declare global {
         serviceType: serviceType
         type: 'album'
         duration?: number
-        albumArtists?: {
-            id: string
-            name: string
-        }[]
         artists?: {
+            // Album Artists
             id: string
             name: string
         }[]
@@ -185,6 +182,12 @@ declare global {
                 refreshToken: string
                 expiry: number
             }
+        }
+
+        interface HomeItems {
+            listenAgain: MediaItem[]
+            quickPicks: MediaItem[]
+            newReleases: MediaItem[]
         }
     }
 }

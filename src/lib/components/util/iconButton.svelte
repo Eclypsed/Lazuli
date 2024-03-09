@@ -7,7 +7,13 @@
     const dispatch = createEventDispatcher()
 </script>
 
-<button class:disabled class:halo class="relative grid aspect-square h-full place-items-center transition-transform duration-75 active:scale-90" on:click|preventDefault={() => dispatch('click')} {disabled}>
+<button
+    class:disabled
+    class:halo
+    class="relative grid aspect-square h-full place-items-center transition-transform duration-75 active:scale-90"
+    on:click|preventDefault|stopPropagation={() => dispatch('click')}
+    {disabled}
+>
     <slot name="icon" />
 </button>
 

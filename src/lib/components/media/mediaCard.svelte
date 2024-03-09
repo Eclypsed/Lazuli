@@ -4,106 +4,58 @@
     import IconButton from '$lib/components/util/iconButton.svelte'
     import { goto } from '$app/navigation'
 
-    const iconClasses = {
-        song: 'fa-solid fa-music',
-        album: 'fa-solid fa-compact-disc',
-        artist: 'fa-solid fa-user',
-        playlist: 'fa-solid fa-forward-fast',
-    }
+    let image: HTMLImageElement, captionText: HTMLDivElement
 
-    let card: HTMLDivElement, cardGlare: HTMLDivElement
-
-    const rotateCard = (event: MouseEvent): void => {
-        const cardRect = card.getBoundingClientRect()
-        const x = (2 * (event.x - cardRect.left)) / cardRect.width - 1 // These are simplified calculations to find the x-y coords relative to the center of the card
-        const y = (2 * (cardRect.top - event.y)) / cardRect.height + 1
-
-        const angle = Math.atan(x / y) // You'd think it should be y / x but it's actually the inverse
-        const distanceFromCorner = Math.sqrt((x - 1) ** 2 + (y - 1) ** 2) // This is a cool little trick, the -1 on the x an y coordinate is effective the same as saying "make the origin of the glare [1, 1]"
-
-        cardGlare.style.backgroundImage = `linear-gradient(${angle}rad, transparent ${distanceFromCorner * 50 + 50}%, rgba(255, 255, 255, 0.1) ${distanceFromCorner * 50 + 60}%, transparent 100%)`
-        card.style.transform = `rotateX(${y * 10}deg) rotateY(${x * 10}deg)`
-    }
-
-    const checkSong = (item: MediaItem): item is Song => {
-        return (item as Song).type === 'song'
-    }
-    const checkAlbum = (item: MediaItem): item is Album => {
-        return (item as Album).type === 'album'
+    const checkSongOrAlbum = (item: MediaItem): item is Song | Album => {
+        return item.type === 'song' || item.type === 'album'
     }
 </script>
 
-<div id="card-wrapper" class="w-52 flex-shrink-0">
-    <div
-        bind:this={card}
-        id="card"
-        class="relative grid place-items-center transition-all duration-200 ease-out"
-        on:mousemove={(event) => rotateCard(event)}
-        on:mouseleave={() => (card.style.transform = '')}
-        role="menuitem"
-        tabindex="-1"
-    >
-        <button on:click={() => goto(`/details/${mediaItem.type}?id=${mediaItem.id}&connection=${mediaItem.connectionId}`)}>
-            {#if mediaItem.thumbnail}
-                <img id="card-image" class="h-full rounded-lg transition-all" src={mediaItem.thumbnail} alt="{mediaItem.name} thumbnail" />
-            {:else}
-                <div id="card-image" class="grid aspect-square h-full place-items-center rounded-lg bg-lazuli-primary transition-all">
-                    <i class="fa-solid fa-compact-disc text-7xl" />
-                </div>
-            {/if}
-            <div bind:this={cardGlare} id="card-glare" class="absolute top-0 h-full w-full rounded-lg opacity-0 transition-opacity duration-200 ease-out" />
-        </button>
-        <span id="play-button" class="absolute h-12 opacity-0 transition-opacity duration-200 ease-out">
+<div id="card-wrapper" class="flex-shrink-0">
+    <button id="thumbnail" class="relative h-56 transition-all duration-200 ease-out" on:click={() => goto(`/details/${mediaItem.type}?id=${mediaItem.id}`)}>
+        {#if mediaItem.thumbnail}
+            <img bind:this={image} id="card-image" on:load={() => (captionText.style.width = `${image.width}px`)} class="h-full rounded transition-all" src={mediaItem.thumbnail} alt="{mediaItem.name} thumbnail" />
+        {:else}
+            <div id="card-image" class="grid aspect-square h-full place-items-center rounded-lg bg-lazuli-primary transition-all">
+                <i class="fa-solid fa-compact-disc text-7xl" />
+            </div>
+        {/if}
+        <span id="play-button" class="absolute left-1/2 top-1/2 h-12 -translate-x-1/2 -translate-y-1/2 opacity-0 transition-opacity duration-200 ease-out">
             <IconButton halo={true}>
                 <i slot="icon" class="fa-solid fa-play text-xl" />
             </IconButton>
         </span>
-    </div>
-    <div class="p-2.5 text-sm">
-        <div class="overflow-hidden text-ellipsis" title={mediaItem.name}>{mediaItem.name}</div>
-        <div class="flex w-full items-center overflow-hidden text-neutral-400">
-            {#if checkSong(mediaItem) || checkAlbum(mediaItem)}
+    </button>
+    <div bind:this={captionText} class="w-56 p-1">
+        <div class="mb-0.5 line-clamp-2 text-wrap text-sm" title={mediaItem.name}>{mediaItem.name}</div>
+        <div class="leading-2 line-clamp-2 text-neutral-400" style="font-size: 0;">
+            {#if checkSongOrAlbum(mediaItem) && 'artists' in mediaItem && mediaItem.artists}
                 {#each mediaItem.artists as artist}
                     {@const listIndex = mediaItem.artists.indexOf(artist)}
                     <a class="text-sm hover:underline focus:underline" href="/details/artist?id={artist.id}&connection={mediaItem.connectionId}">{artist.name}</a>
-                    {#if listIndex === mediaItem.artists.length - 2}
-                        <span class="mx-0.5 text-sm">&</span>
-                    {:else if listIndex < mediaItem.artists.length - 2}
+                    {#if listIndex < mediaItem.artists.length - 1}
                         <span class="mr-0.5 text-sm">,</span>
                     {/if}
                 {/each}
             {/if}
-            <!-- {#if mediaItem.type}
-                <span>&bull;</span>
-                <i title="Stream from {Services[mediaItem.service.type].displayName}" class="{iconClasses[mediaItem.type]} text-xs" style="color: var({Services[mediaItem.service.type].primaryColor});" />
-            {/if} -->
         </div>
     </div>
 </div>
 
 <style>
-    #card-wrapper {
-        perspective: 1000px;
-    }
-    #card-wrapper:focus-within #card-image {
+    #thumbnail:focus-within #card-image {
         filter: brightness(50%);
     }
-    #card-wrapper:focus-within #card-glare {
+    #thumbnail:focus-within #play-button {
         opacity: 1;
     }
-    #card-wrapper:focus-within #play-button {
-        opacity: 1;
-    }
-    #card:hover {
+    #thumbnail:hover {
         scale: 1.05;
     }
-    #card:hover #card-image {
+    #thumbnail:hover #card-image {
         filter: brightness(50%);
     }
-    #card:hover #card-glare {
-        opacity: 1;
-    }
-    #card:hover #play-button {
+    #thumbnail:hover #play-button {
         opacity: 1;
     }
 </style>

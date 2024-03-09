@@ -36,7 +36,12 @@ export const GET: RequestHandler = async ({ params, fetch }) => {
                 break
             case 'youtube-music':
                 const youtubeMusic = new YouTubeMusic(connection)
-                youtubeMusic.getHome()
+                await youtubeMusic
+                    .getHome()
+                    .then(({ listenAgain, quickPicks, newReleases }) => {
+                        for (const mediaItem of listenAgain) recommendations.push(mediaItem)
+                    })
+                    .catch()
                 break
         }
     }

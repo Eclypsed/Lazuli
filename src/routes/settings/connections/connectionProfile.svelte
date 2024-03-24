@@ -6,7 +6,7 @@
     import { fly } from 'svelte/transition'
     import { enhance } from '$app/forms'
 
-    export let connection: Connection<serviceType>
+    export let connection: ConnectionInfo
     export let submitFunction: SubmitFunction
 
     $: serviceData = Services[connection.type]
@@ -14,16 +14,16 @@
     let showModal = false
 
     const subHeaderItems: string[] = []
-    if ('username' in connection.service && connection.service.username) subHeaderItems.push(connection.service.username)
-    if ('serverName' in connection.service && connection.service.serverName) subHeaderItems.push(connection.service.serverName)
+    if ('username' in connection.serviceInfo && connection.serviceInfo.username) subHeaderItems.push(connection.serviceInfo.username)
+    if ('serverName' in connection.serviceInfo && connection.serviceInfo.serverName) subHeaderItems.push(connection.serviceInfo.serverName)
 </script>
 
 <section class="rounded-lg" style="background-color: rgba(82, 82, 82, 0.25);" transition:fly={{ x: 50 }}>
     <header class="flex h-20 items-center gap-4 p-4">
         <div class="relative aspect-square h-full p-1">
             <img src={serviceData.icon} alt="{serviceData.displayName} icon" />
-            {#if 'profilePicture' in connection.service && connection.service.profilePicture}
-                <img src={connection.service.profilePicture} alt="" class="absolute bottom-0 right-0 aspect-square h-5 rounded-full" />
+            {#if 'profilePicture' in connection.serviceInfo && connection.serviceInfo.profilePicture}
+                <img src={connection.serviceInfo.profilePicture} alt="" class="absolute bottom-0 right-0 aspect-square h-5 rounded-full" />
             {/if}
         </div>
         <div>

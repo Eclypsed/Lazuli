@@ -32,7 +32,7 @@
             {#if checkSongOrAlbum(mediaItem) && 'artists' in mediaItem && mediaItem.artists}
                 {#each mediaItem.artists as artist}
                     {@const listIndex = mediaItem.artists.indexOf(artist)}
-                    <a class="text-sm hover:underline focus:underline" href="/details/artist?id={artist.id}&connection={mediaItem.connectionId}">{artist.name}</a>
+                    <a class="text-sm hover:underline focus:underline" href="/details/artist?id={artist.id}&connection={mediaItem.connection.id}">{artist.name}</a>
                     {#if listIndex < mediaItem.artists.length - 1}
                         <span class="mr-0.5 text-sm">,</span>
                     {/if}

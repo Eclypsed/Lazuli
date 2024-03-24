@@ -18,7 +18,7 @@ declare global {
     // Do not store data from other services in the database, only the data necessary to fetch whatever you need.
     // This avoid syncronization issues. E.g. Store userId, and urlOrigin to fetch the user's name and profile picture.
 
-    interface User {
+    type User = {
         id: string
         username: string
         passwordHash: string
@@ -26,8 +26,26 @@ declare global {
 
     type serviceType = 'jellyfin' | 'youtube-music'
 
-    type Connection<T extends serviceType> = T extends 'jellyfin' ? Jellyfin.Connection : T extends 'youtube-music' ? YouTubeMusic.Connection : never
+    type ConnectionInfo = {
+        id: string
+        userId: string
+    } & (
+        | {
+              type: 'jellyfin'
+              serviceInfo: Jellyfin.SerivceInfo
+              tokens: Jellyfin.Tokens
+          }
+        | {
+              type: 'youtube-music'
+              serviceInfo: YouTubeMusic.SerivceInfo
+              tokens: YouTubeMusic.Tokens
+          }
+    )
 
+    interface Connection {
+        getRecommendations: () => Promise<MediaItem[]>
+        getConnectionInfo: () => Promise<ConnectionInfo>
+    }
     // These Schemas should only contain general info data that is necessary for data fetching purposes.
     // They are NOT meant to be stores for large amounts of data, i.e. Don't include the data for every single song the Playlist type.
     // Big data should be fetched as needed in the app, these exist to ensure that the info necessary to fetch that data is there.
@@ -39,8 +57,10 @@ declare global {
     }
 
     interface Song extends MediaItem {
-        connectionId: string
-        serviceType: serviceType
+        connection: {
+            id: string
+            type: serviceType
+        }
         type: 'song'
         duration?: number
         artists?: {
@@ -57,8 +77,10 @@ declare global {
     }
 
     interface Album extends MediaItem {
-        connectionId: string
-        serviceType: serviceType
+        connection: {
+            id: string
+            type: serviceType
+        }
         type: 'album'
         duration?: number
         artists?: {
@@ -87,101 +109,29 @@ declare global {
         // The jellyfin API will not always return the data it says it will, for example /Users/AuthenticateByName says it will
         // retrun the ServerName, it wont. This must be fetched from /System/Info.
         // So, ONLY DEFINE THE INTERFACES FOR DATA THAT IS GARUNTEED TO BE RETURNED (unless the data value itself is inherently optional)
-        interface Connection {
-            id: string
+        type SerivceInfo = {
             userId: string
-            type: 'jellyfin'
-            service: {
-                userId: string
-                urlOrigin: string
-                username?: string
-                serverName?: string
-            }
-            tokens: {
-                accessToken: string
-            }
+            urlOrigin: string
+            username?: string
+            serverName?: string
         }
 
-        interface User {
-            Name: string
-            Id: string
-        }
-
-        interface AuthData {
-            User: Jellyfin.User
-            AccessToken: string
-        }
-
-        interface System {
-            ServerName: string
-        }
-
-        interface MediaItem {
-            Name: string
-            Id: string
-            Type: 'Audio' | 'MusicAlbum' | 'Playlist' | 'MusicArtist'
-            ImageTags?: {
-                Primary?: string
-            }
-        }
-
-        interface Song extends Jellyfin.MediaItem {
-            RunTimeTicks: number
-            ProductionYear: number
-            Type: 'Audio'
-            ArtistItems: {
-                Name: string
-                Id: string
-            }[]
-            Album?: string
-            AlbumId?: string
-            AlbumPrimaryImageTag?: string
-            AlbumArtists: {
-                Name: string
-                Id: string
-            }[]
-        }
-
-        interface Album extends Jellyfin.MediaItem {
-            RunTimeTicks: number
-            ProductionYear: number
-            Type: 'MusicAlbum'
-            ArtistItems: {
-                Name: string
-                Id: string
-            }[]
-            AlbumArtists: {
-                Name: string
-                Id: string
-            }[]
-        }
-
-        interface Playlist extends Jellyfin.MediaItem {
-            RunTimeTicks: number
-            Type: 'Playlist'
-            ChildCount: number
-        }
-
-        interface Artist extends Jellyfin.MediaItem {
-            Type: 'MusicArtist'
+        type Tokens = {
+            accessToken: string
         }
     }
 
     namespace YouTubeMusic {
-        interface Connection {
-            id: string
+        type SerivceInfo = {
             userId: string
-            type: 'youtube-music'
-            service: {
-                userId: string
-                username?: string
-                profilePicture?: string
-            }
-            tokens: {
-                accessToken: string
-                refreshToken: string
-                expiry: number
-            }
+            username?: string
+            profilePicture?: string
+        }
+
+        type Tokens = {
+            accessToken: string
+            refreshToken: string
+            expiry: number
         }
 
         interface HomeItems {

@@ -11,7 +11,7 @@
     import { PUBLIC_YOUTUBE_API_CLIENT_ID } from '$env/static/public'
 
     export let data: PageServerData
-    let connections: Connection<serviceType>[] = data.connections
+    let connections: ConnectionInfo[] = data.connections
 
     const authenticateJellyfin: SubmitFunction = ({ formData, cancel }) => {
         const { serverUrl, username, password } = Object.fromEntries(formData)
@@ -34,7 +34,7 @@
             if (result.type === 'failure') {
                 return ($newestAlert = ['warning', result.data?.message])
             } else if (result.type === 'success') {
-                const newConnection: Connection<'jellyfin'> = result.data!.newConnection
+                const newConnection: ConnectionInfo = result.data!.newConnection
                 connections = [...connections, newConnection]
 
                 newConnectionModal = null
@@ -67,7 +67,7 @@
             if (result.type === 'failure') {
                 return ($newestAlert = ['warning', result.data?.message])
             } else if (result.type === 'success') {
-                const newConnection: Connection<'youtube-music'> = result.data!.newConnection
+                const newConnection: ConnectionInfo = result.data!.newConnection
                 connections = [...connections, newConnection]
                 return ($newestAlert = ['success', 'Added Youtube Music'])
             }

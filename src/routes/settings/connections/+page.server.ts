@@ -2,7 +2,8 @@ import { fail } from '@sveltejs/kit'
 import { SECRET_INTERNAL_API_KEY, YOUTUBE_API_CLIENT_SECRET } from '$env/static/private'
 import { PUBLIC_YOUTUBE_API_CLIENT_ID } from '$env/static/public'
 import type { PageServerLoad, Actions } from './$types'
-import { Connections } from '$lib/server/users'
+import { DB } from '$lib/server/db'
+import { Jellyfin, JellyfinFetchError } from '$lib/server/jellyfin'
 import { google } from 'googleapis'
 
 export const load: PageServerLoad = async ({ fetch, locals }) => {
@@ -21,38 +22,22 @@ export const actions: Actions = {
         const formData = await request.formData()
         const { serverUrl, username, password, deviceId } = Object.fromEntries(formData)
 
-        const authUrl = new URL('/Users/AuthenticateByName', serverUrl.toString()).href
-        let authData: Jellyfin.AuthData
-        try {
-            const authResponse = await fetch(authUrl, {
-                method: 'POST',
-                body: JSON.stringify({
-                    Username: username,
-                    Pw: password,
-                }),
-                headers: {
-                    'Content-Type': 'application/json; charset=utf-8',
-                    'X-Emby-Authorization': `MediaBrowser Client="Lazuli", Device="Chrome", DeviceId="${deviceId}", Version="1.0.0.0"`,
-                },
-            })
+        if (!URL.canParse(serverUrl.toString())) return fail(400, { message: 'Invalid Server URL' })
 
-            if (!authResponse.ok) return fail(401, { message: 'Failed to authenticate' })
+        const authData = await Jellyfin.authenticateByName(username.toString(), password.toString(), new URL(serverUrl.toString()), deviceId.toString()).catch((error: JellyfinFetchError) => error)
 
-            authData = await authResponse.json()
-        } catch {
-            return fail(400, { message: 'Could not reach Jellyfin server' })
-        }
+        if (authData instanceof JellyfinFetchError) return fail(authData.httpCode, { message: authData.message })
 
-        const newConnectionId = Connections.addConnection('jellyfin', locals.user.id, { userId: authData.User.Id, urlOrigin: serverUrl.toString() }, { accessToken: authData.AccessToken })
+        const newConnectionId = DB.addConnectionInfo(locals.user.id, { type: 'jellyfin', serviceInfo: { userId: authData.User.Id, urlOrigin: serverUrl.toString() }, tokens: { accessToken: authData.AccessToken } })
 
         const response = await fetch(`/api/connections?ids=${newConnectionId}`, {
             method: 'GET',
             headers: { apikey: SECRET_INTERNAL_API_KEY },
+        }).then((response) => {
+            return response.json()
         })
 
-        const responseData = await response.json()
-
-        return { newConnection: responseData.connections[0] }
+        return { newConnection: response.connections[0] }
     },
     youtubeMusicLogin: async ({ request, fetch, locals }) => {
         const formData = await request.formData()
@@ -64,12 +49,11 @@ export const actions: Actions = {
         const userChannelResponse = await youtube.channels.list({ mine: true, part: ['id', 'snippet'], access_token: tokens.access_token! })
         const userChannel = userChannelResponse.data.items![0]
 
-        const newConnectionId = Connections.addConnection(
-            'youtube-music',
-            locals.user.id,
-            { userId: userChannel.id! },
-            { accessToken: tokens.access_token!, refreshToken: tokens.refresh_token!, expiry: tokens.expiry_date! },
-        )
+        const newConnectionId = DB.addConnectionInfo(locals.user.id, {
+            type: 'youtube-music',
+            serviceInfo: { userId: userChannel.id! },
+            tokens: { accessToken: tokens.access_token!, refreshToken: tokens.refresh_token!, expiry: tokens.expiry_date! },
+        })
 
         const response = await fetch(`/api/connections?ids=${newConnectionId}`, {
             method: 'GET',
@@ -84,7 +68,7 @@ export const actions: Actions = {
         const formData = await request.formData()
         const connectionId = formData.get('connectionId')!.toString()
 
-        Connections.deleteConnection(connectionId)
+        DB.deleteConnectionInfo(connectionId)
 
         return { deletedConnectionId: connectionId }
     },

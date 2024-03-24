@@ -2,7 +2,7 @@ import { SECRET_JWT_KEY } from '$env/static/private'
 import { fail, redirect } from '@sveltejs/kit'
 import { compare, hash } from 'bcrypt-ts'
 import type { PageServerLoad, Actions } from './$types'
-import { Users } from '$lib/server/users'
+import { DB } from '$lib/server/db'
 import jwt from 'jsonwebtoken'
 
 export const load: PageServerLoad = async ({ url }) => {
@@ -15,7 +15,7 @@ export const actions: Actions = {
         const formData = await request.formData()
         const { username, password, redirectLocation } = Object.fromEntries(formData)
 
-        const user = Users.getUsername(username.toString())
+        const user = DB.getUsername(username.toString())
         if (!user) return fail(400, { message: 'Invalid Username' })
 
         const passwordValid = await compare(password.toString(), user.passwordHash)
@@ -34,7 +34,7 @@ export const actions: Actions = {
         const { username, password } = Object.fromEntries(formData)
 
         const passwordHash = await hash(password.toString(), 10)
-        const newUser = Users.addUser(username.toString(), passwordHash)
+        const newUser = DB.addUser(username.toString(), passwordHash)
         if (!newUser) return fail(400, { message: 'Username already in use' })
 
         const authToken = jwt.sign({ id: newUser.id, username: newUser.username }, SECRET_JWT_KEY, { expiresIn: '100d' })

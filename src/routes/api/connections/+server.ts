@@ -1,25 +1,16 @@
 import type { RequestHandler } from '@sveltejs/kit'
-import { Jellyfin } from '$lib/services'
-import { YouTubeMusic } from '$lib/service-managers/youtube-music'
-import { Connections } from '$lib/server/users'
+import { Connections } from '$lib/server/connections'
 
 export const GET: RequestHandler = async ({ url }) => {
     const ids = url.searchParams.get('ids')?.replace(/\s/g, '').split(',')
     if (!ids) return new Response('Missing ids query parameter', { status: 400 })
 
-    const connections: Connection<serviceType>[] = []
-    for (const connectionId of ids) {
-        const connection = Connections.getConnection(connectionId)
-        switch (connection.type) {
-            case 'jellyfin':
-                connection.service = await Jellyfin.fetchSerivceInfo(connection.service.userId, connection.service.urlOrigin, connection.tokens.accessToken)
-                break
-            case 'youtube-music':
-                const ytmusic = new YouTubeMusic(connection)
-                connection.service = await ytmusic.fetchServiceInfo()
-                break
-        }
-        connections.push(connection)
+    const connections: ConnectionInfo[] = []
+    for (const connection of Connections.getConnections(ids)) {
+        await connection
+            .getConnectionInfo()
+            .then((info) => connections.push(info))
+            .catch((reason) => console.log(`Failed to fetch connection info: ${reason}`))
     }
 
     return Response.json({ connections })

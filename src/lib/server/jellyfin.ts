@@ -98,7 +98,7 @@ export class Jellyfin implements Connection {
         }
     }
 
-    static authenticateByName = async (username: string, password: string, serverUrl: URL, deviceId: string): Promise<JellyfinAPI.AuthData> => {
+    public static authenticateByName = async (username: string, password: string, serverUrl: URL, deviceId: string): Promise<JellyfinAPI.AuthData> => {
         const authUrl = new URL('/Users/AuthenticateByName', serverUrl.origin).toString()
         return fetch(authUrl, {
             method: 'POST',

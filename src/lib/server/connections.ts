@@ -1,8 +1,8 @@
-import { DB } from './db'
+import { DB, type DBConnectionInfo } from './db'
 import { Jellyfin } from './jellyfin'
 import { YouTubeMusic } from './youtube-music'
 
-const constructConnection = (connectionInfo: ConnectionInfo): Connection => {
+const constructConnection = (connectionInfo: DBConnectionInfo): Connection => {
     const { id, userId, type, serviceInfo, tokens } = connectionInfo
     switch (type) {
         case 'jellyfin':

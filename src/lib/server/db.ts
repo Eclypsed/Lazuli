@@ -22,13 +22,13 @@ type DBServiceInfo =
           tokens: YouTubeMusic.Tokens
       }
 
-type DBConnectionInfo = {
+export type DBConnectionInfo = {
     id: string
     userId: string
 } & DBServiceInfo
 
-export class Storage {
-    private database: Sqlite3DB
+class Storage {
+    private readonly database: Sqlite3DB
 
     constructor(database: Sqlite3DB) {
         this.database = database

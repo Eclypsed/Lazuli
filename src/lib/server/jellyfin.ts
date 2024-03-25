@@ -66,43 +66,49 @@ export class Jellyfin implements Connection {
         const mostPlayedResponse = await fetch(mostPlayedSongsURL, { headers: this.BASEHEADERS })
         const mostPlayedData = await mostPlayedResponse.json()
 
-        return Array.from(mostPlayedData.Items as JellyfinAPI.Song[], (song) => this.songFactory(song))
+        return Array.from(mostPlayedData.Items as JellyfinAPI.Song[], (song) => this.parseSong(song))
     }
 
     public search = async (searchTerm: string): Promise<MediaItem[]> => {
         const searchParams = new URLSearchParams({
-            userId: this.jfUserId,
             searchTerm,
-            includeItemTypes: 'Audio,MusicAlbum,MusicArtist',
+            includeItemTypes: 'Audio,MusicAlbum', // Potentially add MusicArtist
+            recursive: 'true',
         })
 
-        const searchURL = new URL(`Search/Hints?${searchParams.toString()}`, this.serverUrl).toString()
+        const searchURL = new URL(`Users/${this.jfUserId}/Items?${searchParams.toString()}`, this.serverUrl).toString()
         const searchResponse = await fetch(searchURL, { headers: this.BASEHEADERS })
         if (!searchResponse.ok) throw new JellyfinFetchError('Failed to search Jellyfin', searchResponse.status, searchURL)
-        const searchResults = (await searchResponse.json()).SearchHints as JellyfinAPI.SearchHint[]
+        const searchResults = (await searchResponse.json()).Items as (JellyfinAPI.Song | JellyfinAPI.Album)[] // JellyfinAPI.Artist
+
+        const parsedResults: MediaItem[] = []
+        searchResults.forEach((result) => {
+            switch (result.Type) {
+                case 'Audio':
+                    parsedResults.push(this.parseSong(result))
+                    break
+                case 'MusicAlbum':
+                    parsedResults.push(this.parseAlbum(result))
+                    break
+            }
+        })
+        return parsedResults
     }
 
-    private mediaItemFactory = (mediaItem: JellyfinAPI.MediaItem): MediaItem => {
-        const thumbnail = mediaItem.ImageTags?.Primary
-            ? new URL(`Items/${mediaItem.Id}/Images/Primary`, this.serverUrl).toString()
-            : mediaItem.
-
-    }
-
-    private songFactory = (song: JellyfinAPI.Song): Song => {
+    private parseSong = (song: JellyfinAPI.Song): Song => {
         const thumbnail = song.ImageTags?.Primary
             ? new URL(`Items/${song.Id}/Images/Primary`, this.serverUrl).href
             : song.AlbumPrimaryImageTag
               ? new URL(`Items/${song.AlbumId}/Images/Primary`, this.serverUrl).href
               : undefined
 
-        const artists = song.ArtistItems
+        const artists: Song['artists'] = song.ArtistItems
             ? Array.from(song.ArtistItems, (artist) => {
                   return { id: artist.Id, name: artist.Name }
               })
-            : []
+            : undefined
 
-        // Add Album details
+        const album: Song['album'] = song.AlbumId && song.Album ? { id: song.AlbumId, name: song.Album } : undefined
 
         return {
             connection: {
@@ -112,10 +118,35 @@ export class Jellyfin implements Connection {
             type: 'song',
             id: song.Id,
             name: song.Name,
-            duration: Math.floor(song.RunTimeTicks / 10000),
+            duration: ticksToSeconds(song.RunTimeTicks),
             thumbnail,
             artists,
-            releaseDate: String(song.ProductionYear),
+            album,
+            releaseDate: song.ProductionYear?.toString(),
+        }
+    }
+
+    private parseAlbum = (album: JellyfinAPI.Album): Album => {
+        const thumbnail = album.ImageTags?.Primary ? new URL(`Items/${album.Id}/Images/Primary`, this.serverUrl).toString() : undefined
+
+        const artists: Album['artists'] = album.AlbumArtists
+            ? Array.from(album.AlbumArtists, (artist) => {
+                  return { id: artist.Id, name: artist.Name }
+              })
+            : undefined
+
+        return {
+            connection: {
+                id: this.id,
+                type: 'jellyfin',
+            },
+            type: 'album',
+            id: album.Id,
+            name: album.Name,
+            duration: ticksToSeconds(album.RunTimeTicks),
+            thumbnail,
+            artists,
+            releaseDate: album.ProductionYear?.toString(),
         }
     }
 
@@ -141,6 +172,8 @@ export class Jellyfin implements Connection {
             })
     }
 }
+
+const ticksToSeconds = (ticks: number): number => Math.floor(ticks / 10000)
 
 export class JellyfinFetchError extends Error {
     public httpCode: number
@@ -168,75 +201,64 @@ declare namespace JellyfinAPI {
         ServerName: string
     }
 
-    interface MediaItem {
+    type Song = {
         Name: string
         Id: string
-        Type: 'Audio' | 'MusicAlbum' | 'Playlist' | 'MusicArtist'
-        ImageTags?: {
-            Primary?: string
-        }
-    }
-
-    interface Song extends JellyfinAPI.MediaItem {
-        RunTimeTicks: number
-        ProductionYear: number
         Type: 'Audio'
-        ArtistItems: {
+        RunTimeTicks: number
+        ProductionYear?: number
+        ArtistItems?: {
             Name: string
             Id: string
         }[]
         Album?: string
         AlbumId?: string
         AlbumPrimaryImageTag?: string
-        AlbumArtists: {
+        AlbumArtists?: {
             Name: string
             Id: string
         }[]
+        ImageTags?: {
+            Primary?: string
+        }
     }
 
-    interface Album extends JellyfinAPI.MediaItem {
-        RunTimeTicks: number
-        ProductionYear: number
-        Type: 'MusicAlbum'
-        ArtistItems: {
-            Name: string
-            Id: string
-        }[]
-        AlbumArtists: {
-            Name: string
-            Id: string
-        }[]
-    }
-
-    interface Playlist extends JellyfinAPI.MediaItem {
-        RunTimeTicks: number
-        Type: 'Playlist'
-        ChildCount: number
-    }
-
-    interface Artist extends JellyfinAPI.MediaItem {
-        Type: 'MusicArtist'
-    }
-
-    type SearchHint = {
-        Id: string
+    type Album = {
         Name: string
-        PrimaryImageTag?: string
-    } & ({
-        Type: 'Audio'
-        RunTimeTicks: number
-        ProductionYear?: number
-        AlbumId: string // When no album exists, the id defaults to: "00000000000000000000000000000000"
-        Album?: string
-        Artists: {
-            [key: number]: string
-        }[]
-    } | {
-        Type: 'MusicArtist'
-    } | {
+        Id: string
         Type: 'MusicAlbum'
         RunTimeTicks: number
         ProductionYear?: number
-        AlbumArtist: string
-    })
+        ArtistItems?: {
+            Name: string
+            Id: string
+        }[]
+        AlbumArtists?: {
+            Name: string
+            Id: string
+        }[]
+        ImageTags?: {
+            Primary?: string
+        }
+    }
+
+    type Playlist = {
+        Name: string
+        Id: string
+        Type: 'Playlist'
+        RunTimeTicks: number
+        ChildCount: number
+        ImageTags?: {
+            Primary?: string
+        }
+    }
+
+    type Artist = {
+        Name: string
+        Id: string
+        Type: 'MusicArtist'
+        ImageTags?: {
+            Primary?: string
+        }
+    }
 }

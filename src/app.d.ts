@@ -45,6 +45,7 @@ declare global {
     interface Connection {
         getRecommendations: () => Promise<MediaItem[]>
         getConnectionInfo: () => Promise<ConnectionInfo>
+        search: (searchTerm: string) => Promise<MediaItem[]>
     }
     // These Schemas should only contain general info data that is necessary for data fetching purposes.
     // They are NOT meant to be stores for large amounts of data, i.e. Don't include the data for every single song the Playlist type.

@@ -5,12 +5,16 @@ export class Jellyfin implements Connection {
     private serverUrl: string
     private accessToken: string
 
+    private readonly BASEHEADERS: Headers
+
     constructor(id: string, userId: string, jellyfinUserId: string, serverUrl: string, accessToken: string) {
         this.id = id
         this.userId = userId
         this.jfUserId = jellyfinUserId
         this.serverUrl = serverUrl
         this.accessToken = accessToken
+
+        this.BASEHEADERS = new Headers({ Authorization: `MediaBrowser Token="${this.accessToken}"` })
     }
 
     // const audoSearchParams = new URLSearchParams({
@@ -23,13 +27,11 @@ export class Jellyfin implements Connection {
     // })
 
     public getConnectionInfo = async (): Promise<Extract<ConnectionInfo, { type: 'jellyfin' }>> => {
-        const reqHeaders = new Headers({ Authorization: `MediaBrowser Token="${this.accessToken}"` })
-
         const userUrl = new URL(`Users/${this.jfUserId}`, this.serverUrl).href
         const systemUrl = new URL('System/Info', this.serverUrl).href
 
-        const userResponse = await fetch(userUrl, { headers: reqHeaders })
-        const systemResponse = await fetch(systemUrl, { headers: reqHeaders })
+        const userResponse = await fetch(userUrl, { headers: this.BASEHEADERS })
+        const systemResponse = await fetch(systemUrl, { headers: this.BASEHEADERS })
 
         const userData: JellyfinAPI.User = await userResponse.json()
         const systemData: JellyfinAPI.System = await systemResponse.json()
@@ -51,7 +53,7 @@ export class Jellyfin implements Connection {
     }
 
     public getRecommendations = async (): Promise<MediaItem[]> => {
-        const mostPlayedSongsSearchParams = new URLSearchParams({
+        const searchParams = new URLSearchParams({
             SortBy: 'PlayCount',
             SortOrder: 'Descending',
             IncludeItemTypes: 'Audio',
@@ -59,13 +61,32 @@ export class Jellyfin implements Connection {
             limit: '10',
         })
 
-        const mostPlayedSongsURL = new URL(`/Users/${this.jfUserId}/Items?${mostPlayedSongsSearchParams.toString()}`, this.serverUrl).href
-        const requestHeaders = new Headers({ Authorization: `MediaBrowser Token="${this.accessToken}"` })
+        const mostPlayedSongsURL = new URL(`/Users/${this.jfUserId}/Items?${searchParams.toString()}`, this.serverUrl).toString()
 
-        const mostPlayedResponse = await fetch(mostPlayedSongsURL, { headers: requestHeaders })
+        const mostPlayedResponse = await fetch(mostPlayedSongsURL, { headers: this.BASEHEADERS })
         const mostPlayedData = await mostPlayedResponse.json()
 
         return Array.from(mostPlayedData.Items as JellyfinAPI.Song[], (song) => this.songFactory(song))
+    }
+
+    public search = async (searchTerm: string): Promise<MediaItem[]> => {
+        const searchParams = new URLSearchParams({
+            userId: this.jfUserId,
+            searchTerm,
+            includeItemTypes: 'Audio,MusicAlbum,MusicArtist',
+        })
+
+        const searchURL = new URL(`Search/Hints?${searchParams.toString()}`, this.serverUrl).toString()
+        const searchResponse = await fetch(searchURL, { headers: this.BASEHEADERS })
+        if (!searchResponse.ok) throw new JellyfinFetchError('Failed to search Jellyfin', searchResponse.status, searchURL)
+        const searchResults = (await searchResponse.json()).SearchHints as JellyfinAPI.SearchHint[]
+    }
+
+    private mediaItemFactory = (mediaItem: JellyfinAPI.MediaItem): MediaItem => {
+        const thumbnail = mediaItem.ImageTags?.Primary
+            ? new URL(`Items/${mediaItem.Id}/Images/Primary`, this.serverUrl).toString()
+            : mediaItem.
+
     }
 
     private songFactory = (song: JellyfinAPI.Song): Song => {
@@ -196,4 +217,26 @@ declare namespace JellyfinAPI {
     interface Artist extends JellyfinAPI.MediaItem {
         Type: 'MusicArtist'
     }
+
+    type SearchHint = {
+        Id: string
+        Name: string
+        PrimaryImageTag?: string
+    } & ({
+        Type: 'Audio'
+        RunTimeTicks: number
+        ProductionYear?: number
+        AlbumId: string // When no album exists, the id defaults to: "00000000000000000000000000000000"
+        Album?: string
+        Artists: {
+            [key: number]: string
+        }[]
+    } | {
+        Type: 'MusicArtist'
+    } | {
+        Type: 'MusicAlbum'
+        RunTimeTicks: number
+        ProductionYear?: number
+        AlbumArtist: string
+    })
 }

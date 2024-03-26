@@ -74,6 +74,28 @@ export class YouTubeMusic implements Connection {
         return listenAgain.concat(quickPicks)
     }
 
+    public search = async (searchTerm: string): Promise<MediaItem[]> => {
+        const headers = Object.assign(this.BASEHEADERS, { authorization: `Bearer ${(await this.getTokens()).accessToken}`, 'X-Goog-Request-Time': `${Date.now()}` })
+
+        const response = await fetch(`https://music.youtube.com/youtubei/v1/search`, {
+            headers,
+            method: 'POST',
+            body: JSON.stringify({
+                query: searchTerm,
+                context: {
+                    client: {
+                        clientName: 'WEB_REMIX',
+                        clientVersion: `1.${formatDate()}.01.00`,
+                        hl: 'en',
+                    },
+                },
+            }),
+        })
+
+        const data = await response.json()
+        console.log(JSON.stringify(data))
+    }
+
     private getHome = async (): Promise<YouTubeMusic.HomeItems> => {
         const headers = Object.assign(this.BASEHEADERS, { authorization: `Bearer ${(await this.getTokens()).accessToken}`, 'X-Goog-Request-Time': `${Date.now()}` })
 

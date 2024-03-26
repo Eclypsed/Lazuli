@@ -12,7 +12,7 @@
 </script>
 
 <div id="card-wrapper" class="flex-shrink-0">
-    <button id="thumbnail" class="relative h-56 transition-all duration-200 ease-out" on:click={() => goto(`/details/${mediaItem.type}?id=${mediaItem.id}`)}>
+    <button id="thumbnail" class="relative h-52 transition-all duration-200 ease-out" on:click={() => goto(`/details/${mediaItem.type}?id=${mediaItem.id}`)}>
         {#if mediaItem.thumbnail}
             <img bind:this={image} id="card-image" on:load={() => (captionText.style.width = `${image.width}px`)} class="h-full rounded transition-all" src={mediaItem.thumbnail} alt="{mediaItem.name} thumbnail" />
         {:else}

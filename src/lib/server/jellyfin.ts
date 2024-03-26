@@ -81,15 +81,12 @@ export class Jellyfin implements Connection {
         if (!searchResponse.ok) throw new JellyfinFetchError('Failed to search Jellyfin', searchResponse.status, searchURL)
         const searchResults = (await searchResponse.json()).Items as (JellyfinAPI.Song | JellyfinAPI.Album)[] // JellyfinAPI.Artist
 
-        const parsedResults: MediaItem[] = []
-        searchResults.forEach((result) => {
+        const parsedResults: MediaItem[] = Array.from(searchResults, (result) => {
             switch (result.Type) {
                 case 'Audio':
-                    parsedResults.push(this.parseSong(result))
-                    break
+                    return this.parseSong(result)
                 case 'MusicAlbum':
-                    parsedResults.push(this.parseAlbum(result))
-                    break
+                    return this.parseAlbum(result)
             }
         })
         return parsedResults

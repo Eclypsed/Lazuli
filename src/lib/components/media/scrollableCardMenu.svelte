@@ -1,6 +1,6 @@
 <script lang="ts">
     export let header: string
-    export let cardDataList: MediaItem[]
+    export let cardDataList: (Song | Album | Playlist)[]
 
     import MediaCard from '$lib/components/media/mediaCard.svelte'
     import IconButton from '$lib/components/util/iconButton.svelte'

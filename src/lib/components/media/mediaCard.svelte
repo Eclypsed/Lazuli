@@ -1,14 +1,10 @@
 <script lang="ts">
-    export let mediaItem: MediaItem
+    export let mediaItem: Song | Album | Playlist
 
     import IconButton from '$lib/components/util/iconButton.svelte'
     import { goto } from '$app/navigation'
 
     let image: HTMLImageElement, captionText: HTMLDivElement
-
-    const checkSongOrAlbum = (item: MediaItem): item is Song | Album => {
-        return item.type === 'song' || item.type === 'album'
-    }
 </script>
 
 <div id="card-wrapper" class="flex-shrink-0">
@@ -29,7 +25,7 @@
     <div bind:this={captionText} class="w-56 p-1">
         <div class="mb-0.5 line-clamp-2 text-wrap text-sm" title={mediaItem.name}>{mediaItem.name}</div>
         <div class="leading-2 line-clamp-2 text-neutral-400" style="font-size: 0;">
-            {#if checkSongOrAlbum(mediaItem) && 'artists' in mediaItem && mediaItem.artists}
+            {#if 'artists' in mediaItem && mediaItem.artists}
                 {#each mediaItem.artists as artist}
                     {@const listIndex = mediaItem.artists.indexOf(artist)}
                     <a class="text-sm hover:underline focus:underline" href="/details/artist?id={artist.id}&connection={mediaItem.connection.id}">{artist.name}</a>

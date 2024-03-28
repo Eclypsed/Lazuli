@@ -5,7 +5,7 @@ import { generateUUID } from '$lib/utils'
 interface DBConnectionsTableSchema {
     id: string
     userId: string
-    type: serviceType
+    type: string
     service?: string
     tokens?: string
 }
@@ -86,7 +86,7 @@ class Storage {
             const { userId, type, service, tokens } = result
             const parsedService = service ? JSON.parse(service) : undefined
             const parsedTokens = tokens ? JSON.parse(tokens) : undefined
-            connectionInfo.push({ id, userId, type, serviceInfo: parsedService, tokens: parsedTokens })
+            connectionInfo.push({ id, userId, type: type as DBServiceInfo['type'], serviceInfo: parsedService, tokens: parsedTokens })
         }
         return connectionInfo
     }
@@ -97,7 +97,7 @@ class Storage {
         for (const { id, type, service, tokens } of connectionRows) {
             const parsedService = service ? JSON.parse(service) : undefined
             const parsedTokens = tokens ? JSON.parse(tokens) : undefined
-            connections.push({ id, userId, type, serviceInfo: parsedService, tokens: parsedTokens })
+            connections.push({ id, userId, type: type as DBServiceInfo['type'], serviceInfo: parsedService, tokens: parsedTokens })
         }
         return connections
     }

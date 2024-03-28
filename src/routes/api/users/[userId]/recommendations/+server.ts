@@ -6,7 +6,7 @@ import { Connections } from '$lib/server/connections'
 export const GET: RequestHandler = async ({ params }) => {
     const userId = params.userId!
 
-    const recommendations: MediaItem[] = []
+    const recommendations: (Song | Album | Playlist)[] = []
     for (const connection of Connections.getUserConnections(userId)) {
         await connection
             .getRecommendations()

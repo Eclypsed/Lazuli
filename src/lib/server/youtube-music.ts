@@ -69,12 +69,12 @@ export class YouTubeMusic implements Connection {
         }
     }
 
-    public getRecommendations = async (): Promise<MediaItem[]> => {
+    public getRecommendations = async (): Promise<(Song | Album | Playlist)[]> => {
         const { listenAgain, quickPicks } = await this.getHome()
         return listenAgain.concat(quickPicks)
     }
 
-    public search = async (searchTerm: string): Promise<MediaItem[]> => {
+    public search = async (searchTerm: string): Promise<(Song | Album | Playlist)[]> => {
         const headers = Object.assign(this.BASEHEADERS, { authorization: `Bearer ${(await this.getTokens()).accessToken}`, 'X-Goog-Request-Time': `${Date.now()}` })
 
         const response = await fetch(`https://music.youtube.com/youtubei/v1/search`, {
@@ -127,7 +127,7 @@ export class YouTubeMusic implements Connection {
             const headerTitle = section.musicCarouselShelfRenderer.header.musicCarouselShelfBasicHeaderRenderer.title.runs[0].text
             const rawContents = section.musicCarouselShelfRenderer.contents
 
-            const parsedContent: MediaItem[] =
+            const parsedContent: (Song | Album | Playlist)[] =
                 'musicTwoRowItemRenderer' in rawContents[0]
                     ? this.parseTwoRowItemRenderer((rawContents as { musicTwoRowItemRenderer: InnerTube.musicTwoRowItemRenderer }[]).map((item) => item.musicTwoRowItemRenderer))
                     : this.parseResponsiveListItemRenderer((rawContents as { musicResponsiveListItemRenderer: InnerTube.musicResponsiveListItemRenderer }[]).map((item) => item.musicResponsiveListItemRenderer))
@@ -144,8 +144,8 @@ export class YouTubeMusic implements Connection {
         return homeItems
     }
 
-    private parseTwoRowItemRenderer = (rowContent: InnerTube.musicTwoRowItemRenderer[]): MediaItem[] => {
-        const parsedContent: MediaItem[] = []
+    private parseTwoRowItemRenderer = (rowContent: InnerTube.musicTwoRowItemRenderer[]): (Song | Album | Playlist)[] => {
+        const parsedContent: (Song | Album | Playlist)[] = []
         for (const data of rowContent) {
             const title = data.title.runs[0].text
             const subtitles = data.subtitle.runs
@@ -201,7 +201,7 @@ export class YouTubeMusic implements Connection {
                 }
             }
 
-            const thumbnail: MediaItem['thumbnail'] = refineThumbnailUrl(data.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails[0].url)
+            const thumbnail = refineThumbnailUrl(data.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails[0].url)
 
             const song: Song = {
                 connection: {

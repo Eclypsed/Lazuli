@@ -52,7 +52,7 @@ export class Jellyfin implements Connection {
         }
     }
 
-    public getRecommendations = async (): Promise<MediaItem[]> => {
+    public getRecommendations = async (): Promise<(Song | Album | Playlist)[]> => {
         const searchParams = new URLSearchParams({
             SortBy: 'PlayCount',
             SortOrder: 'Descending',
@@ -69,7 +69,7 @@ export class Jellyfin implements Connection {
         return Array.from(mostPlayedData.Items as JellyfinAPI.Song[], (song) => this.parseSong(song))
     }
 
-    public search = async (searchTerm: string): Promise<MediaItem[]> => {
+    public search = async (searchTerm: string): Promise<(Song | Album | Playlist)[]> => {
         const searchParams = new URLSearchParams({
             searchTerm,
             includeItemTypes: 'Audio,MusicAlbum', // Potentially add MusicArtist
@@ -81,7 +81,7 @@ export class Jellyfin implements Connection {
         if (!searchResponse.ok) throw new JellyfinFetchError('Failed to search Jellyfin', searchResponse.status, searchURL)
         const searchResults = (await searchResponse.json()).Items as (JellyfinAPI.Song | JellyfinAPI.Album)[] // JellyfinAPI.Artist
 
-        const parsedResults: MediaItem[] = Array.from(searchResults, (result) => {
+        const parsedResults: (Song | Album)[] = Array.from(searchResults, (result) => {
             switch (result.Type) {
                 case 'Audio':
                     return this.parseSong(result)

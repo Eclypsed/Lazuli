@@ -41,9 +41,10 @@ declare global {
     )
 
     interface Connection {
+        public id: string
         getRecommendations: () => Promise<(Song | Album | Playlist)[]>
         getConnectionInfo: () => Promise<ConnectionInfo>
-        search: (searchTerm: string) => Promise<(Song | Album | Playlist)[]>
+        search: (searchTerm: string) => Promise<(Song | Album | Artist | Playlist)[]>
     }
     // These Schemas should only contain general info data that is necessary for data fetching purposes.
     // They are NOT meant to be stores for large amounts of data, i.e. Don't include the data for every single song the Playlist type.
@@ -90,17 +91,12 @@ declare global {
         releaseDate?: string
     }
 
-    // IMPORTANT: This interface is for Lazuli created and stored playlists. Use service-specific interfaces when pulling playlists from services
     type Playlist = {
         id: string
         name: string
         type: 'playlist'
         thumbnail?: string
         description?: string
-        items: {
-            connectionId: string
-            id: string
-        }[]
     }
 
     type Artist = {

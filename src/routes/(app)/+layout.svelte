@@ -1,5 +1,6 @@
 <script lang="ts">
     import { pageWidth } from '$lib/stores'
+    import SearchBar from '$lib/components/util/searchBar.svelte'
     import type { LayoutData } from './$types'
     import NavTab from '$lib/components/navbar/navTab.svelte'
     import PlaylistTab from '$lib/components/navbar/playlistTab.svelte'
@@ -21,8 +22,8 @@
 </script>
 
 {#if $pageWidth >= 768}
-    <div class="grid h-full grid-rows-1 gap-8 overflow-hidden">
-        <div class="no-scrollbar fixed left-0 top-0 z-10 grid h-full w-20 grid-cols-1 grid-rows-[min-content_auto] gap-5 px-3 py-16">
+    <div class="h-full overflow-hidden">
+        <div class="no-scrollbar fixed left-0 top-0 z-10 grid h-full w-20 grid-cols-1 grid-rows-[min-content_auto] gap-5 px-3 py-12">
             <div class="flex flex-col gap-4">
                 {#each data.navTabs as nav}
                     <NavTab {nav} disabled={inPathnameHeirarchy(data.url.pathname, nav.pathname)} />
@@ -38,7 +39,10 @@
                 <div class="overflow-clip text-ellipsis text-neutral-400">Playlist &bull; {data.user.username}</div>
             </div>
         </div>
-        <section class="no-scrollbar overflow-y-scroll px-[max(7rem,_7vw)] pt-16">
+        <section class="no-scrollbar overflow-y-scroll px-[max(7rem,_7vw)]">
+            <div class="my-6 max-w-xl">
+                <SearchBar />
+            </div>
             <slot />
         </section>
         <footer class="fixed bottom-0 flex w-full flex-col items-center justify-center">

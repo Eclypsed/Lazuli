@@ -4,7 +4,7 @@ import { PUBLIC_YOUTUBE_API_CLIENT_ID } from '$env/static/public'
 import { YOUTUBE_API_CLIENT_SECRET } from '$env/static/private'
 
 export class YouTubeMusic implements Connection {
-    private id: string
+    public id: string
     private userId: string
     private ytUserId: string
     private tokens: YouTubeMusic.Tokens
@@ -77,23 +77,25 @@ export class YouTubeMusic implements Connection {
     public search = async (searchTerm: string): Promise<(Song | Album | Playlist)[]> => {
         const headers = Object.assign(this.BASEHEADERS, { authorization: `Bearer ${(await this.getTokens()).accessToken}`, 'X-Goog-Request-Time': `${Date.now()}` })
 
-        const response = await fetch(`https://music.youtube.com/youtubei/v1/search`, {
-            headers,
-            method: 'POST',
-            body: JSON.stringify({
-                query: searchTerm,
-                context: {
-                    client: {
-                        clientName: 'WEB_REMIX',
-                        clientVersion: `1.${formatDate()}.01.00`,
-                        hl: 'en',
-                    },
-                },
-            }),
-        })
+        // const response = await fetch(`https://music.youtube.com/youtubei/v1/search`, {
+        //     headers,
+        //     method: 'POST',
+        //     body: JSON.stringify({
+        //         query: searchTerm,
+        //         context: {
+        //             client: {
+        //                 clientName: 'WEB_REMIX',
+        //                 clientVersion: `1.${formatDate()}.01.00`,
+        //                 hl: 'en',
+        //             },
+        //         },
+        //     }),
+        // })
 
-        const data = await response.json()
-        console.log(JSON.stringify(data))
+        // const data = await response.json()
+        // console.log(JSON.stringify(data))
+
+        return []
     }
 
     private getHome = async (): Promise<YouTubeMusic.HomeItems> => {

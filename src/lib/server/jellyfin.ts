@@ -1,5 +1,5 @@
 export class Jellyfin implements Connection {
-    private id: string
+    public id: string
     private userId: string
     private jfUserId: string
     private serverUrl: string
@@ -72,21 +72,23 @@ export class Jellyfin implements Connection {
     public search = async (searchTerm: string): Promise<(Song | Album | Playlist)[]> => {
         const searchParams = new URLSearchParams({
             searchTerm,
-            includeItemTypes: 'Audio,MusicAlbum', // Potentially add MusicArtist
+            includeItemTypes: 'Audio,MusicAlbum,Playlist', // Potentially add MusicArtist
             recursive: 'true',
         })
 
         const searchURL = new URL(`Users/${this.jfUserId}/Items?${searchParams.toString()}`, this.serverUrl).toString()
         const searchResponse = await fetch(searchURL, { headers: this.BASEHEADERS })
         if (!searchResponse.ok) throw new JellyfinFetchError('Failed to search Jellyfin', searchResponse.status, searchURL)
-        const searchResults = (await searchResponse.json()).Items as (JellyfinAPI.Song | JellyfinAPI.Album)[] // JellyfinAPI.Artist
+        const searchResults = (await searchResponse.json()).Items as (JellyfinAPI.Song | JellyfinAPI.Album | JellyfinAPI.Playlist)[] // JellyfinAPI.Artist
 
-        const parsedResults: (Song | Album)[] = Array.from(searchResults, (result) => {
+        const parsedResults: (Song | Album | Playlist)[] = Array.from(searchResults, (result) => {
             switch (result.Type) {
                 case 'Audio':
                     return this.parseSong(result)
                 case 'MusicAlbum':
                     return this.parseAlbum(result)
+                case 'Playlist':
+                    return this.parsePlaylist(result)
             }
         })
         return parsedResults
@@ -144,6 +146,17 @@ export class Jellyfin implements Connection {
             thumbnail,
             artists,
             releaseDate: album.ProductionYear?.toString(),
+        }
+    }
+
+    private parsePlaylist = (playlist: JellyfinAPI.Playlist): Playlist => {
+        const thumbnail = playlist.ImageTags?.Primary ? new URL(`Items/${playlist.Id}/Images/Primary`, this.serverUrl).toString() : undefined
+
+        return {
+            id: playlist.Id,
+            name: playlist.Name,
+            type: 'playlist',
+            thumbnail,
         }
     }
 

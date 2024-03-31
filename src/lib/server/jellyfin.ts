@@ -69,7 +69,7 @@ export class Jellyfin implements Connection {
         return Array.from(mostPlayedData.Items as JellyfinAPI.Song[], (song) => this.parseSong(song))
     }
 
-    public search = async (searchTerm: string): Promise<(Song | Album | Playlist)[]> => {
+    public search = async (searchTerm: string, filter?: 'song' | 'album' | 'artist' | 'playlist'): Promise<(Song | Album | Playlist)[]> => {
         const searchParams = new URLSearchParams({
             searchTerm,
             includeItemTypes: 'Audio,MusicAlbum,Playlist', // Potentially add MusicArtist
@@ -153,6 +153,10 @@ export class Jellyfin implements Connection {
         const thumbnail = playlist.ImageTags?.Primary ? new URL(`Items/${playlist.Id}/Images/Primary`, this.serverUrl).toString() : undefined
 
         return {
+            connection: {
+                id: this.id,
+                type: 'jellyfin',
+            },
             id: playlist.Id,
             name: playlist.Name,
             type: 'playlist',

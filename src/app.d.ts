@@ -44,7 +44,7 @@ declare global {
         public id: string
         getRecommendations: () => Promise<(Song | Album | Playlist)[]>
         getConnectionInfo: () => Promise<ConnectionInfo>
-        search: (searchTerm: string) => Promise<(Song | Album | Artist | Playlist)[]>
+        search: (searchTerm: string, filter?: 'song' | 'album' | 'artist' | 'playlist') => Promise<(Song | Album | Artist | Playlist)[]>
     }
     // These Schemas should only contain general info data that is necessary for data fetching purposes.
     // They are NOT meant to be stores for large amounts of data, i.e. Don't include the data for every single song the Playlist type.
@@ -53,7 +53,7 @@ declare global {
     type Song = {
         connection: {
             id: string
-            type: serviceType
+            type: 'jellyfin' | 'youtube-music'
         }
         id: string
         name: string
@@ -76,7 +76,7 @@ declare global {
     type Album = {
         connection: {
             id: string
-            type: serviceType
+            type: 'jellyfin' | 'youtube-music'
         }
         id: string
         name: string
@@ -91,19 +91,28 @@ declare global {
         releaseDate?: string
     }
 
+    // Need to figure out how to do Artists, maybe just query MusicBrainz?
+    type Artist = {
+        connection: {
+            id: string
+            type: 'jellyfin' | 'youtube-music'
+        }
+        id: string
+        name: string
+        type: 'artist'
+        thumbnail?: string
+    }
+
     type Playlist = {
+        connection: {
+            id: string
+            type: 'jellyfin' | 'youtube-music'
+        }
         id: string
         name: string
         type: 'playlist'
         thumbnail?: string
         description?: string
-    }
-
-    type Artist = {
-        id: string
-        name: string
-        type: 'artist'
-        thumbnail?: string
     }
 
     namespace Jellyfin {

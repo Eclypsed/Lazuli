@@ -74,26 +74,39 @@ export class YouTubeMusic implements Connection {
         return listenAgain.concat(quickPicks)
     }
 
-    public search = async (searchTerm: string): Promise<(Song | Album | Playlist)[]> => {
+    public search = async (searchTerm: string, filter?: 'song' | 'album' | 'artist' | 'playlist'): Promise<(Song | Album | Artist | Playlist)[]> => {
         const headers = Object.assign(this.BASEHEADERS, { authorization: `Bearer ${(await this.getTokens()).accessToken}`, 'X-Goog-Request-Time': `${Date.now()}` })
 
-        // const response = await fetch(`https://music.youtube.com/youtubei/v1/search`, {
-        //     headers,
-        //     method: 'POST',
-        //     body: JSON.stringify({
-        //         query: searchTerm,
-        //         context: {
-        //             client: {
-        //                 clientName: 'WEB_REMIX',
-        //                 clientVersion: `1.${formatDate()}.01.00`,
-        //                 hl: 'en',
-        //             },
-        //         },
-        //     }),
-        // })
+        // Figure out how to handle Library and Uploads
+        // Depending on how I want to handle the playlist & library sync feature
 
-        // const data = await response.json()
-        // console.log(JSON.stringify(data))
+        const searchParams = {
+            song: 'EgWKAQIIAWoMEA4QChADEAQQCRAF',
+            album: 'EgWKAQIYAWoMEA4QChADEAQQCRAF',
+            artist: 'EgWKAQIgAWoMEA4QChADEAQQCRAF',
+            playlist: 'Eg-KAQwIABAAGAAgACgBMABqChAEEAMQCRAFEAo%3D',
+        }
+
+        const searchResulsts: InnerTube.SearchResponse = await fetch(`https://music.youtube.com/youtubei/v1/search`, {
+            headers,
+            method: 'POST',
+            body: JSON.stringify({
+                query: searchTerm,
+                params: filter ? searchParams[filter] : undefined,
+                context: {
+                    client: {
+                        clientName: 'WEB_REMIX',
+                        clientVersion: `1.${formatDate()}.01.00`,
+                        hl: 'en',
+                    },
+                },
+            }),
+        }).then((response) => response.json())
+        console.log(JSON.stringify(searchResulsts))
+
+        const contents = searchResulsts.contents.tabbedSearchResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents
+
+        const parsedSearchResults: (Song | Album | Artist | Playlist)[] = []
 
         return []
     }
@@ -230,6 +243,76 @@ export class YouTubeMusic implements Connection {
 
         return parsedContent
     }
+
+    private parseMusicCardShelfRenderer = (cardContent: InnerTube.musicCardShelfRenderer): Song | Album | Artist | Playlist => {
+        const navigationEndpoint = cardContent.title.runs[0].navigationEndpoint
+        const artists: Song['artists'] | Album['artists'] = []
+        cardContent.subtitle.runs.forEach((run) => {
+            if (run.navigationEndpoint?.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType === 'MUSIC_PAGE_TYPE_ARTIST') {
+                artists.push({ id: run.navigationEndpoint.browseEndpoint.browseId, name: run.text })
+            }
+        })
+        const thumbnail = refineThumbnailUrl(cardContent.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails[0].url)
+
+        if ('watchEndpoint' in navigationEndpoint) {
+            const albumSubtitleRun = cardContent.subtitle.runs.find(
+                (run) => run.navigationEndpoint?.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType === 'MUSIC_PAGE_TYPE_ALBUM',
+            )
+            const song: Song = {
+                connection: {
+                    id: this.id,
+                    type: 'youtube-music',
+                },
+                id: navigationEndpoint.watchEndpoint.videoId,
+                name: cardContent.title.runs[0].text,
+                type: 'song',
+                thumbnail,
+            }
+            if (artists.length > 0) song.artists = artists
+            if (albumSubtitleRun) song.album = { id: albumSubtitleRun.navigationEndpoint!.browseEndpoint.browseId, name: albumSubtitleRun.text }
+            return song
+        } else {
+            const pageType = navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType
+            if (pageType === 'MUSIC_PAGE_TYPE_ALBUM') {
+                const album: Album = {
+                    connection: {
+                        id: this.id,
+                        type: 'youtube-music',
+                    },
+                    id: navigationEndpoint.browseEndpoint.browseId,
+                    name: cardContent.title.runs[0].text,
+                    type: 'album',
+                    thumbnail,
+                }
+                if (artists.length > 0) album.artists = artists
+                return album
+            } else if (pageType === 'MUSIC_PAGE_TYPE_ARTIST') {
+                const artist: Artist = {
+                    connection: {
+                        id: this.id,
+                        type: 'youtube-music',
+                    },
+                    id: navigationEndpoint.browseEndpoint.browseId,
+                    name: cardContent.title.runs[0].text,
+                    type: 'artist',
+                    thumbnail,
+                }
+                return artist
+            } else {
+                // NEED TO GET A SAMPLE FOR THIS
+                const playlist: Playlist = {
+                    connection: {
+                        id: this.id,
+                        type: 'youtube-music',
+                    },
+                    id: navigationEndpoint.browseEndpoint.browseId,
+                    name: cardContent.title.runs[0].text,
+                    type: 'playlist',
+                }
+                return playlist
+            }
+        }
+    }
 }
 
 const refineThumbnailUrl = (urlString: string): string => {
@@ -254,10 +337,72 @@ const formatDate = (): string => {
 }
 
 declare namespace InnerTube {
-    type Response = BrowseResponse | OtherResponse
+    interface SearchResponse {
+        contents: {
+            tabbedSearchResultsRenderer: {
+                tabs: [
+                    {
+                        tabRenderer: {
+                            title: string
+                            content: {
+                                sectionListRenderer: {
+                                    contents: Array<
+                                        | {
+                                              musicCardShelfRenderer: musicCardShelfRenderer
+                                          }
+                                        | {
+                                              musicShelfRenderer: musicShelfRenderer
+                                          }
+                                    >
+                                }
+                            }
+                        }
+                    },
+                ]
+            }
+        }
+    }
 
-    interface OtherResponse {
-        contents: object
+    type musicCardShelfRenderer = {
+        title: {
+            runs: [
+                {
+                    text: string // Unlike musicShelfRenderer, this is the name of the top search result, be that the name of a song, album, artist, or etc.
+                    navigationEndpoint:
+                        | {
+                              watchEndpoint: watchEndpoint
+                          }
+                        | {
+                              browseEndpoint: browseEndpoint
+                          }
+                },
+            ]
+        }
+        subtitle: {
+            runs: Array<{
+                text: string
+                navigationEndpoint?: {
+                    browseEndpoint: browseEndpoint
+                }
+            }>
+        }
+        contents?: Array<{
+            musicResponsiveListItemRenderer: musicResponsiveListItemRenderer
+        }>
+        thumbnail: {
+            musicThumbnailRenderer: musicThumbnailRenderer
+        }
+    }
+
+    type musicShelfRenderer = {
+        title: {
+            runs: Array<{
+                text: 'Artists' | 'Songs' | 'Videos' | 'Albums' | 'Community playlists' | 'Podcasts' | 'Episodes' | 'Profiles'
+            }>
+        }
+        contents: Array<{
+            musicResponsiveListItemRenderer: musicResponsiveListItemRenderer
+        }>
     }
 
     interface BrowseResponse {
@@ -371,13 +516,11 @@ declare namespace InnerTube {
         thumbnail: {
             musicThumbnailRenderer: musicThumbnailRenderer
         }
-        overlay: unknown
         flexColumns: {
             musicResponsiveListItemFlexColumnRenderer: {
                 text: { runs: [runs] }
             }
         }[]
-        menu: unknown
         playlistItemData: {
             videoId: string
         }
@@ -385,11 +528,11 @@ declare namespace InnerTube {
 
     type musicThumbnailRenderer = {
         thumbnail: {
-            thumbnails: {
+            thumbnails: Array<{
                 url: string
                 width: number
                 height: number
-            }[]
+            }>
         }
         thumbnailCrop: string
         thumbnailScale: string
@@ -430,11 +573,7 @@ declare namespace InnerTube {
 
     type watchEndpoint = {
         videoId: string
-        playlistId: string
         params?: string
-        loggingContext: {
-            vssLoggingContext: object
-        }
         watchEndpointMusicSupportedConfigs: {
             watchEndpointMusicConfig: object
         }

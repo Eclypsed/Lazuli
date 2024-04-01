@@ -130,6 +130,7 @@ export class YouTubeMusic implements Connection {
         })
 
         const data: InnerTube.BrowseResponse = await response.json()
+        console.log(JSON.stringify(data))
         const contents = data.contents.singleColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents
 
         const homeItems: YouTubeMusic.HomeItems = {
@@ -162,34 +163,25 @@ export class YouTubeMusic implements Connection {
         const connection = { id: this.id, type: 'youtube-music' } satisfies (Song | Album | Artist | Playlist)['connection']
         const name = rowContent.title.runs[0].text
 
-        function getArtists() {
-            const artists: (Song | Album)['artists'] = []
-            for (const run of rowContent.subtitle.runs) {
-                if (run.navigationEndpoint && 'browseEndpoint' in run.navigationEndpoint) {
-                    artists.push({ id: run.navigationEndpoint.browseEndpoint.browseId, name: run.text })
-                }
-            }
-            if (artists.length > 0) return artists
-            return undefined
+        let artists: (Song | Album)['artists']
+        for (const run of rowContent.subtitle.runs) {
+            if (!run.navigationEndpoint) continue
+            const artist = { id: run.navigationEndpoint.browseEndpoint.browseId, name: run.text }
+            artists ? artists.push(artist) : (artists = [artist])
         }
 
         const thumbnail = refineThumbnailUrl(rowContent.thumbnailRenderer.musicThumbnailRenderer.thumbnail.thumbnails[0].url)
 
         if ('watchEndpoint' in rowContent.navigationEndpoint) {
             const id = rowContent.navigationEndpoint.watchEndpoint.videoId
-            return { connection, id, name, type: 'song', artists: getArtists(), thumbnail } satisfies Song
-        }
-
-        if ('watchPlaylistEndpoint' in rowContent.navigationEndpoint) {
-            const id = rowContent.navigationEndpoint.watchPlaylistEndpoint.playlistId
-            return { connection, id, name, type: 'playlist', thumbnail } satisfies Playlist
+            return { connection, id, name, type: 'song', artists, thumbnail } satisfies Song
         }
 
         const pageType = rowContent.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType
         const id = rowContent.navigationEndpoint.browseEndpoint.browseId
         switch (pageType) {
             case 'MUSIC_PAGE_TYPE_ALBUM':
-                return { connection, id, name, type: 'album', artists: getArtists(), thumbnail } satisfies Album
+                return { connection, id, name, type: 'album', artists, thumbnail } satisfies Album
             case 'MUSIC_PAGE_TYPE_ARTIST':
                 return { connection, id, name, type: 'artist', thumbnail } satisfies Artist
             case 'MUSIC_PAGE_TYPE_PLAYLIST':
@@ -200,55 +192,45 @@ export class YouTubeMusic implements Connection {
     private parseResponsiveListItemRenderer = (listContent: InnerTube.musicResponsiveListItemRenderer): Song => {
         const connection = { id: this.id, type: 'youtube-music' } satisfies Song['connection']
         const name = listContent.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.text.runs[0].text
-        const id = (listContent.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.text.runs[0].navigationEndpoint! as { watchEndpoint: InnerTube.watchEndpoint }).watchEndpoint.videoId
+        const id = listContent.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.text.runs[0].navigationEndpoint.watchEndpoint.videoId
 
-        const mappedArtists: Song['artists'] = []
+        let artists: Song['artists']
         for (const run of listContent.flexColumns[1].musicResponsiveListItemFlexColumnRenderer.text.runs) {
-            if ('navigationEndpoint' in run && 'browseEndpoint' in run.navigationEndpoint!) {
-                mappedArtists.push({ id: run.navigationEndpoint.browseEndpoint.browseId, name: run.text })
-            }
+            if (!run.navigationEndpoint) continue
+            const artist = { id: run.navigationEndpoint.browseEndpoint.browseId, name: run.text }
+            artists ? artists.push(artist) : (artists = [artist])
         }
-        const artists = mappedArtists.length > 0 ? mappedArtists : undefined
 
-        function getAlbum() {
-            // This is like the ONE situation where `text` might not have a run
-            if (listContent.flexColumns[2].musicResponsiveListItemFlexColumnRenderer.text?.runs) {
-                return {
-                    id: (listContent.flexColumns[2].musicResponsiveListItemFlexColumnRenderer.text.runs[0].navigationEndpoint! as { browseEndpoint: InnerTube.browseEndpoint }).browseEndpoint.browseId,
-                    name: listContent.flexColumns[2].musicResponsiveListItemFlexColumnRenderer.text.runs[0].text,
-                } satisfies Song['album']
-            }
-            return undefined
-        }
+        const column2run = listContent.flexColumns[2].musicResponsiveListItemFlexColumnRenderer.text.runs?.[0]
+        const pageIsAlbum = column2run?.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType === 'MUSIC_PAGE_TYPE_ALBUM'
+        const album: Song['album'] = pageIsAlbum ? { id: column2run.navigationEndpoint.browseEndpoint.browseId, name: column2run.text } : undefined
 
         const thumbnail = refineThumbnailUrl(listContent.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails[0].url)
 
-        return { connection, id, name, type: 'song', artists, album: getAlbum(), thumbnail } satisfies Song
+        return { connection, id, name, type: 'song', artists, album, thumbnail } satisfies Song
     }
 
     private parseMusicCardShelfRenderer = (cardContent: InnerTube.musicCardShelfRenderer): Song | Album | Artist | Playlist => {
         const connection = { id: this.id, type: 'youtube-music' } satisfies (Song | Album | Artist | Playlist)['connection']
         const name = cardContent.title.runs[0].text
-
-        const artistsSubtitleRuns = cardContent.subtitle.runs.filter(
-            (run) => run.navigationEndpoint?.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType === 'MUSIC_PAGE_TYPE_ARTIST',
-        )
-        const artists: (Song | Album)['artists'] =
-            artistsSubtitleRuns.length > 0
-                ? artistsSubtitleRuns.map((run) => {
-                      return { id: run.navigationEndpoint!.browseEndpoint.browseId, name: run.text }
-                  })
-                : undefined
-
         const thumbnail = refineThumbnailUrl(cardContent.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails[0].url)
+
+        let album: Song['album'], artists: (Song | Album)['artists']
+        for (const run of cardContent.subtitle.runs) {
+            if (!run.navigationEndpoint) continue
+
+            const pageType = run.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType
+            if (pageType === 'MUSIC_PAGE_TYPE_ARTIST') {
+                const artist = { id: run.navigationEndpoint.browseEndpoint.browseId, name: run.text }
+                artists ? artists.push(artist) : (artists = [artist])
+            } else if (pageType === 'MUSIC_PAGE_TYPE_ALBUM') {
+                album = { id: run.navigationEndpoint.browseEndpoint.browseId, name: run.text }
+            }
+        }
 
         const navigationEndpoint = cardContent.title.runs[0].navigationEndpoint
         if ('watchEndpoint' in navigationEndpoint) {
             const id = navigationEndpoint.watchEndpoint.videoId
-            const albumSubtitleRun = cardContent.subtitle.runs.find(
-                (run) => run.navigationEndpoint?.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType === 'MUSIC_PAGE_TYPE_ALBUM',
-            )
-            const album = albumSubtitleRun ? { id: albumSubtitleRun.navigationEndpoint!.browseEndpoint.browseId, name: albumSubtitleRun.text } : undefined
             return { connection, id, name, type: 'song', artists, album, thumbnail } satisfies Song
         }
 
@@ -272,7 +254,7 @@ const refineThumbnailUrl = (urlString: string): string => {
     } else if (url.origin === 'https://lh3.googleusercontent.com' || url.origin === 'https://yt3.googleusercontent.com' || url.origin === 'https://yt3.ggpht.com') {
         return urlString.slice(0, urlString.indexOf('='))
     } else {
-        console.log(urlString)
+        console.error(urlString)
         throw new Error('Invalid thumbnail url origin')
     }
 }
@@ -356,47 +338,21 @@ declare namespace InnerTube {
     }
 
     interface BrowseResponse {
-        responseContext: {
-            visitorData: string
-            serviceTrackingParams: object[]
-            maxAgeSeconds: number
-        }
         contents: {
             singleColumnBrowseResultsRenderer: {
                 tabs: [
                     {
                         tabRenderer: {
-                            endpoint: object
-                            title: 'Home'
-                            selected: boolean
                             content: {
                                 sectionListRenderer: {
-                                    contents: {
+                                    contents: Array<{
                                         musicCarouselShelfRenderer: musicCarouselShelfRenderer
-                                    }[]
-                                    continuations: [object]
-                                    trackingParams: string
-                                    header: {
-                                        chipCloudRenderer: object
-                                    }
+                                    }>
                                 }
                             }
-                            icon: object
-                            tabIdentifier: 'FEmusic_home'
-                            trackingParams: string
                         }
                     },
                 ]
-            }
-        }
-        trackingParams: string
-        maxAgeStoreSeconds: number
-        background: {
-            musicThumbnailRenderer: {
-                thumbnail: object
-                thumbnailCrop: string
-                thumbnailScale: string
-                trackingParams: string
             }
         }
     }
@@ -405,58 +361,97 @@ declare namespace InnerTube {
         header: {
             musicCarouselShelfBasicHeaderRenderer: {
                 title: {
-                    runs: [runs]
+                    runs: [
+                        {
+                            text: string // 'Listen again' | 'Forgotten favorites' | 'Quick picks'
+                        },
+                    ]
                 }
-                thumbnail?: musicThumbnailRenderer
-                trackingParams: string
             }
         }
         contents:
-            | {
+            | Array<{
                   musicTwoRowItemRenderer: musicTwoRowItemRenderer
-              }[]
-            | {
+              }>
+            | Array<{
                   musicResponsiveListItemRenderer: musicResponsiveListItemRenderer
-              }[]
-        trackingParams: string
-        itemSize: string
+              }>
     }
-
-    // type musicDescriptionShelfRenderer = {
-    //     header: {
-    //         runs: [runs]
-    //     }
-    //     description: {
-    //         runs: [runs]
-    //     }
-    // }
 
     type musicTwoRowItemRenderer = {
         thumbnailRenderer: {
             musicThumbnailRenderer: musicThumbnailRenderer
         }
-        aspectRatio: string
         title: {
-            runs: [runs]
+            runs: [
+                {
+                    text: string
+                },
+            ]
         }
         subtitle: {
-            runs: runs[]
+            runs: Array<{
+                text: string
+                navigationEndpoint?: {
+                    browseEndpoint: browseEndpoint
+                }
+            }>
         }
-        navigationEndpoint: navigationEndpoint
-        trackingParams: string
-        menu: unknown
-        thumbnailOverlay: unknown
+        navigationEndpoint:
+            | {
+                  watchEndpoint: watchEndpoint
+              }
+            | {
+                  browseEndpoint: browseEndpoint
+              }
     }
 
     type musicResponsiveListItemRenderer = {
         thumbnail: {
             musicThumbnailRenderer: musicThumbnailRenderer
         }
-        flexColumns: {
-            musicResponsiveListItemFlexColumnRenderer: {
-                text: { runs: [runs] }
-            }
-        }[]
+        flexColumns: [
+            {
+                musicResponsiveListItemFlexColumnRenderer: {
+                    text: {
+                        runs: [
+                            {
+                                text: string
+                                navigationEndpoint: {
+                                    watchEndpoint: watchEndpoint
+                                }
+                            },
+                        ]
+                    }
+                }
+            },
+            {
+                musicResponsiveListItemFlexColumnRenderer: {
+                    text: {
+                        runs: Array<{
+                            text: string
+                            navigationEndpoint?: {
+                                browseEndpoint: browseEndpoint
+                            }
+                        }>
+                    }
+                }
+            },
+            {
+                musicResponsiveListItemFlexColumnRenderer: {
+                    text: {
+                        runs?: [
+                            {
+                                text: string
+                                navigationEndpoint: {
+                                    browseEndpoint: browseEndpoint
+                                }
+                            },
+                        ]
+                    }
+                }
+            },
+        ]
         playlistItemData: {
             videoId: string
         }
@@ -470,36 +465,10 @@ declare namespace InnerTube {
                 height: number
             }>
         }
-        thumbnailCrop: string
-        thumbnailScale: string
-        trackingParams: string
-        accessibilityData?: accessibilityData
-        onTap?: navigationEndpoint
-        targetId?: string
     }
-
-    type runs = {
-        text: string
-        navigationEndpoint?: navigationEndpoint
-    }
-
-    type navigationEndpoint = {
-        clickTrackingParams: string
-    } & (
-        | {
-              browseEndpoint: browseEndpoint
-          }
-        | {
-              watchEndpoint: watchEndpoint
-          }
-        | {
-              watchPlaylistEndpoint: watchPlaylistEndpoint
-          }
-    )
 
     type browseEndpoint = {
         browseId: string
-        params?: string
         browseEndpointContextSupportedConfigs: {
             browseEndpointContextMusicConfig: {
                 pageType: 'MUSIC_PAGE_TYPE_ALBUM' | 'MUSIC_PAGE_TYPE_ARTIST' | 'MUSIC_PAGE_TYPE_PLAYLIST'
@@ -509,20 +478,11 @@ declare namespace InnerTube {
 
     type watchEndpoint = {
         videoId: string
-        params?: string
-        watchEndpointMusicSupportedConfigs: {
-            watchEndpointMusicConfig: object
-        }
-    }
-
-    type watchPlaylistEndpoint = {
         playlistId: string
-        params?: string
-    }
-
-    type accessibilityData = {
-        accessibilityData: {
-            label: string
+        watchEndpointMusicSupportedConfigs: {
+            watchEndpointMusicConfig: {
+                musicVideoType: 'MUSIC_VIDEO_TYPE_UGC' | 'MUSIC_VIDEO_TYPE_ATV'
+            }
         }
     }
 }

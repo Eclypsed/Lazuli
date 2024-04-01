@@ -142,10 +142,9 @@ export class YouTubeMusic implements Connection {
             const headerTitle = section.musicCarouselShelfRenderer.header.musicCarouselShelfBasicHeaderRenderer.title.runs[0].text
             const rawContents = section.musicCarouselShelfRenderer.contents
 
-            const parsedContent: (Song | Album | Playlist)[] =
-                'musicTwoRowItemRenderer' in rawContents[0]
-                    ? this.parseTwoRowItemRenderer((rawContents as { musicTwoRowItemRenderer: InnerTube.musicTwoRowItemRenderer }[]).map((item) => item.musicTwoRowItemRenderer))
-                    : this.parseResponsiveListItemRenderer((rawContents as { musicResponsiveListItemRenderer: InnerTube.musicResponsiveListItemRenderer }[]).map((item) => item.musicResponsiveListItemRenderer))
+            const parsedContent = rawContents.map((content) =>
+                'musicTwoRowItemRenderer' in content ? this.parseTwoRowItemRenderer(content.musicTwoRowItemRenderer) : this.parseResponsiveListItemRenderer(content.musicResponsiveListItemRenderer),
+            )
 
             if (headerTitle === 'Listen again') {
                 homeItems.listenAgain = parsedContent
@@ -159,158 +158,109 @@ export class YouTubeMusic implements Connection {
         return homeItems
     }
 
-    private parseTwoRowItemRenderer = (rowContent: InnerTube.musicTwoRowItemRenderer[]): (Song | Album | Playlist)[] => {
-        const parsedContent: (Song | Album | Playlist)[] = []
-        for (const data of rowContent) {
-            const title = data.title.runs[0].text
-            const subtitles = data.subtitle.runs
-            const artists: Song['artists'] | Album['artists'] = []
-            for (const subtitle of subtitles) {
-                if (subtitle.navigationEndpoint && 'browseEndpoint' in subtitle.navigationEndpoint) {
-                    artists.push({ id: subtitle.navigationEndpoint.browseEndpoint.browseId, name: subtitle.text })
-                }
-            }
+    private parseTwoRowItemRenderer = (rowContent: InnerTube.musicTwoRowItemRenderer): Song | Album | Artist | Playlist => {
+        const connection = { id: this.id, type: 'youtube-music' } satisfies (Song | Album | Artist | Playlist)['connection']
+        const name = rowContent.title.runs[0].text
 
-            if ('browseEndpoint' in data.navigationEndpoint && data.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType === 'MUSIC_PAGE_TYPE_ALBUM') {
-                const album: Album = {
-                    connection: {
-                        id: this.id,
-                        type: 'youtube-music',
-                    },
-                    type: 'album',
-                    id: data.navigationEndpoint.browseEndpoint.browseId,
-                    name: title,
-                    thumbnail: refineThumbnailUrl(data.thumbnailRenderer.musicThumbnailRenderer.thumbnail.thumbnails[0].url),
-                }
-                if (artists.length > 0) album.artists = artists
-                parsedContent.push(album)
-            } else if ('watchEndpoint' in data.navigationEndpoint) {
-                const song: Song = {
-                    connection: {
-                        id: this.id,
-                        type: 'youtube-music',
-                    },
-                    type: 'song',
-                    id: data.navigationEndpoint.watchEndpoint.videoId,
-                    name: title,
-                    thumbnail: refineThumbnailUrl(data.thumbnailRenderer.musicThumbnailRenderer.thumbnail.thumbnails[0].url),
-                }
-                if (artists.length > 0) song.artists = artists
-                parsedContent.push(song)
-            }
-        }
-
-        return parsedContent
-    }
-
-    private parseResponsiveListItemRenderer = (listContent: InnerTube.musicResponsiveListItemRenderer[]): Song[] => {
-        const parsedContent: Song[] = []
-        for (const data of listContent) {
-            const title = data.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.text.runs[0].text,
-                id = (data.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.text.runs[0].navigationEndpoint! as { watchEndpoint: InnerTube.watchEndpoint }).watchEndpoint.videoId
-
-            const artists: Song['artists'] = []
-            for (const run of data.flexColumns[1].musicResponsiveListItemFlexColumnRenderer.text.runs) {
-                if ('navigationEndpoint' in run && 'browseEndpoint' in run.navigationEndpoint!) {
+        function getArtists() {
+            const artists: (Song | Album)['artists'] = []
+            for (const run of rowContent.subtitle.runs) {
+                if (run.navigationEndpoint && 'browseEndpoint' in run.navigationEndpoint) {
                     artists.push({ id: run.navigationEndpoint.browseEndpoint.browseId, name: run.text })
                 }
             }
-
-            const thumbnail = refineThumbnailUrl(data.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails[0].url)
-
-            const song: Song = {
-                connection: {
-                    id: this.id,
-                    type: 'youtube-music',
-                },
-                type: 'song',
-                id,
-                name: title,
-                thumbnail,
-            }
-
-            if (artists.length > 0) song.artists = artists
-            // This is like the ONE situation where `text` might not have a run
-            if (data.flexColumns[2].musicResponsiveListItemFlexColumnRenderer.text?.runs) {
-                song.album = {
-                    id: (data.flexColumns[2].musicResponsiveListItemFlexColumnRenderer.text.runs[0].navigationEndpoint! as { browseEndpoint: InnerTube.browseEndpoint }).browseEndpoint.browseId,
-                    name: data.flexColumns[2].musicResponsiveListItemFlexColumnRenderer.text.runs[0].text,
-                }
-            }
-
-            parsedContent.push(song)
+            if (artists.length > 0) return artists
+            return undefined
         }
 
-        return parsedContent
+        const thumbnail = refineThumbnailUrl(rowContent.thumbnailRenderer.musicThumbnailRenderer.thumbnail.thumbnails[0].url)
+
+        if ('watchEndpoint' in rowContent.navigationEndpoint) {
+            const id = rowContent.navigationEndpoint.watchEndpoint.videoId
+            return { connection, id, name, type: 'song', artists: getArtists(), thumbnail } satisfies Song
+        }
+
+        if ('watchPlaylistEndpoint' in rowContent.navigationEndpoint) {
+            const id = rowContent.navigationEndpoint.watchPlaylistEndpoint.playlistId
+            return { connection, id, name, type: 'playlist', thumbnail } satisfies Playlist
+        }
+
+        const pageType = rowContent.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType
+        const id = rowContent.navigationEndpoint.browseEndpoint.browseId
+        switch (pageType) {
+            case 'MUSIC_PAGE_TYPE_ALBUM':
+                return { connection, id, name, type: 'album', artists: getArtists(), thumbnail } satisfies Album
+            case 'MUSIC_PAGE_TYPE_ARTIST':
+                return { connection, id, name, type: 'artist', thumbnail } satisfies Artist
+            case 'MUSIC_PAGE_TYPE_PLAYLIST':
+                return { connection, id, name, type: 'playlist', thumbnail } satisfies Playlist
+        }
+    }
+
+    private parseResponsiveListItemRenderer = (listContent: InnerTube.musicResponsiveListItemRenderer): Song => {
+        const connection = { id: this.id, type: 'youtube-music' } satisfies Song['connection']
+        const name = listContent.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.text.runs[0].text
+        const id = (listContent.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.text.runs[0].navigationEndpoint! as { watchEndpoint: InnerTube.watchEndpoint }).watchEndpoint.videoId
+
+        const mappedArtists: Song['artists'] = []
+        for (const run of listContent.flexColumns[1].musicResponsiveListItemFlexColumnRenderer.text.runs) {
+            if ('navigationEndpoint' in run && 'browseEndpoint' in run.navigationEndpoint!) {
+                mappedArtists.push({ id: run.navigationEndpoint.browseEndpoint.browseId, name: run.text })
+            }
+        }
+        const artists = mappedArtists.length > 0 ? mappedArtists : undefined
+
+        function getAlbum() {
+            // This is like the ONE situation where `text` might not have a run
+            if (listContent.flexColumns[2].musicResponsiveListItemFlexColumnRenderer.text?.runs) {
+                return {
+                    id: (listContent.flexColumns[2].musicResponsiveListItemFlexColumnRenderer.text.runs[0].navigationEndpoint! as { browseEndpoint: InnerTube.browseEndpoint }).browseEndpoint.browseId,
+                    name: listContent.flexColumns[2].musicResponsiveListItemFlexColumnRenderer.text.runs[0].text,
+                } satisfies Song['album']
+            }
+            return undefined
+        }
+
+        const thumbnail = refineThumbnailUrl(listContent.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails[0].url)
+
+        return { connection, id, name, type: 'song', artists, album: getAlbum(), thumbnail } satisfies Song
     }
 
     private parseMusicCardShelfRenderer = (cardContent: InnerTube.musicCardShelfRenderer): Song | Album | Artist | Playlist => {
-        const navigationEndpoint = cardContent.title.runs[0].navigationEndpoint
-        const artists: Song['artists'] | Album['artists'] = []
-        cardContent.subtitle.runs.forEach((run) => {
-            if (run.navigationEndpoint?.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType === 'MUSIC_PAGE_TYPE_ARTIST') {
-                artists.push({ id: run.navigationEndpoint.browseEndpoint.browseId, name: run.text })
-            }
-        })
+        const connection = { id: this.id, type: 'youtube-music' } satisfies (Song | Album | Artist | Playlist)['connection']
+        const name = cardContent.title.runs[0].text
+
+        const artistsSubtitleRuns = cardContent.subtitle.runs.filter(
+            (run) => run.navigationEndpoint?.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType === 'MUSIC_PAGE_TYPE_ARTIST',
+        )
+        const artists: (Song | Album)['artists'] =
+            artistsSubtitleRuns.length > 0
+                ? artistsSubtitleRuns.map((run) => {
+                      return { id: run.navigationEndpoint!.browseEndpoint.browseId, name: run.text }
+                  })
+                : undefined
+
         const thumbnail = refineThumbnailUrl(cardContent.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails[0].url)
 
+        const navigationEndpoint = cardContent.title.runs[0].navigationEndpoint
         if ('watchEndpoint' in navigationEndpoint) {
+            const id = navigationEndpoint.watchEndpoint.videoId
             const albumSubtitleRun = cardContent.subtitle.runs.find(
                 (run) => run.navigationEndpoint?.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType === 'MUSIC_PAGE_TYPE_ALBUM',
             )
-            const song: Song = {
-                connection: {
-                    id: this.id,
-                    type: 'youtube-music',
-                },
-                id: navigationEndpoint.watchEndpoint.videoId,
-                name: cardContent.title.runs[0].text,
-                type: 'song',
-                thumbnail,
-            }
-            if (artists.length > 0) song.artists = artists
-            if (albumSubtitleRun) song.album = { id: albumSubtitleRun.navigationEndpoint!.browseEndpoint.browseId, name: albumSubtitleRun.text }
-            return song
-        } else {
-            const pageType = navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType
-            if (pageType === 'MUSIC_PAGE_TYPE_ALBUM') {
-                const album: Album = {
-                    connection: {
-                        id: this.id,
-                        type: 'youtube-music',
-                    },
-                    id: navigationEndpoint.browseEndpoint.browseId,
-                    name: cardContent.title.runs[0].text,
-                    type: 'album',
-                    thumbnail,
-                }
-                if (artists.length > 0) album.artists = artists
-                return album
-            } else if (pageType === 'MUSIC_PAGE_TYPE_ARTIST') {
-                const artist: Artist = {
-                    connection: {
-                        id: this.id,
-                        type: 'youtube-music',
-                    },
-                    id: navigationEndpoint.browseEndpoint.browseId,
-                    name: cardContent.title.runs[0].text,
-                    type: 'artist',
-                    thumbnail,
-                }
-                return artist
-            } else {
-                // NEED TO GET A SAMPLE FOR THIS
-                const playlist: Playlist = {
-                    connection: {
-                        id: this.id,
-                        type: 'youtube-music',
-                    },
-                    id: navigationEndpoint.browseEndpoint.browseId,
-                    name: cardContent.title.runs[0].text,
-                    type: 'playlist',
-                }
-                return playlist
-            }
+            const album = albumSubtitleRun ? { id: albumSubtitleRun.navigationEndpoint!.browseEndpoint.browseId, name: albumSubtitleRun.text } : undefined
+            return { connection, id, name, type: 'song', artists, album, thumbnail } satisfies Song
+        }
+
+        const pageType = navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType
+        const id = navigationEndpoint.browseEndpoint.browseId
+        switch (pageType) {
+            case 'MUSIC_PAGE_TYPE_ALBUM':
+                return { connection, id, name, type: 'album', artists, thumbnail } satisfies Album
+            case 'MUSIC_PAGE_TYPE_ARTIST':
+                return { connection, id, name, type: 'artist', thumbnail } satisfies Artist
+            case 'MUSIC_PAGE_TYPE_PLAYLIST':
+                return { connection, id, name, type: 'playlist', thumbnail } satisfies Playlist
         }
     }
 }
@@ -457,20 +407,6 @@ declare namespace InnerTube {
                 title: {
                     runs: [runs]
                 }
-                strapline: [runs]
-                accessibilityData: accessibilityData
-                headerStyle: string
-                moreContentButton?: {
-                    buttonRenderer: {
-                        style: string
-                        text: {
-                            runs: [runs]
-                        }
-                        navigationEndpoint: navigationEndpoint
-                        trackingParams: string
-                        accessibilityData: accessibilityData
-                    }
-                }
                 thumbnail?: musicThumbnailRenderer
                 trackingParams: string
             }
@@ -486,14 +422,14 @@ declare namespace InnerTube {
         itemSize: string
     }
 
-    type musicDescriptionShelfRenderer = {
-        header: {
-            runs: [runs]
-        }
-        description: {
-            runs: [runs]
-        }
-    }
+    // type musicDescriptionShelfRenderer = {
+    //     header: {
+    //         runs: [runs]
+    //     }
+    //     description: {
+    //         runs: [runs]
+    //     }
+    // }
 
     type musicTwoRowItemRenderer = {
         thumbnailRenderer: {

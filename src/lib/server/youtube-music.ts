@@ -16,14 +16,18 @@ export class YouTubeMusic implements Connection {
         this.tokens = tokens
     }
 
-    private BASEHEADERS = {
-        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:88.0) Gecko/20100101 Firefox/88.0',
-        accept: '*/*',
-        'accept-encoding': 'gzip, deflate',
-        'content-type': 'application/json',
-        'content-encoding': 'gzip',
-        origin: 'https://music.youtube.com',
-        Cookie: 'SOCS=CAI;',
+    private headers = async () => {
+        return new Headers({
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:88.0) Gecko/20100101 Firefox/88.0',
+            accept: '*/*',
+            'accept-encoding': 'gzip, deflate',
+            'content-type': 'application/json',
+            'content-encoding': 'gzip',
+            origin: 'https://music.youtube.com',
+            Cookie: 'SOCS=CAI;',
+            authorization: `Bearer ${(await this.getTokens()).accessToken}`,
+            'X-Goog-Request-Time': `${Date.now()}`,
+        })
     }
 
     private getTokens = async (): Promise<YouTubeMusic.Tokens> => {
@@ -69,14 +73,7 @@ export class YouTubeMusic implements Connection {
         }
     }
 
-    public getRecommendations = async (): Promise<(Song | Album | Playlist)[]> => {
-        const { listenAgain, quickPicks } = await this.getHome()
-        return listenAgain.concat(quickPicks)
-    }
-
     public search = async (searchTerm: string, filter?: 'song' | 'album' | 'artist' | 'playlist'): Promise<(Song | Album | Artist | Playlist)[]> => {
-        const headers = Object.assign(this.BASEHEADERS, { authorization: `Bearer ${(await this.getTokens()).accessToken}`, 'X-Goog-Request-Time': `${Date.now()}` })
-
         // Figure out how to handle Library and Uploads
         // Depending on how I want to handle the playlist & library sync feature
 
@@ -88,7 +85,7 @@ export class YouTubeMusic implements Connection {
         }
 
         const searchResulsts: InnerTube.SearchResponse = await fetch(`https://music.youtube.com/youtubei/v1/search`, {
-            headers,
+            headers: await this.headers(),
             method: 'POST',
             body: JSON.stringify({
                 query: searchTerm,
@@ -107,15 +104,25 @@ export class YouTubeMusic implements Connection {
         const contents = searchResulsts.contents.tabbedSearchResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents
 
         const parsedSearchResults: (Song | Album | Artist | Playlist)[] = []
+        for (const section of contents) {
+            if ('musicCardShelfRenderer' in section) {
+                parsedSearchResults.push(this.parseMusicCardShelfRenderer(section.musicCardShelfRenderer))
+                continue
+            }
 
-        return []
+            const sectionType = section.musicShelfRenderer.title.runs[0].text
+            if (sectionType === 'Episodes' || sectionType === 'Podcasts' || sectionType === 'Profiles') continue
+
+            const parsedSectionContents = section.musicShelfRenderer.contents.map((item) => this.parseResponsiveListItemRenderer(item.musicResponsiveListItemRenderer))
+            parsedSearchResults.push(...parsedSectionContents)
+        }
+
+        return parsedSearchResults
     }
 
-    private getHome = async (): Promise<YouTubeMusic.HomeItems> => {
-        const headers = Object.assign(this.BASEHEADERS, { authorization: `Bearer ${(await this.getTokens()).accessToken}`, 'X-Goog-Request-Time': `${Date.now()}` })
-
-        const response = await fetch(`https://music.youtube.com/youtubei/v1/browse`, {
-            headers,
+    public getRecommendations = async (): Promise<(Song | Album | Artist | Playlist)[]> => {
+        const browseResponse: InnerTube.BrowseResponse = await fetch(`https://music.youtube.com/youtubei/v1/browse`, {
+            headers: await this.headers(),
             method: 'POST',
             body: JSON.stringify({
                 browseId: 'FEmusic_home',
@@ -127,36 +134,22 @@ export class YouTubeMusic implements Connection {
                     },
                 },
             }),
-        })
+        }).then((response) => response.json())
 
-        const data: InnerTube.BrowseResponse = await response.json()
-        console.log(JSON.stringify(data))
-        const contents = data.contents.singleColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents
+        const contents = browseResponse.contents.singleColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents
 
-        const homeItems: YouTubeMusic.HomeItems = {
-            listenAgain: [],
-            quickPicks: [],
-            newReleases: [],
-        }
-
+        const recommendations: (Song | Album | Artist | Playlist)[] = []
         for (const section of contents) {
-            const headerTitle = section.musicCarouselShelfRenderer.header.musicCarouselShelfBasicHeaderRenderer.title.runs[0].text
-            const rawContents = section.musicCarouselShelfRenderer.contents
+            const header = section.musicCarouselShelfRenderer.header.musicCarouselShelfBasicHeaderRenderer.title.runs[0].text
+            if (header === 'New releases') continue // The 'New Releases Section is generally filled with music that is not tailored to the user'
 
-            const parsedContent = rawContents.map((content) =>
+            const parsedContent = section.musicCarouselShelfRenderer.contents.map((content) =>
                 'musicTwoRowItemRenderer' in content ? this.parseTwoRowItemRenderer(content.musicTwoRowItemRenderer) : this.parseResponsiveListItemRenderer(content.musicResponsiveListItemRenderer),
             )
-
-            if (headerTitle === 'Listen again') {
-                homeItems.listenAgain = parsedContent
-            } else if (headerTitle === 'Quick picks') {
-                homeItems.quickPicks = parsedContent
-            } else if (headerTitle === 'New releases') {
-                homeItems.newReleases = parsedContent
-            }
+            recommendations.push(...parsedContent)
         }
 
-        return homeItems
+        return recommendations
     }
 
     private parseTwoRowItemRenderer = (rowContent: InnerTube.musicTwoRowItemRenderer): Song | Album | Artist | Playlist => {
@@ -189,25 +182,37 @@ export class YouTubeMusic implements Connection {
         }
     }
 
-    private parseResponsiveListItemRenderer = (listContent: InnerTube.musicResponsiveListItemRenderer): Song => {
+    private parseResponsiveListItemRenderer = (listContent: InnerTube.musicResponsiveListItemRenderer): Song | Album | Artist | Playlist => {
         const connection = { id: this.id, type: 'youtube-music' } satisfies Song['connection']
         const name = listContent.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.text.runs[0].text
-        const id = listContent.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.text.runs[0].navigationEndpoint.watchEndpoint.videoId
+        const thumbnail = refineThumbnailUrl(listContent.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails[0].url)
 
-        let artists: Song['artists']
+        let artists: (Song | Album)['artists']
         for (const run of listContent.flexColumns[1].musicResponsiveListItemFlexColumnRenderer.text.runs) {
             if (!run.navigationEndpoint) continue
             const artist = { id: run.navigationEndpoint.browseEndpoint.browseId, name: run.text }
             artists ? artists.push(artist) : (artists = [artist])
         }
 
-        const column2run = listContent.flexColumns[2].musicResponsiveListItemFlexColumnRenderer.text.runs?.[0]
-        const pageIsAlbum = column2run?.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType === 'MUSIC_PAGE_TYPE_ALBUM'
-        const album: Song['album'] = pageIsAlbum ? { id: column2run.navigationEndpoint.browseEndpoint.browseId, name: column2run.text } : undefined
+        if (!('navigationEndpoint' in listContent)) {
+            const id = listContent.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.text.runs[0].navigationEndpoint.watchEndpoint.videoId
+            const column2run = listContent.flexColumns[2].musicResponsiveListItemFlexColumnRenderer.text.runs?.[0]
+            const pageIsAlbum = column2run?.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType === 'MUSIC_PAGE_TYPE_ALBUM'
+            const album: Song['album'] = pageIsAlbum ? { id: column2run.navigationEndpoint.browseEndpoint.browseId, name: column2run.text } : undefined
 
-        const thumbnail = refineThumbnailUrl(listContent.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails[0].url)
+            return { connection, id, name, type: 'song', artists, album, thumbnail } satisfies Song
+        }
 
-        return { connection, id, name, type: 'song', artists, album, thumbnail } satisfies Song
+        const pageType = listContent.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType
+        const id = listContent.navigationEndpoint.browseEndpoint.browseId
+        switch (pageType) {
+            case 'MUSIC_PAGE_TYPE_ALBUM':
+                return { connection, id, name, type: 'album', artists, thumbnail } satisfies Album
+            case 'MUSIC_PAGE_TYPE_ARTIST':
+                return { connection, id, name, type: 'artist', thumbnail } satisfies Artist
+            case 'MUSIC_PAGE_TYPE_PLAYLIST':
+                return { connection, id, name, type: 'playlist', thumbnail } satisfies Playlist
+        }
     }
 
     private parseMusicCardShelfRenderer = (cardContent: InnerTube.musicCardShelfRenderer): Song | Album | Artist | Playlist => {
@@ -328,9 +333,11 @@ declare namespace InnerTube {
 
     type musicShelfRenderer = {
         title: {
-            runs: Array<{
-                text: 'Artists' | 'Songs' | 'Videos' | 'Albums' | 'Community playlists' | 'Podcasts' | 'Episodes' | 'Profiles'
-            }>
+            runs: [
+                {
+                    text: 'Artists' | 'Songs' | 'Videos' | 'Albums' | 'Community playlists' | 'Podcasts' | 'Episodes' | 'Profiles'
+                },
+            ]
         }
         contents: Array<{
             musicResponsiveListItemRenderer: musicResponsiveListItemRenderer
@@ -363,7 +370,7 @@ declare namespace InnerTube {
                 title: {
                     runs: [
                         {
-                            text: string // 'Listen again' | 'Forgotten favorites' | 'Quick picks'
+                            text: 'Listen again' | 'Forgotten favorites' | 'Quick picks' | 'New releases' | 'From your library'
                         },
                     ]
                 }
@@ -410,52 +417,82 @@ declare namespace InnerTube {
         thumbnail: {
             musicThumbnailRenderer: musicThumbnailRenderer
         }
-        flexColumns: [
-            {
-                musicResponsiveListItemFlexColumnRenderer: {
-                    text: {
-                        runs: [
-                            {
-                                text: string
-                                navigationEndpoint: {
-                                    watchEndpoint: watchEndpoint
-                                }
-                            },
-                        ]
-                    }
-                }
-            },
-            {
-                musicResponsiveListItemFlexColumnRenderer: {
-                    text: {
-                        runs: Array<{
-                            text: string
-                            navigationEndpoint?: {
-                                browseEndpoint: browseEndpoint
-                            }
-                        }>
-                    }
-                }
-            },
-            {
-                musicResponsiveListItemFlexColumnRenderer: {
-                    text: {
-                        runs?: [
-                            {
-                                text: string
-                                navigationEndpoint: {
-                                    browseEndpoint: browseEndpoint
-                                }
-                            },
-                        ]
-                    }
-                }
-            },
-        ]
-        playlistItemData: {
-            videoId: string
-        }
-    }
+    } & (
+        | {
+              flexColumns: [
+                  {
+                      musicResponsiveListItemFlexColumnRenderer: {
+                          text: {
+                              runs: [
+                                  {
+                                      text: string
+                                      navigationEndpoint: {
+                                          watchEndpoint: watchEndpoint
+                                      }
+                                  },
+                              ]
+                          }
+                      }
+                  },
+                  {
+                      musicResponsiveListItemFlexColumnRenderer: {
+                          text: {
+                              runs: Array<{
+                                  text: string
+                                  navigationEndpoint?: {
+                                      browseEndpoint: browseEndpoint
+                                  }
+                              }>
+                          }
+                      }
+                  },
+                  {
+                      musicResponsiveListItemFlexColumnRenderer: {
+                          text: {
+                              runs?: [
+                                  {
+                                      text: string
+                                      navigationEndpoint: {
+                                          browseEndpoint: browseEndpoint
+                                      }
+                                  },
+                              ]
+                          }
+                      }
+                  },
+              ]
+          }
+        | {
+              flexColumns: [
+                  {
+                      musicResponsiveListItemFlexColumnRenderer: {
+                          text: {
+                              runs: [
+                                  {
+                                      text: string
+                                  },
+                              ]
+                          }
+                      }
+                  },
+                  {
+                      musicResponsiveListItemFlexColumnRenderer: {
+                          text: {
+                              runs: Array<{
+                                  text: string
+                                  navigationEndpoint?: {
+                                      browseEndpoint: browseEndpoint
+                                  }
+                              }>
+                          }
+                      }
+                  },
+              ]
+              navigationEndpoint: {
+                  browseEndpoint: browseEndpoint
+              }
+          }
+    )
 
     type musicThumbnailRenderer = {
         thumbnail: {

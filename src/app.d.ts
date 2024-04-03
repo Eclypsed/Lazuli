@@ -42,7 +42,7 @@ declare global {
 
     interface Connection {
         public id: string
-        getRecommendations: () => Promise<(Song | Album | Playlist)[]>
+        getRecommendations: () => Promise<(Song | Album | Artist | Playlist)[]>
         getConnectionInfo: () => Promise<ConnectionInfo>
         search: (searchTerm: string, filter?: 'song' | 'album' | 'artist' | 'playlist') => Promise<(Song | Album | Artist | Playlist)[]>
     }
@@ -142,12 +142,6 @@ declare global {
             accessToken: string
             refreshToken: string
             expiry: number
-        }
-
-        interface HomeItems {
-            listenAgain: MediaItem[]
-            quickPicks: MediaItem[]
-            newReleases: MediaItem[]
         }
     }
 }

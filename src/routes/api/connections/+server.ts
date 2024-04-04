@@ -1,5 +1,5 @@
 import type { RequestHandler } from '@sveltejs/kit'
-import { Connections } from '$lib/server/connections'
+import { Connections, type ConnectionInfo } from '$lib/server/connections'
 
 export const GET: RequestHandler = async ({ url }) => {
     const ids = url.searchParams.get('ids')?.replace(/\s/g, '').split(',')

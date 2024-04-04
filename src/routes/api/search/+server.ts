@@ -12,7 +12,7 @@ export const GET: RequestHandler = async ({ url }) => {
         await connection
             .search(query)
             .then((results) => searchResults.push(...results))
-            .catch((reason) => console.log(`Failed to search "${query}" from connection ${connection.id}: ${reason}`))
+            .catch((reason) => console.error(`Failed to search "${query}" from connection ${connection.id}: ${reason}`))
     }
 
     return Response.json({ searchResults })

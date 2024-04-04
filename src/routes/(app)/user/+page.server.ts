@@ -4,17 +4,18 @@ import { PUBLIC_YOUTUBE_API_CLIENT_ID } from '$env/static/public'
 import type { PageServerLoad, Actions } from './$types'
 import { DB } from '$lib/server/db'
 import { Jellyfin, JellyfinFetchError } from '$lib/server/jellyfin'
+import type { ConnectionInfo } from '$lib/server/connections'
 import { google } from 'googleapis'
 
 export const load: PageServerLoad = async ({ fetch, locals }) => {
-    const connectionsResponse = await fetch(`/api/users/${locals.user.id}/connections`, {
+    const connectionInfoResponse = await fetch(`/api/users/${locals.user.id}/connections`, {
         method: 'GET',
         headers: { apikey: SECRET_INTERNAL_API_KEY },
-    })
+    }).then((response) => response.json())
 
-    const userConnections = await connectionsResponse.json()
+    const connections: ConnectionInfo[] = connectionInfoResponse.connections
 
-    return { connections: userConnections.connections }
+    return { connections }
 }
 
 export const actions: Actions = {
@@ -28,7 +29,7 @@ export const actions: Actions = {
 
         if (authData instanceof JellyfinFetchError) return fail(authData.httpCode, { message: authData.message })
 
-        const newConnectionId = DB.addConnectionInfo(locals.user.id, { type: 'jellyfin', serviceInfo: { userId: authData.User.Id, urlOrigin: serverUrl.toString() }, tokens: { accessToken: authData.AccessToken } })
+        const newConnectionId = DB.addConnectionInfo({ userId: locals.user.id, type: 'jellyfin', service: { userId: authData.User.Id, urlOrigin: serverUrl.toString() }, tokens: { accessToken: authData.AccessToken } })
 
         const response = await fetch(`/api/connections?ids=${newConnectionId}`, {
             method: 'GET',
@@ -49,9 +50,10 @@ export const actions: Actions = {
         const userChannelResponse = await youtube.channels.list({ mine: true, part: ['id', 'snippet'], access_token: tokens.access_token! })
         const userChannel = userChannelResponse.data.items![0]
 
-        const newConnectionId = DB.addConnectionInfo(locals.user.id, {
+        const newConnectionId = DB.addConnectionInfo({
+            userId: locals.user.id,
             type: 'youtube-music',
-            serviceInfo: { userId: userChannel.id! },
+            service: { userId: userChannel.id! },
             tokens: { accessToken: tokens.access_token!, refreshToken: tokens.refresh_token!, expiry: tokens.expiry_date! },
         })
 

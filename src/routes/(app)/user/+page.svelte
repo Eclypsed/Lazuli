@@ -16,7 +16,7 @@
     import { PUBLIC_YOUTUBE_API_CLIENT_ID } from '$env/static/public'
 
     export let data: PageServerData & LayoutData
-    let connections: ConnectionInfo[] = data.connections
+    let connections = data.connections
 
     const authenticateJellyfin: SubmitFunction = ({ formData, cancel }) => {
         const { serverUrl, username, password } = Object.fromEntries(formData)
@@ -39,7 +39,7 @@
             if (result.type === 'failure') {
                 return ($newestAlert = ['warning', result.data?.message])
             } else if (result.type === 'success') {
-                const newConnection: ConnectionInfo = result.data!.newConnection
+                const newConnection = result.data!.newConnection
                 connections = [...connections, newConnection]
 
                 newConnectionModal = null
@@ -72,7 +72,7 @@
             if (result.type === 'failure') {
                 return ($newestAlert = ['warning', result.data?.message])
             } else if (result.type === 'success') {
-                const newConnection: ConnectionInfo = result.data!.newConnection
+                const newConnection = result.data!.newConnection
                 connections = [...connections, newConnection]
                 return ($newestAlert = ['success', 'Added Youtube Music'])
             }
@@ -135,7 +135,14 @@
         </section>
         <div id="connection-profile-grid" class="grid gap-8">
             {#each connections as connection}
-                <ConnectionProfile {connection} submitFunction={profileActions} />
+                <ConnectionProfile
+                    id={connection.id}
+                    type={connection.type}
+                    username={connection.service.username}
+                    profilePicture={'profilePicture' in connection.service ? connection.service.profilePicture : undefined}
+                    serverName={'serverName' in connection.service ? connection.service.serverName : undefined}
+                    submitFunction={profileActions}
+                />
             {/each}
         </div>
         {#if newConnectionModal !== null}

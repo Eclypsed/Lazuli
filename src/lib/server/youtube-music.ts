@@ -3,13 +3,29 @@ import { DB } from './db'
 import { PUBLIC_YOUTUBE_API_CLIENT_ID } from '$env/static/public'
 import { YOUTUBE_API_CLIENT_SECRET } from '$env/static/private'
 
+export type YouTubeMusicConnectionInfo = {
+    id: string
+    userId: string
+    type: 'youtube-music'
+    service: {
+        userId: string
+        username: string
+        profilePicture: string
+    }
+    tokens: {
+        accessToken: string
+        refreshToken: string
+        expiry: number
+    }
+}
+
 export class YouTubeMusic implements Connection {
     public id: string
     private userId: string
     private ytUserId: string
-    private tokens: YouTubeMusic.Tokens
+    private tokens: YouTubeMusicConnectionInfo['tokens']
 
-    constructor(id: string, userId: string, youtubeUserId: string, tokens: YouTubeMusic.Tokens) {
+    constructor(id: string, userId: string, youtubeUserId: string, tokens: YouTubeMusicConnectionInfo['tokens']) {
         this.id = id
         this.userId = userId
         this.ytUserId = youtubeUserId
@@ -30,7 +46,7 @@ export class YouTubeMusic implements Connection {
         })
     }
 
-    private getTokens = async (): Promise<YouTubeMusic.Tokens> => {
+    private getTokens = async (): Promise<YouTubeMusicConnectionInfo['tokens']> => {
         if (this.tokens.expiry < Date.now()) {
             const refreshToken = this.tokens.refreshToken
 
@@ -47,7 +63,7 @@ export class YouTubeMusic implements Connection {
             const { access_token, expires_in } = await response.json()
             const newExpiry = Date.now() + expires_in * 1000
 
-            const newTokens: YouTubeMusic.Tokens = { accessToken: access_token, refreshToken, expiry: newExpiry }
+            const newTokens: YouTubeMusicConnectionInfo['tokens'] = { accessToken: access_token, refreshToken, expiry: newExpiry }
             DB.updateTokens(this.id, newTokens)
             this.tokens = newTokens
         }
@@ -55,7 +71,7 @@ export class YouTubeMusic implements Connection {
         return this.tokens
     }
 
-    public getConnectionInfo = async (): Promise<Extract<ConnectionInfo, { type: 'youtube-music' }>> => {
+    public getConnectionInfo = async (): Promise<YouTubeMusicConnectionInfo> => {
         const youtube = google.youtube('v3')
         const userChannelResponse = await youtube.channels.list({ mine: true, part: ['snippet'], access_token: (await this.getTokens()).accessToken })
         const userChannel = userChannelResponse.data.items![0]
@@ -64,10 +80,10 @@ export class YouTubeMusic implements Connection {
             id: this.id,
             userId: this.userId,
             type: 'youtube-music',
-            serviceInfo: {
+            service: {
                 userId: this.ytUserId,
                 username: userChannel.snippet?.title as string,
-                profilePicture: userChannel.snippet?.thumbnails?.default?.url as string | undefined,
+                profilePicture: userChannel.snippet?.thumbnails?.default?.url as string,
             },
             tokens: await this.getTokens(),
         }
@@ -104,16 +120,20 @@ export class YouTubeMusic implements Connection {
         const contents = searchResulsts.contents.tabbedSearchResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents
 
         const parsedSearchResults: (Song | Album | Artist | Playlist)[] = []
+        const goodSections = ['Songs', 'Videos', 'Albums', 'Artists', 'Community playlists']
         for (const section of contents) {
             if ('musicCardShelfRenderer' in section) {
-                parsedSearchResults.push(this.parseMusicCardShelfRenderer(section.musicCardShelfRenderer))
+                parsedSearchResults.push(parseMusicCardShelfRenderer(this.id, section.musicCardShelfRenderer))
+                section.musicCardShelfRenderer.contents?.forEach((item) => {
+                    parsedSearchResults.push(parseResponsiveListItemRenderer(this.id, item.musicResponsiveListItemRenderer))
+                })
                 continue
             }
 
             const sectionType = section.musicShelfRenderer.title.runs[0].text
-            if (sectionType === 'Episodes' || sectionType === 'Podcasts' || sectionType === 'Profiles') continue
+            if (!goodSections.includes(sectionType)) continue
 
-            const parsedSectionContents = section.musicShelfRenderer.contents.map((item) => this.parseResponsiveListItemRenderer(item.musicResponsiveListItemRenderer))
+            const parsedSectionContents = section.musicShelfRenderer.contents.map((item) => parseResponsiveListItemRenderer(this.id, item.musicResponsiveListItemRenderer))
             parsedSearchResults.push(...parsedSectionContents)
         }
 
@@ -139,120 +159,122 @@ export class YouTubeMusic implements Connection {
         const contents = browseResponse.contents.singleColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents
 
         const recommendations: (Song | Album | Artist | Playlist)[] = []
+        const goodSections = ['Listen again', 'Forgotten favorites', 'Quick picks', 'From your library']
         for (const section of contents) {
-            const header = section.musicCarouselShelfRenderer.header.musicCarouselShelfBasicHeaderRenderer.title.runs[0].text
-            if (header === 'New releases') continue // The 'New Releases Section is generally filled with music that is not tailored to the user'
+            const sectionType = section.musicCarouselShelfRenderer.header.musicCarouselShelfBasicHeaderRenderer.title.runs[0].text
+            if (!goodSections.includes(sectionType)) continue
 
             const parsedContent = section.musicCarouselShelfRenderer.contents.map((content) =>
-                'musicTwoRowItemRenderer' in content ? this.parseTwoRowItemRenderer(content.musicTwoRowItemRenderer) : this.parseResponsiveListItemRenderer(content.musicResponsiveListItemRenderer),
+                'musicTwoRowItemRenderer' in content ? parseTwoRowItemRenderer(this.id, content.musicTwoRowItemRenderer) : parseResponsiveListItemRenderer(this.id, content.musicResponsiveListItemRenderer),
             )
             recommendations.push(...parsedContent)
         }
 
         return recommendations
     }
+}
 
-    private parseTwoRowItemRenderer = (rowContent: InnerTube.musicTwoRowItemRenderer): Song | Album | Artist | Playlist => {
-        const connection = { id: this.id, type: 'youtube-music' } satisfies (Song | Album | Artist | Playlist)['connection']
-        const name = rowContent.title.runs[0].text
+const parseTwoRowItemRenderer = (connection: string, rowContent: InnerTube.musicTwoRowItemRenderer): Song | Album | Artist | Playlist => {
+    const name = rowContent.title.runs[0].text
 
-        let artists: (Song | Album)['artists']
-        for (const run of rowContent.subtitle.runs) {
-            if (!run.navigationEndpoint) continue
+    let artists: (Song | Album)['artists']
+    for (const run of rowContent.subtitle.runs) {
+        if (!run.navigationEndpoint) continue
+        const artist = { id: run.navigationEndpoint.browseEndpoint.browseId, name: run.text }
+        artists ? artists.push(artist) : (artists = [artist])
+    }
+
+    const thumbnail = refineThumbnailUrl(rowContent.thumbnailRenderer.musicThumbnailRenderer.thumbnail.thumbnails[0].url)
+
+    if ('watchEndpoint' in rowContent.navigationEndpoint) {
+        const id = rowContent.navigationEndpoint.watchEndpoint.videoId
+        return { connection, id, name, type: 'song', artists, thumbnail } satisfies Song
+    }
+
+    const pageType = rowContent.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType
+    const id = rowContent.navigationEndpoint.browseEndpoint.browseId
+    switch (pageType) {
+        case 'MUSIC_PAGE_TYPE_ALBUM':
+            return { connection, id, name, type: 'album', artists, thumbnail } satisfies Album
+        case 'MUSIC_PAGE_TYPE_ARTIST':
+            return { connection, id, name, type: 'artist', thumbnail } satisfies Artist
+        case 'MUSIC_PAGE_TYPE_PLAYLIST':
+            return { connection, id, name, type: 'playlist', thumbnail } satisfies Playlist
+    }
+}
+
+const parseResponsiveListItemRenderer = (connection: string, listContent: InnerTube.musicResponsiveListItemRenderer): Song | Album | Artist | Playlist => {
+    const name = listContent.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.text.runs[0].text
+    const thumbnail = refineThumbnailUrl(listContent.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails[0].url)
+
+    let artists: (Song | Album)['artists']
+    for (const run of listContent.flexColumns[1].musicResponsiveListItemFlexColumnRenderer.text.runs) {
+        if (!run.navigationEndpoint) continue
+        const artist = { id: run.navigationEndpoint.browseEndpoint.browseId, name: run.text }
+        artists ? artists.push(artist) : (artists = [artist])
+    }
+
+    if (!('navigationEndpoint' in listContent)) {
+        const id = listContent.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.text.runs[0].navigationEndpoint.watchEndpoint.videoId
+        const column2run = listContent.flexColumns[2]?.musicResponsiveListItemFlexColumnRenderer.text.runs?.[0]
+        let album: Song['album']
+        if (column2run?.navigationEndpoint && column2run.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType === 'MUSIC_PAGE_TYPE_ALBUM') {
+            album = { id: column2run.navigationEndpoint.browseEndpoint.browseId, name: column2run.text }
+        }
+
+        return { connection, id, name, type: 'song', artists, album, thumbnail } satisfies Song
+    }
+
+    const id = listContent.navigationEndpoint.browseEndpoint.browseId
+    const pageType = listContent.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType
+    switch (pageType) {
+        case 'MUSIC_PAGE_TYPE_ALBUM':
+            return { connection, id, name, type: 'album', artists, thumbnail } satisfies Album
+        case 'MUSIC_PAGE_TYPE_ARTIST':
+            return { connection, id, name, type: 'artist', thumbnail } satisfies Artist
+        case 'MUSIC_PAGE_TYPE_PLAYLIST':
+            return { connection, id, name, type: 'playlist', thumbnail } satisfies Playlist
+    }
+}
+
+const parseMusicCardShelfRenderer = (connection: string, cardContent: InnerTube.musicCardShelfRenderer): Song | Album | Artist | Playlist => {
+    const name = cardContent.title.runs[0].text
+    const thumbnail = refineThumbnailUrl(cardContent.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails[0].url)
+
+    let album: Song['album'], artists: (Song | Album)['artists']
+    for (const run of cardContent.subtitle.runs) {
+        if (!run.navigationEndpoint) continue
+
+        const pageType = run.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType
+        if (pageType === 'MUSIC_PAGE_TYPE_ARTIST') {
             const artist = { id: run.navigationEndpoint.browseEndpoint.browseId, name: run.text }
             artists ? artists.push(artist) : (artists = [artist])
-        }
-
-        const thumbnail = refineThumbnailUrl(rowContent.thumbnailRenderer.musicThumbnailRenderer.thumbnail.thumbnails[0].url)
-
-        if ('watchEndpoint' in rowContent.navigationEndpoint) {
-            const id = rowContent.navigationEndpoint.watchEndpoint.videoId
-            return { connection, id, name, type: 'song', artists, thumbnail } satisfies Song
-        }
-
-        const pageType = rowContent.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType
-        const id = rowContent.navigationEndpoint.browseEndpoint.browseId
-        switch (pageType) {
-            case 'MUSIC_PAGE_TYPE_ALBUM':
-                return { connection, id, name, type: 'album', artists, thumbnail } satisfies Album
-            case 'MUSIC_PAGE_TYPE_ARTIST':
-                return { connection, id, name, type: 'artist', thumbnail } satisfies Artist
-            case 'MUSIC_PAGE_TYPE_PLAYLIST':
-                return { connection, id, name, type: 'playlist', thumbnail } satisfies Playlist
+        } else if (pageType === 'MUSIC_PAGE_TYPE_ALBUM') {
+            album = { id: run.navigationEndpoint.browseEndpoint.browseId, name: run.text }
         }
     }
 
-    private parseResponsiveListItemRenderer = (listContent: InnerTube.musicResponsiveListItemRenderer): Song | Album | Artist | Playlist => {
-        const connection = { id: this.id, type: 'youtube-music' } satisfies Song['connection']
-        const name = listContent.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.text.runs[0].text
-        const thumbnail = refineThumbnailUrl(listContent.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails[0].url)
-
-        let artists: (Song | Album)['artists']
-        for (const run of listContent.flexColumns[1].musicResponsiveListItemFlexColumnRenderer.text.runs) {
-            if (!run.navigationEndpoint) continue
-            const artist = { id: run.navigationEndpoint.browseEndpoint.browseId, name: run.text }
-            artists ? artists.push(artist) : (artists = [artist])
-        }
-
-        if (!('navigationEndpoint' in listContent)) {
-            const id = listContent.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.text.runs[0].navigationEndpoint.watchEndpoint.videoId
-            const column2run = listContent.flexColumns[2].musicResponsiveListItemFlexColumnRenderer.text.runs?.[0]
-            const pageIsAlbum = column2run?.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType === 'MUSIC_PAGE_TYPE_ALBUM'
-            const album: Song['album'] = pageIsAlbum ? { id: column2run.navigationEndpoint.browseEndpoint.browseId, name: column2run.text } : undefined
-
-            return { connection, id, name, type: 'song', artists, album, thumbnail } satisfies Song
-        }
-
-        const pageType = listContent.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType
-        const id = listContent.navigationEndpoint.browseEndpoint.browseId
-        switch (pageType) {
-            case 'MUSIC_PAGE_TYPE_ALBUM':
-                return { connection, id, name, type: 'album', artists, thumbnail } satisfies Album
-            case 'MUSIC_PAGE_TYPE_ARTIST':
-                return { connection, id, name, type: 'artist', thumbnail } satisfies Artist
-            case 'MUSIC_PAGE_TYPE_PLAYLIST':
-                return { connection, id, name, type: 'playlist', thumbnail } satisfies Playlist
-        }
+    const navigationEndpoint = cardContent.title.runs[0].navigationEndpoint
+    if ('watchEndpoint' in navigationEndpoint) {
+        const id = navigationEndpoint.watchEndpoint.videoId
+        return { connection, id, name, type: 'song', artists, album, thumbnail } satisfies Song
     }
 
-    private parseMusicCardShelfRenderer = (cardContent: InnerTube.musicCardShelfRenderer): Song | Album | Artist | Playlist => {
-        const connection = { id: this.id, type: 'youtube-music' } satisfies (Song | Album | Artist | Playlist)['connection']
-        const name = cardContent.title.runs[0].text
-        const thumbnail = refineThumbnailUrl(cardContent.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails[0].url)
-
-        let album: Song['album'], artists: (Song | Album)['artists']
-        for (const run of cardContent.subtitle.runs) {
-            if (!run.navigationEndpoint) continue
-
-            const pageType = run.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType
-            if (pageType === 'MUSIC_PAGE_TYPE_ARTIST') {
-                const artist = { id: run.navigationEndpoint.browseEndpoint.browseId, name: run.text }
-                artists ? artists.push(artist) : (artists = [artist])
-            } else if (pageType === 'MUSIC_PAGE_TYPE_ALBUM') {
-                album = { id: run.navigationEndpoint.browseEndpoint.browseId, name: run.text }
-            }
-        }
-
-        const navigationEndpoint = cardContent.title.runs[0].navigationEndpoint
-        if ('watchEndpoint' in navigationEndpoint) {
-            const id = navigationEndpoint.watchEndpoint.videoId
-            return { connection, id, name, type: 'song', artists, album, thumbnail } satisfies Song
-        }
-
-        const pageType = navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType
-        const id = navigationEndpoint.browseEndpoint.browseId
-        switch (pageType) {
-            case 'MUSIC_PAGE_TYPE_ALBUM':
-                return { connection, id, name, type: 'album', artists, thumbnail } satisfies Album
-            case 'MUSIC_PAGE_TYPE_ARTIST':
-                return { connection, id, name, type: 'artist', thumbnail } satisfies Artist
-            case 'MUSIC_PAGE_TYPE_PLAYLIST':
-                return { connection, id, name, type: 'playlist', thumbnail } satisfies Playlist
-        }
+    const pageType = navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType
+    const id = navigationEndpoint.browseEndpoint.browseId
+    switch (pageType) {
+        case 'MUSIC_PAGE_TYPE_ALBUM':
+            return { connection, id, name, type: 'album', artists, thumbnail } satisfies Album
+        case 'MUSIC_PAGE_TYPE_ARTIST':
+            return { connection, id, name, type: 'artist', thumbnail } satisfies Artist
+        case 'MUSIC_PAGE_TYPE_PLAYLIST':
+            return { connection, id, name, type: 'playlist', thumbnail } satisfies Playlist
     }
 }
 
 const refineThumbnailUrl = (urlString: string): string => {
+    if (!URL.canParse(urlString)) throw new Error('Invalid thumbnail url')
+
     const url = new URL(urlString)
     if (url.origin === 'https://i.ytimg.com') {
         return urlString.slice(0, urlString.indexOf('?')).replace('sddefault', 'mqdefault')
@@ -452,14 +474,14 @@ declare namespace InnerTube {
                               runs?: [
                                   {
                                       text: string
-                                      navigationEndpoint: {
+                                      navigationEndpoint?: {
                                           browseEndpoint: browseEndpoint
                                       }
                                   },
                               ]
                           }
                       }
-                  },
+                  }?,
               ]
           }
         | {

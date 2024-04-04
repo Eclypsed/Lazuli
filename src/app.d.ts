@@ -24,22 +24,6 @@ declare global {
         passwordHash: string
     }
 
-    type ConnectionInfo = {
-        id: string
-        userId: string
-    } & (
-        | {
-              type: 'jellyfin'
-              serviceInfo: Jellyfin.SerivceInfo
-              tokens: Jellyfin.Tokens
-          }
-        | {
-              type: 'youtube-music'
-              serviceInfo: YouTubeMusic.SerivceInfo
-              tokens: YouTubeMusic.Tokens
-          }
-    )
-
     interface Connection {
         public id: string
         getRecommendations: () => Promise<(Song | Album | Artist | Playlist)[]>
@@ -51,10 +35,7 @@ declare global {
     // Big data should be fetched as needed in the app, these exist to ensure that the info necessary to fetch that data is there.
 
     type Song = {
-        connection: {
-            id: string
-            type: 'jellyfin' | 'youtube-music'
-        }
+        connection: string
         id: string
         name: string
         type: 'song'
@@ -74,10 +55,7 @@ declare global {
     }
 
     type Album = {
-        connection: {
-            id: string
-            type: 'jellyfin' | 'youtube-music'
-        }
+        connection: string
         id: string
         name: string
         type: 'album'
@@ -93,10 +71,7 @@ declare global {
 
     // Need to figure out how to do Artists, maybe just query MusicBrainz?
     type Artist = {
-        connection: {
-            id: string
-            type: 'jellyfin' | 'youtube-music'
-        }
+        connection: string
         id: string
         name: string
         type: 'artist'
@@ -104,45 +79,12 @@ declare global {
     }
 
     type Playlist = {
-        connection: {
-            id: string
-            type: 'jellyfin' | 'youtube-music'
-        }
+        connection: string
         id: string
         name: string
         type: 'playlist'
         thumbnail?: string
         description?: string
-    }
-
-    namespace Jellyfin {
-        // The jellyfin API will not always return the data it says it will, for example /Users/AuthenticateByName says it will
-        // retrun the ServerName, it wont. This must be fetched from /System/Info.
-        // So, ONLY DEFINE THE INTERFACES FOR DATA THAT IS GARUNTEED TO BE RETURNED (unless the data value itself is inherently optional)
-        type SerivceInfo = {
-            userId: string
-            urlOrigin: string
-            username?: string
-            serverName?: string
-        }
-
-        type Tokens = {
-            accessToken: string
-        }
-    }
-
-    namespace YouTubeMusic {
-        type SerivceInfo = {
-            userId: string
-            username?: string
-            profilePicture?: string
-        }
-
-        type Tokens = {
-            accessToken: string
-            refreshToken: string
-            expiry: number
-        }
     }
 }
 

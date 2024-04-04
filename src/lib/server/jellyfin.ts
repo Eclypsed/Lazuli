@@ -1,3 +1,18 @@
+export type JellyfinConnectionInfo = {
+    id: string
+    userId: string
+    type: 'jellyfin'
+    service: {
+        userId: string
+        serverUrl: string
+        username: string
+        serverName: string
+    }
+    tokens: {
+        accessToken: string
+    }
+}
+
 export class Jellyfin implements Connection {
     public id: string
     private userId: string
@@ -26,7 +41,7 @@ export class Jellyfin implements Connection {
     //     userId: this.jfUserId,
     // })
 
-    public getConnectionInfo = async (): Promise<Extract<ConnectionInfo, { type: 'jellyfin' }>> => {
+    public getConnectionInfo = async (): Promise<JellyfinConnectionInfo> => {
         const userUrl = new URL(`Users/${this.jfUserId}`, this.serverUrl).href
         const systemUrl = new URL('System/Info', this.serverUrl).href
 
@@ -40,9 +55,9 @@ export class Jellyfin implements Connection {
             id: this.id,
             userId: this.userId,
             type: 'jellyfin',
-            serviceInfo: {
+            service: {
                 userId: this.jfUserId,
-                urlOrigin: this.serverUrl,
+                serverUrl: this.serverUrl,
                 username: userData.Name,
                 serverName: systemData.ServerName,
             },
@@ -110,10 +125,7 @@ export class Jellyfin implements Connection {
         const album: Song['album'] = song.AlbumId && song.Album ? { id: song.AlbumId, name: song.Album } : undefined
 
         return {
-            connection: {
-                id: this.id,
-                type: 'jellyfin',
-            },
+            connection: this.id,
             type: 'song',
             id: song.Id,
             name: song.Name,
@@ -135,10 +147,7 @@ export class Jellyfin implements Connection {
             : undefined
 
         return {
-            connection: {
-                id: this.id,
-                type: 'jellyfin',
-            },
+            connection: this.id,
             type: 'album',
             id: album.Id,
             name: album.Name,
@@ -153,10 +162,7 @@ export class Jellyfin implements Connection {
         const thumbnail = playlist.ImageTags?.Primary ? new URL(`Items/${playlist.Id}/Images/Primary`, this.serverUrl).toString() : undefined
 
         return {
-            connection: {
-                id: this.id,
-                type: 'jellyfin',
-            },
+            connection: this.id,
             id: playlist.Id,
             name: playlist.Name,
             type: 'playlist',

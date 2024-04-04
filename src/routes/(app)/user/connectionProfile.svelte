@@ -6,24 +6,22 @@
     import { fly } from 'svelte/transition'
     import { enhance } from '$app/forms'
 
-    export let connection: ConnectionInfo
+    export let id: string, type: 'jellyfin' | 'youtube-music', username: string | undefined, profilePicture: string | undefined, serverName: string | undefined
     export let submitFunction: SubmitFunction
 
-    $: serviceData = Services[connection.type]
+    $: serviceData = Services[type]
 
     let showModal = false
 
-    const subHeaderItems: string[] = []
-    if ('username' in connection.serviceInfo && connection.serviceInfo.username) subHeaderItems.push(connection.serviceInfo.username)
-    if ('serverName' in connection.serviceInfo && connection.serviceInfo.serverName) subHeaderItems.push(connection.serviceInfo.serverName)
+    const subHeaderItems = [username, serverName]
 </script>
 
 <section class="rounded-lg" style="background-color: rgba(82, 82, 82, 0.25);" transition:fly={{ x: 50 }}>
     <header class="flex h-20 items-center gap-4 p-4">
         <div class="relative aspect-square h-full p-1">
             <img src={serviceData.icon} alt="{serviceData.displayName} icon" />
-            {#if 'profilePicture' in connection.serviceInfo && connection.serviceInfo.profilePicture}
-                <img src={connection.serviceInfo.profilePicture} alt="" class="absolute bottom-0 right-0 aspect-square h-5 rounded-full" />
+            {#if profilePicture}
+                <img src={profilePicture} alt="" class="absolute bottom-0 right-0 aspect-square h-5 rounded-full" />
             {/if}
         </div>
         <div>
@@ -42,7 +40,7 @@
                         <i class="fa-solid fa-link-slash mr-1" />
                         Delete Connection
                     </button>
-                    <input type="hidden" value={connection.id} name="connectionId" />
+                    <input type="hidden" value={id} name="connectionId" />
                 </form>
             {/if}
         </div>

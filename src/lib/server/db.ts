@@ -10,22 +10,34 @@ interface DBConnectionsTableSchema {
     tokens?: string
 }
 
-type DBServiceInfo =
-    | {
-          type: 'jellyfin'
-          serviceInfo: Pick<Jellyfin.SerivceInfo, 'userId' | 'urlOrigin'>
-          tokens: Jellyfin.Tokens
-      }
-    | {
-          type: 'youtube-music'
-          serviceInfo: Pick<YouTubeMusic.SerivceInfo, 'userId'>
-          tokens: YouTubeMusic.Tokens
-      }
-
-export type DBConnectionInfo = {
+type JellyfinDBConnection = {
     id: string
     userId: string
-} & DBServiceInfo
+    type: 'jellyfin'
+    service: {
+        userId: string
+        urlOrigin: string
+    }
+    tokens: {
+        accessToken: string
+    }
+}
+
+type YouTubeMusicDBConnection = {
+    id: string
+    userId: string
+    type: 'youtube-music'
+    service: {
+        userId: string
+    }
+    tokens: {
+        accessToken: string
+        refreshToken: string
+        expiry: number
+    }
+}
+
+export type DBConnectionInfo = JellyfinDBConnection | YouTubeMusicDBConnection
 
 class Storage {
     private readonly database: Sqlite3DB
@@ -86,7 +98,7 @@ class Storage {
             const { userId, type, service, tokens } = result
             const parsedService = service ? JSON.parse(service) : undefined
             const parsedTokens = tokens ? JSON.parse(tokens) : undefined
-            connectionInfo.push({ id, userId, type: type as DBServiceInfo['type'], serviceInfo: parsedService, tokens: parsedTokens })
+            connectionInfo.push({ id, userId, type: type as DBConnectionInfo['type'], service: parsedService, tokens: parsedTokens })
         }
         return connectionInfo
     }
@@ -97,15 +109,15 @@ class Storage {
         for (const { id, type, service, tokens } of connectionRows) {
             const parsedService = service ? JSON.parse(service) : undefined
             const parsedTokens = tokens ? JSON.parse(tokens) : undefined
-            connections.push({ id, userId, type: type as DBServiceInfo['type'], serviceInfo: parsedService, tokens: parsedTokens })
+            connections.push({ id, userId, type: type as DBConnectionInfo['type'], service: parsedService, tokens: parsedTokens })
         }
         return connections
     }
 
-    public addConnectionInfo = (userId: string, serviceData: DBServiceInfo): string => {
-        const { type, serviceInfo, tokens } = serviceData
+    public addConnectionInfo = (connectionInfo: Omit<DBConnectionInfo, 'id'>): string => {
+        const { userId, type, service, tokens } = connectionInfo
         const connectionId = generateUUID()
-        this.database.prepare(`INSERT INTO Connections(id, userId, type, service, tokens) VALUES(?, ?, ?, ?, ?)`).run(connectionId, userId, type, JSON.stringify(serviceInfo), JSON.stringify(tokens))
+        this.database.prepare(`INSERT INTO Connections(id, userId, type, service, tokens) VALUES(?, ?, ?, ?, ?)`).run(connectionId, userId, type, JSON.stringify(service), JSON.stringify(tokens))
         return connectionId
     }
 

@@ -1,9 +1,10 @@
 <script lang="ts">
-    import { pageWidth } from '$lib/stores'
     import SearchBar from '$lib/components/util/searchBar.svelte'
     import type { LayoutData } from './$types'
+    import { currentlyPlaying } from '$lib/stores'
     import NavTab from '$lib/components/navbar/navTab.svelte'
     import PlaylistTab from '$lib/components/navbar/playlistTab.svelte'
+    import MediaPlayer from '$lib/components/media/mediaPlayer.svelte'
 
     export let data: LayoutData
 
@@ -21,50 +22,32 @@
     }
 </script>
 
-{#if $pageWidth >= 768}
-    <div class="h-full overflow-hidden">
-        <div class="no-scrollbar fixed left-0 top-0 z-10 grid h-full w-20 grid-cols-1 grid-rows-[min-content_auto] gap-5 px-3 py-12">
-            <div class="flex flex-col gap-4">
-                {#each data.navTabs as nav}
-                    <NavTab {nav} disabled={inPathnameHeirarchy(data.url.pathname, nav.pathname)} />
-                {/each}
-            </div>
-            <div class="no-scrollbar flex flex-col gap-5 overflow-y-scroll px-1.5">
-                {#each data.playlistTabs as playlist}
-                    <PlaylistTab {playlist} on:mouseenter={(event) => setTooltip(event.detail.x, event.detail.y, event.detail.content)} on:mouseleave={() => (playlistTooltip.style.display = 'none')} />
-                {/each}
-            </div>
-            <div bind:this={playlistTooltip} class="absolute hidden max-w-48 -translate-y-1/2 translate-x-10 whitespace-nowrap rounded bg-neutral-800 px-2 py-1.5 text-sm">
-                <div class="overflow-clip text-ellipsis">PLAYLIST_NAME</div>
-                <div class="overflow-clip text-ellipsis text-neutral-400">Playlist &bull; {data.user.username}</div>
-            </div>
+<div class="h-full overflow-hidden">
+    <div class="no-scrollbar fixed left-0 top-0 z-10 grid h-full w-20 grid-cols-1 grid-rows-[min-content_auto] gap-5 px-3 py-12">
+        <div class="flex flex-col gap-4">
+            {#each data.navTabs as nav}
+                <NavTab {nav} disabled={inPathnameHeirarchy(data.url.pathname, nav.pathname)} />
+            {/each}
         </div>
-        <section class="no-scrollbar overflow-y-scroll px-[max(7rem,_7vw)]">
-            <div class="my-6 max-w-xl">
-                <SearchBar />
-            </div>
-            <slot />
-        </section>
-        <footer class="fixed bottom-0 flex w-full flex-col items-center justify-center">
-            <!-- <MiniPlayer displayMode={'horizontal'} /> -->
-        </footer>
+        <div class="no-scrollbar flex flex-col gap-5 overflow-y-scroll px-1.5">
+            {#each data.playlistTabs as playlist}
+                <PlaylistTab {playlist} on:mouseenter={(event) => setTooltip(event.detail.x, event.detail.y, event.detail.content)} on:mouseleave={() => (playlistTooltip.style.display = 'none')} />
+            {/each}
+        </div>
+        <div bind:this={playlistTooltip} class="absolute hidden max-w-48 -translate-y-1/2 translate-x-10 whitespace-nowrap rounded bg-neutral-800 px-2 py-1.5 text-sm">
+            <div class="overflow-clip text-ellipsis">PLAYLIST_NAME</div>
+            <div class="overflow-clip text-ellipsis text-neutral-400">Playlist &bull; {data.user.username}</div>
+        </div>
     </div>
-{:else}
-    <div class="h-full overflow-hidden">
-        <section class="no-scrollbar h-full overflow-y-scroll px-[5vw] pt-16">
-            <slot />
-        </section>
-        <footer class="fixed bottom-0 flex w-full flex-col items-center justify-center">
-            <!-- <MiniPlayer displayMode={'vertical'} /> -->
-            <!-- <NavbarFoot
-                {currentPathname}
-                transitionTime={pageTransitionTime}
-                on:navigate={(event) => {
-                    event.detail.direction === 'right' ? (directionMultiplier = 1) : (directionMultiplier = -1)
-                    currentPathname = event.detail.pathname
-                    goto(currentPathname)
-                }}
-            /> -->
-        </footer>
-    </div>
-{/if}
+    <section class="no-scrollbar overflow-y-scroll px-[max(7rem,_7vw)]">
+        <div class="my-6 max-w-xl">
+            <SearchBar />
+        </div>
+        <slot />
+    </section>
+    <section class="absolute bottom-0 z-40 max-h-full w-full">
+        {#if $currentlyPlaying}
+            <MediaPlayer currentlyPlaying={$currentlyPlaying} />
+        {/if}
+    </section>
+</div>

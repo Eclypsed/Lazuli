@@ -134,15 +134,8 @@
             </div>
         </section>
         <div id="connection-profile-grid" class="grid gap-8">
-            {#each connections as connection}
-                <ConnectionProfile
-                    id={connection.id}
-                    type={connection.type}
-                    username={connection.service.username}
-                    profilePicture={'profilePicture' in connection.service ? connection.service.profilePicture : undefined}
-                    serverName={'serverName' in connection.service ? connection.service.serverName : undefined}
-                    submitFunction={profileActions}
-                />
+            {#each connections as connectionInfo}
+                <ConnectionProfile {connectionInfo} submitFunction={profileActions} />
             {/each}
         </div>
         {#if newConnectionModal !== null}

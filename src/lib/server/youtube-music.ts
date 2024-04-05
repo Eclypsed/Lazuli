@@ -1,35 +1,24 @@
 import { google } from 'googleapis'
+import ytdl from 'ytdl-core'
 import { DB } from './db'
 import { PUBLIC_YOUTUBE_API_CLIENT_ID } from '$env/static/public'
 import { YOUTUBE_API_CLIENT_SECRET } from '$env/static/private'
 
-export type YouTubeMusicConnectionInfo = {
-    id: string
-    userId: string
-    type: 'youtube-music'
-    service: {
-        userId: string
-        username: string
-        profilePicture: string
-    }
-    tokens: {
-        accessToken: string
-        refreshToken: string
-        expiry: number
-    }
-}
-
 export class YouTubeMusic implements Connection {
-    public id: string
-    private userId: string
-    private ytUserId: string
-    private tokens: YouTubeMusicConnectionInfo['tokens']
+    public readonly id: string
+    private readonly userId: string
+    private readonly ytUserId: string
+    private accessToken: string
+    private readonly refreshToken: string
+    private expiry: number
 
-    constructor(id: string, userId: string, youtubeUserId: string, tokens: YouTubeMusicConnectionInfo['tokens']) {
+    constructor(id: string, userId: string, youtubeUserId: string, accessToken: string, refreshToken: string, expiry: number) {
         this.id = id
         this.userId = userId
         this.ytUserId = youtubeUserId
-        this.tokens = tokens
+        this.accessToken = accessToken
+        this.refreshToken = refreshToken
+        this.expiry = expiry
     }
 
     private headers = async () => {
@@ -41,21 +30,19 @@ export class YouTubeMusic implements Connection {
             'content-encoding': 'gzip',
             origin: 'https://music.youtube.com',
             Cookie: 'SOCS=CAI;',
-            authorization: `Bearer ${(await this.getTokens()).accessToken}`,
+            authorization: `Bearer ${await this.getAccessToken()}`,
             'X-Goog-Request-Time': `${Date.now()}`,
         })
     }
 
-    private getTokens = async (): Promise<YouTubeMusicConnectionInfo['tokens']> => {
-        if (this.tokens.expiry < Date.now()) {
-            const refreshToken = this.tokens.refreshToken
-
+    private getAccessToken = async (): Promise<string> => {
+        if (this.expiry < Date.now()) {
             const response = await fetch('https://oauth2.googleapis.com/token', {
                 method: 'POST',
                 body: JSON.stringify({
                     client_id: PUBLIC_YOUTUBE_API_CLIENT_ID,
                     client_secret: YOUTUBE_API_CLIENT_SECRET,
-                    refresh_token: refreshToken,
+                    refresh_token: this.refreshToken,
                     grant_type: 'refresh_token',
                 }),
             })
@@ -63,29 +50,26 @@ export class YouTubeMusic implements Connection {
             const { access_token, expires_in } = await response.json()
             const newExpiry = Date.now() + expires_in * 1000
 
-            const newTokens: YouTubeMusicConnectionInfo['tokens'] = { accessToken: access_token, refreshToken, expiry: newExpiry }
-            DB.updateTokens(this.id, newTokens)
-            this.tokens = newTokens
+            DB.updateTokens(this.id, { accessToken: access_token, refreshToken: this.refreshToken, expiry: newExpiry })
+            this.accessToken = access_token
+            this.expiry = newExpiry
         }
 
-        return this.tokens
+        return this.accessToken
     }
 
-    public getConnectionInfo = async (): Promise<YouTubeMusicConnectionInfo> => {
+    public getConnectionInfo = async (): Promise<Extract<ConnectionInfo, { type: 'youtube-music' }>> => {
         const youtube = google.youtube('v3')
-        const userChannelResponse = await youtube.channels.list({ mine: true, part: ['snippet'], access_token: (await this.getTokens()).accessToken })
+        const userChannelResponse = await youtube.channels.list({ mine: true, part: ['snippet'], access_token: await this.getAccessToken() })
         const userChannel = userChannelResponse.data.items![0]
 
         return {
             id: this.id,
             userId: this.userId,
             type: 'youtube-music',
-            service: {
-                userId: this.ytUserId,
-                username: userChannel.snippet?.title as string,
-                profilePicture: userChannel.snippet?.thumbnails?.default?.url as string,
-            },
-            tokens: await this.getTokens(),
+            youtubeUserId: this.ytUserId,
+            username: userChannel.snippet?.title!,
+            profilePicture: userChannel.snippet?.thumbnails?.default?.url!,
         }
     }
 
@@ -115,7 +99,6 @@ export class YouTubeMusic implements Connection {
                 },
             }),
         }).then((response) => response.json())
-        console.log(JSON.stringify(searchResulsts))
 
         const contents = searchResulsts.contents.tabbedSearchResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents
 
@@ -171,6 +154,13 @@ export class YouTubeMusic implements Connection {
         }
 
         return recommendations
+    }
+
+    public getSongAudio = async (id: string): Promise<ReadableStream<Uint8Array>> => {
+        const videoInfo = await ytdl.getInfo(`http://www.youtube.com/watch?v=${id}`)
+        const format = ytdl.chooseFormat(videoInfo.formats, { quality: 'highestaudio', filter: 'audioonly' })
+        const audioResponse = await fetch(format.url)
+        return audioResponse.body!
     }
 }
 

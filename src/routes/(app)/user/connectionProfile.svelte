@@ -6,26 +6,32 @@
     import { fly } from 'svelte/transition'
     import { enhance } from '$app/forms'
 
-    export let id: string, type: 'jellyfin' | 'youtube-music', username: string | undefined, profilePicture: string | undefined, serverName: string | undefined
+    export let connectionInfo: ConnectionInfo
     export let submitFunction: SubmitFunction
 
-    $: serviceData = Services[type]
+    $: serviceData = Services[connectionInfo.type]
 
     let showModal = false
 
-    const subHeaderItems = [username, serverName]
+    const subHeaderItems: string[] = []
+    if ('username' in connectionInfo) {
+        subHeaderItems.push(connectionInfo.username)
+    }
+    if ('serverName' in connectionInfo) {
+        subHeaderItems.push(connectionInfo.serverName)
+    }
 </script>
 
 <section class="rounded-lg" style="background-color: rgba(82, 82, 82, 0.25);" transition:fly={{ x: 50 }}>
     <header class="flex h-20 items-center gap-4 p-4">
         <div class="relative aspect-square h-full p-1">
             <img src={serviceData.icon} alt="{serviceData.displayName} icon" />
-            {#if profilePicture}
-                <img src={profilePicture} alt="" class="absolute bottom-0 right-0 aspect-square h-5 rounded-full" />
+            {#if 'profilePicture' in connectionInfo}
+                <img src={connectionInfo.profilePicture} alt="" class="absolute bottom-0 right-0 aspect-square h-5 rounded-full" />
             {/if}
         </div>
         <div>
-            <div>{serviceData.displayName}</div>
+            <div>{serviceData.displayName} - {connectionInfo.id}</div>
             <div class="text-sm text-neutral-500">
                 {subHeaderItems.join(' - ')}
             </div>
@@ -40,7 +46,7 @@
                         <i class="fa-solid fa-link-slash mr-1" />
                         Delete Connection
                     </button>
-                    <input type="hidden" value={id} name="connectionId" />
+                    <input type="hidden" value={connectionInfo.id} name="connectionId" />
                 </form>
             {/if}
         </div>

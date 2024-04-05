@@ -5,7 +5,7 @@ export const pageWidth: Writable<number> = writable()
 
 export const newestAlert: Writable<[AlertType, string]> = writable()
 
-export const currentlyPlaying = writable()
+export const currentlyPlaying: Writable<Song | null> = writable()
 
 const youtubeMusicBackground: string = 'https://www.gstatic.com/youtube/media/ytm/images/sbg/wsbg@4000x2250.png' // Default Youtube music background
 export const backgroundImage: Writable<string> = writable(youtubeMusicBackground)

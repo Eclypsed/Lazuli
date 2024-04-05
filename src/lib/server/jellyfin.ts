@@ -1,18 +1,3 @@
-export type JellyfinConnectionInfo = {
-    id: string
-    userId: string
-    type: 'jellyfin'
-    service: {
-        userId: string
-        serverUrl: string
-        username: string
-        serverName: string
-    }
-    tokens: {
-        accessToken: string
-    }
-}
-
 export class Jellyfin implements Connection {
     public id: string
     private userId: string
@@ -41,29 +26,21 @@ export class Jellyfin implements Connection {
     //     userId: this.jfUserId,
     // })
 
-    public getConnectionInfo = async (): Promise<JellyfinConnectionInfo> => {
-        const userUrl = new URL(`Users/${this.jfUserId}`, this.serverUrl).href
-        const systemUrl = new URL('System/Info', this.serverUrl).href
+    public getConnectionInfo = async (): Promise<Extract<ConnectionInfo, { type: 'jellyfin' }>> => {
+        const userUrl = new URL(`Users/${this.jfUserId}`, this.serverUrl).toString()
+        const systemUrl = new URL('System/Info', this.serverUrl).toString()
 
-        const userResponse = await fetch(userUrl, { headers: this.BASEHEADERS })
-        const systemResponse = await fetch(systemUrl, { headers: this.BASEHEADERS })
-
-        const userData: JellyfinAPI.User = await userResponse.json()
-        const systemData: JellyfinAPI.System = await systemResponse.json()
+        const userData: JellyfinAPI.User = await fetch(userUrl, { headers: this.BASEHEADERS }).then((response) => response.json())
+        const systemData: JellyfinAPI.System = await fetch(systemUrl, { headers: this.BASEHEADERS }).then((response) => response.json())
 
         return {
             id: this.id,
             userId: this.userId,
             type: 'jellyfin',
-            service: {
-                userId: this.jfUserId,
-                serverUrl: this.serverUrl,
-                username: userData.Name,
-                serverName: systemData.ServerName,
-            },
-            tokens: {
-                accessToken: this.accessToken,
-            },
+            serverUrl: this.serverUrl,
+            serverName: systemData.ServerName,
+            jellyfinUserId: this.jfUserId,
+            username: userData.Name,
         }
     }
 
@@ -82,6 +59,10 @@ export class Jellyfin implements Connection {
         const mostPlayedData = await mostPlayedResponse.json()
 
         return Array.from(mostPlayedData.Items as JellyfinAPI.Song[], (song) => this.parseSong(song))
+    }
+
+    public getSongAudio = (id: string): string => {
+        return 'need to implement'
     }
 
     public search = async (searchTerm: string, filter?: 'song' | 'album' | 'artist' | 'playlist'): Promise<(Song | Album | Playlist)[]> => {

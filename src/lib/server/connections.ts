@@ -1,16 +1,14 @@
-import { DB, type DBConnectionInfo } from './db'
-import { Jellyfin, type JellyfinConnectionInfo } from './jellyfin'
-import { YouTubeMusic, type YouTubeMusicConnectionInfo } from './youtube-music'
+import { DB, type ConnectionRow } from './db'
+import { Jellyfin } from './jellyfin'
+import { YouTubeMusic } from './youtube-music'
 
-export type ConnectionInfo = JellyfinConnectionInfo | YouTubeMusicConnectionInfo
-
-const constructConnection = (connectionInfo: DBConnectionInfo): Connection => {
+const constructConnection = (connectionInfo: ConnectionRow): Connection => {
     const { id, userId, type, service, tokens } = connectionInfo
     switch (type) {
         case 'jellyfin':
-            return new Jellyfin(id, userId, service.userId, service.urlOrigin, tokens.accessToken)
+            return new Jellyfin(id, userId, service.userId, service.serverUrl, tokens.accessToken)
         case 'youtube-music':
-            return new YouTubeMusic(id, userId, service.userId, tokens)
+            return new YouTubeMusic(id, userId, service.userId, tokens.accessToken, tokens.refreshToken, tokens.expiry)
     }
 }
 

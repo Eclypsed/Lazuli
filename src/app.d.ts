@@ -24,11 +24,28 @@ declare global {
         passwordHash: string
     }
 
+    type ConnectionInfo = {
+        id: string
+        userId: string
+    } & ({
+        type: 'jellyfin'
+        serverUrl: string
+        serverName: string
+        jellyfinUserId: string
+        username: string
+    } | {
+        type: 'youtube-music'
+        youtubeUserId: string
+        username: string
+        profilePicture: string
+    })
+
     interface Connection {
         public id: string
         getRecommendations: () => Promise<(Song | Album | Artist | Playlist)[]>
         getConnectionInfo: () => Promise<ConnectionInfo>
         search: (searchTerm: string, filter?: 'song' | 'album' | 'artist' | 'playlist') => Promise<(Song | Album | Artist | Playlist)[]>
+        getSongAudio: (id: string) => Promise<ReadableStream<Uint8Array>>
     }
     // These Schemas should only contain general info data that is necessary for data fetching purposes.
     // They are NOT meant to be stores for large amounts of data, i.e. Don't include the data for every single song the Playlist type.

@@ -10,34 +10,32 @@ interface DBConnectionsTableSchema {
     tokens?: string
 }
 
-type JellyfinDBConnection = {
+export type ConnectionRow = {
     id: string
     userId: string
-    type: 'jellyfin'
-    service: {
-        userId: string
-        urlOrigin: string
-    }
-    tokens: {
-        accessToken: string
-    }
-}
-
-type YouTubeMusicDBConnection = {
-    id: string
-    userId: string
-    type: 'youtube-music'
-    service: {
-        userId: string
-    }
-    tokens: {
-        accessToken: string
-        refreshToken: string
-        expiry: number
-    }
-}
-
-export type DBConnectionInfo = JellyfinDBConnection | YouTubeMusicDBConnection
+} & (
+    | {
+          type: 'jellyfin'
+          service: {
+              userId: string
+              serverUrl: string
+          }
+          tokens: {
+              accessToken: string
+          }
+      }
+    | {
+          type: 'youtube-music'
+          service: {
+              userId: string
+          }
+          tokens: {
+              accessToken: string
+              refreshToken: string
+              expiry: number
+          }
+      }
+)
 
 class Storage {
     private readonly database: Sqlite3DB
@@ -89,8 +87,8 @@ class Storage {
         if (commandInfo.changes === 0) throw new Error(`User with id ${id} does not exist`)
     }
 
-    public getConnectionInfo = (ids: string[]): DBConnectionInfo[] => {
-        const connectionInfo: DBConnectionInfo[] = []
+    public getConnectionInfo = (ids: string[]): ConnectionRow[] => {
+        const connectionInfo: ConnectionRow[] = []
         for (const id of ids) {
             const result = this.database.prepare(`SELECT * FROM Connections WHERE id = ?`).get(id) as DBConnectionsTableSchema | undefined
             if (!result) continue
@@ -98,23 +96,23 @@ class Storage {
             const { userId, type, service, tokens } = result
             const parsedService = service ? JSON.parse(service) : undefined
             const parsedTokens = tokens ? JSON.parse(tokens) : undefined
-            connectionInfo.push({ id, userId, type: type as DBConnectionInfo['type'], service: parsedService, tokens: parsedTokens })
+            connectionInfo.push({ id, userId, type: type as ConnectionRow['type'], service: parsedService, tokens: parsedTokens })
         }
         return connectionInfo
     }
 
-    public getUserConnectionInfo = (userId: string): DBConnectionInfo[] => {
+    public getUserConnectionInfo = (userId: string): ConnectionRow[] => {
         const connectionRows = this.database.prepare(`SELECT * FROM Connections WHERE userId = ?`).all(userId) as DBConnectionsTableSchema[]
-        const connections: DBConnectionInfo[] = []
+        const connections: ConnectionRow[] = []
         for (const { id, type, service, tokens } of connectionRows) {
             const parsedService = service ? JSON.parse(service) : undefined
             const parsedTokens = tokens ? JSON.parse(tokens) : undefined
-            connections.push({ id, userId, type: type as DBConnectionInfo['type'], service: parsedService, tokens: parsedTokens })
+            connections.push({ id, userId, type: type as ConnectionRow['type'], service: parsedService, tokens: parsedTokens })
         }
         return connections
     }
 
-    public addConnectionInfo = (connectionInfo: Omit<DBConnectionInfo, 'id'>): string => {
+    public addConnectionInfo = (connectionInfo: Omit<ConnectionRow, 'id'>): string => {
         const { userId, type, service, tokens } = connectionInfo
         const connectionId = generateUUID()
         this.database.prepare(`INSERT INTO Connections(id, userId, type, service, tokens) VALUES(?, ?, ?, ?, ?)`).run(connectionId, userId, type, JSON.stringify(service), JSON.stringify(tokens))
@@ -126,7 +124,7 @@ class Storage {
         if (commandInfo.changes === 0) throw new Error(`Connection with id: ${id} does not exist`)
     }
 
-    public updateTokens = (id: string, tokens: DBConnectionInfo['tokens']): void => {
+    public updateTokens = (id: string, tokens: ConnectionRow['tokens']): void => {
         const commandInfo = this.database.prepare(`UPDATE Connections SET tokens = ? WHERE id = ?`).run(JSON.stringify(tokens), id)
         if (commandInfo.changes === 0) throw new Error('Failed to update tokens')
     }

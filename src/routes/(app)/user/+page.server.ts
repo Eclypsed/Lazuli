@@ -4,7 +4,6 @@ import { PUBLIC_YOUTUBE_API_CLIENT_ID } from '$env/static/public'
 import type { PageServerLoad, Actions } from './$types'
 import { DB } from '$lib/server/db'
 import { Jellyfin, JellyfinFetchError } from '$lib/server/jellyfin'
-import type { ConnectionInfo } from '$lib/server/connections'
 import { google } from 'googleapis'
 
 export const load: PageServerLoad = async ({ fetch, locals }) => {
@@ -29,7 +28,7 @@ export const actions: Actions = {
 
         if (authData instanceof JellyfinFetchError) return fail(authData.httpCode, { message: authData.message })
 
-        const newConnectionId = DB.addConnectionInfo({ userId: locals.user.id, type: 'jellyfin', service: { userId: authData.User.Id, urlOrigin: serverUrl.toString() }, tokens: { accessToken: authData.AccessToken } })
+        const newConnectionId = DB.addConnectionInfo({ userId: locals.user.id, type: 'jellyfin', service: { userId: authData.User.Id, serverUrl: serverUrl.toString() }, tokens: { accessToken: authData.AccessToken } })
 
         const response = await fetch(`/api/connections?ids=${newConnectionId}`, {
             method: 'GET',

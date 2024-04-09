@@ -107,7 +107,6 @@ declare global {
             name: string
         }
         thumbnail?: string
-        description?: string
     }
 }
 

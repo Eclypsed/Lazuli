@@ -11,10 +11,10 @@
     $: serviceData = Services[connectionInfo.type]
 
     const subHeaderItems: string[] = []
-    if ('username' in connectionInfo) {
+    if ('username' in connectionInfo && connectionInfo.username) {
         subHeaderItems.push(connectionInfo.username)
     }
-    if ('serverName' in connectionInfo) {
+    if ('serverName' in connectionInfo && connectionInfo.serverName) {
         subHeaderItems.push(connectionInfo.serverName)
     }
 </script>

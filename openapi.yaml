@@ -34,37 +34,11 @@ paths:
                     connections:
                       type: array
                       items:
-                        $ref: '#/components/schemas/Connection'
+                        $ref: '#/components/schemas/ConnectionInfo'
           '400':
             description: Bad Request
           '401':
             description: Unauthorized
-  /connections/{connectionId}/info:
-    get:
-      summary: Returns unique info from the specified connection
-      tags:
-        - Connections
-      parameters:
-        - in: path
-          name: connectionId
-          schema:
-            type: string
-          description: The id of the connection
-          required: true
-      responses:
-        '200':
-          description: Any info relevant to the connection, such as username, profile picture, etc.
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - info
-                properties:
-                  info:
-                    $ref: '#/components/schemas/ConnectionInfo'
-        '401':
-          description: Unauthorized
   /users/{userId}/connections:
     get:
       summary: Returns all connections for a specified user
@@ -90,7 +64,7 @@ paths:
                   connections:
                     type: array
                     items:
-                      $ref: '#/components/schemas/Connection'
+                      $ref: '#/components/schemas/ConnectionInfo'
         '401':
           description: Unauthorized
           
@@ -119,84 +93,184 @@ paths:
                   recommendations:
                     type: array
                     items:
-                      $ref: '#/components/schemas/MediaItem'
+                      oneOf:
+                        - $ref: '#/components/schemas/Song'
+                        - $ref: '#/components/schemas/Album'
+                        - $ref: '#/components/schemas/Artist'
+                        - $ref: '#/components/schemas/Playlist'
+                      discriminator:
+                        propertyName: type
         '401':
           description: Unauthorized
   
                 
 components:
   schemas:
-    serviceType:
-      type: string
-      enum: ['jellyfin', 'youtube-music']
-    Service:
-      type: object
-      required:
-        - type
-        - userId
-        - urlOrigin
-      properties:
-        type:
-          $ref: '#/components/schemas/serviceType'
-        userId:
-          type: string
-        urlOrigin:
-          type: string
-    Connection:
+    ConnectionInfo:
       type: object
       required:
         - id
         - userId
-        - service
-        - accessToken
+        - type
       properties:
         id:
           type: string
         userId:
           type: string
-        service:
-          $ref: '#/components/schemas/Service'
-        accessToken:
+        type:
           type: string
-        refreshToken:
-          type: string
-        expiry:
-          type: number
-    ConnectionInfo:
-      type: object
-      required:
-        - connectionId
-        - serviceType
-      properties:
-        connectionId:
-          type: string
-        serviceType:
-          $ref: '#/components/schemas/serviceType'
-        username:
+          enum: 
+            - 'jellyfin'
+            - 'youtube-music'
+        serverUrl:
           type: string
         serverName:
           type: string
+        jellyfinUserId:
+          type: string
+        username:
+          type: string
+        youtubeUserId:
+          type: string
         profilePicture:
           type: string
-    MediaItem:
+    Song:
       type: object
       required:
-        - connectionId
-        - serviceType
-        - type
+        - connection
         - id
         - name
+        - type
       properties:
-        connectionId:
+        connection:
           type: string
-        serviceType:
-          $ref: '#/components/schemas/serviceType'
-        type:
-          type: string
-          enum: ['song', 'album', 'playlist', 'artist']
         id:
           type: string
         name:
           type: string
+        type:
+          type: string
+          enum:
+            - 'song'
+        duration:
+          type: number
+        thumbnail:
+          type: string
+        artists:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - name
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+        album:
+          type: object
+          required:
+            - id
+            - name
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+        createdBy:
+          type: object
+          required:
+            - id
+            - name
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+        releaseDate:
+          type: string
+    Album:
+      type: object
+      required:
+        - connection
+        - id
+        - name
+        - type
+      properties:
+        connection:
+          type: string
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+          enum:
+            - 'album'
+        duration:
+          type: number
+        thumbnail:
+          type: string
+        artists:
+          type: object
+          required:
+            - id
+            - name
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+        releaseDate:
+          type: string
+    Artist:
+      type: object
+      required:
+        - connection
+        - id
+        - name
+        - type
+      properties:
+        connection:
+          type: string
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+          enum:
+            - 'artist'
+        thumbnail:
+          type: string
+    Playlist:
+      type: object
+      required:
+        - connection
+        - id
+        - name
+        - type
+      properties:
+        connection:
+          type: string
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+          enum:
+            - 'playlist'
+        createdBy:
+          type: object
+          required:
+            - id
+            - name
+          properties:
+            id:
+              type: string
+            name:
+              type: string
         thumbnail:
           type: string

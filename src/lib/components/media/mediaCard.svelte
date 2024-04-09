@@ -40,6 +40,8 @@
                         <span class="mr-0.5 text-sm">,</span>
                     {/if}
                 {/each}
+            {:else if 'createdBy' in mediaItem && mediaItem.createdBy}
+                <span class="text-sm">{mediaItem.createdBy.name}</span>
             {/if}
         </div>
     </div>

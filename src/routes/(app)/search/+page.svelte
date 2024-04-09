@@ -5,7 +5,9 @@
 </script>
 
 {#if data.searchResults}
-    {#each data.searchResults as searchResult}
-        <div>{searchResult.name} - {searchResult.type}</div>
-    {/each}
+    {#await data.searchResults then searchResults}
+        {#each searchResults as searchResult}
+            <div>{searchResult.name} - {searchResult.type}</div>
+        {/each}
+    {/await}
 {/if}

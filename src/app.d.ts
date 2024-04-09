@@ -30,9 +30,9 @@ declare global {
     } & ({
         type: 'jellyfin'
         serverUrl: string
-        serverName: string
+        serverName?: string
         jellyfinUserId: string
-        username: string
+        username?: string
     } | {
         type: 'youtube-music'
         youtubeUserId: string
@@ -45,7 +45,7 @@ declare global {
         getRecommendations: () => Promise<(Song | Album | Artist | Playlist)[]>
         getConnectionInfo: () => Promise<ConnectionInfo>
         search: (searchTerm: string, filter?: 'song' | 'album' | 'artist' | 'playlist') => Promise<(Song | Album | Artist | Playlist)[]>
-        getSongAudio: (id: string) => Promise<ReadableStream<Uint8Array>>
+        getAudioStream: (id: string) => Promise<Response>
     }
     // These Schemas should only contain general info data that is necessary for data fetching purposes.
     // They are NOT meant to be stores for large amounts of data, i.e. Don't include the data for every single song the Playlist type.
@@ -66,8 +66,10 @@ declare global {
             id: string
             name: string
         }
-        // audio: string <--- Because of youtube these will potentially expire. They are also not needed until a user requests that song, so instead fetch them as needed
-        // video?: string
+        createdBy?: {
+            id: string
+            name: string
+        }
         releaseDate?: string
     }
 
@@ -100,6 +102,10 @@ declare global {
         id: string
         name: string
         type: 'playlist'
+        createdBy?: {
+            id: string
+            name: string
+        }
         thumbnail?: string
         description?: string
     }

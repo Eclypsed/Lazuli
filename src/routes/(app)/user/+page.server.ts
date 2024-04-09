@@ -7,14 +7,15 @@ import { Jellyfin, JellyfinFetchError } from '$lib/server/jellyfin'
 import { google } from 'googleapis'
 
 export const load: PageServerLoad = async ({ fetch, locals }) => {
-    const connectionInfoResponse = await fetch(`/api/users/${locals.user.id}/connections`, {
-        method: 'GET',
-        headers: { apikey: SECRET_INTERNAL_API_KEY },
-    }).then((response) => response.json())
+    const getConnectionInfo = async (): Promise<ConnectionInfo[]> => {
+        const connectionInfoResponse = await fetch(`/api/users/${locals.user.id}/connections`, {
+            method: 'GET',
+            headers: { apikey: SECRET_INTERNAL_API_KEY },
+        }).then((response) => response.json())
+        return connectionInfoResponse.connections
+    }
 
-    const connections: ConnectionInfo[] = connectionInfoResponse.connections
-
-    return { connections }
+    return { connections: getConnectionInfo() }
 }
 
 export const actions: Actions = {

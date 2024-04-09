@@ -14,9 +14,13 @@
     import ConnectionProfile from './connectionProfile.svelte'
     import { enhance } from '$app/forms'
     import { PUBLIC_YOUTUBE_API_CLIENT_ID } from '$env/static/public'
+    import { onMount } from 'svelte'
 
     export let data: PageServerData & LayoutData
-    let connections = data.connections
+    let connections: ConnectionInfo[]
+    onMount(async () => {
+        connections = await data.connections
+    })
 
     const authenticateJellyfin: SubmitFunction = ({ formData, cancel }) => {
         const { serverUrl, username, password } = Object.fromEntries(formData)
@@ -79,7 +83,7 @@
         }
     }
 
-    const profileActions: SubmitFunction = ({ action, cancel }) => {
+    const profileActions: SubmitFunction = () => {
         return ({ result }) => {
             if (result.type === 'failure') {
                 return ($newestAlert = ['warning', result.data?.message])
@@ -134,9 +138,11 @@
             </div>
         </section>
         <div id="connection-profile-grid" class="grid gap-8">
-            {#each connections as connectionInfo}
-                <ConnectionProfile {connectionInfo} submitFunction={profileActions} />
-            {/each}
+            {#if connections}
+                {#each connections as connectionInfo}
+                    <ConnectionProfile {connectionInfo} submitFunction={profileActions} />
+                {/each}
+            {/if}
         </div>
         {#if newConnectionModal !== null}
             <svelte:component this={newConnectionModal} submitFunction={authenticateJellyfin} on:close={() => (newConnectionModal = null)} />
@@ -149,6 +155,6 @@
         background-image: linear-gradient(to bottom, rgb(30, 30, 30), rgb(10, 10, 10));
     }
     #connection-profile-grid {
-        grid-template-columns: repeat(auto-fit, minmax(24rem, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(28rem, 1fr));
     }
 </style>

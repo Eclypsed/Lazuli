@@ -1,17 +1,14 @@
 <script lang="ts">
     import Services from '$lib/services.json'
-    import IconButton from '$lib/components/util/iconButton.svelte'
     import Toggle from '$lib/components/util/toggle.svelte'
-    import type { SubmitFunction } from '@sveltejs/kit'
     import { fly } from 'svelte/transition'
+    import type { SubmitFunction } from '@sveltejs/kit'
     import { enhance } from '$app/forms'
 
     export let connectionInfo: ConnectionInfo
     export let submitFunction: SubmitFunction
 
     $: serviceData = Services[connectionInfo.type]
-
-    let showModal = false
 
     const subHeaderItems: string[] = []
     if ('username' in connectionInfo) {
@@ -22,7 +19,8 @@
     }
 </script>
 
-<section class="rounded-lg" style="background-color: rgba(82, 82, 82, 0.25);" transition:fly={{ x: 50 }}>
+<section class="relative overflow-clip rounded-lg" transition:fly={{ x: 50 }}>
+    <div class="absolute -z-10 h-full w-full bg-black bg-cover bg-right bg-no-repeat brightness-[25%]" style="background-image: url({serviceData.icon}); mask-image: linear-gradient(to left, black, rgba(0, 0, 0, 0));" />
     <header class="flex h-20 items-center gap-4 p-4">
         <div class="relative aspect-square h-full p-1">
             <img src={serviceData.icon} alt="{serviceData.displayName} icon" />
@@ -31,24 +29,18 @@
             {/if}
         </div>
         <div>
-            <div>{serviceData.displayName} - {connectionInfo.id}</div>
+            <div>{serviceData.displayName}</div>
             <div class="text-sm text-neutral-500">
                 {subHeaderItems.join(' - ')}
             </div>
         </div>
-        <div class="relative ml-auto flex h-8 flex-row-reverse gap-2">
-            <IconButton halo={true} on:click={() => (showModal = !showModal)}>
-                <i slot="icon" class="fa-solid fa-ellipsis-vertical text-xl text-neutral-500" />
-            </IconButton>
-            {#if showModal}
-                <form use:enhance={submitFunction} method="post" class="absolute right-0 top-full flex flex-col items-center justify-center gap-1 rounded-md bg-neutral-900 p-2 text-xs">
-                    <button formaction="?/deleteConnection" class="whitespace-nowrap rounded-md px-3 py-2 hover:bg-neutral-800">
-                        <i class="fa-solid fa-link-slash mr-1" />
-                        Delete Connection
-                    </button>
-                    <input type="hidden" value={connectionInfo.id} name="connectionId" />
-                </form>
-            {/if}
+        <div class="relative ml-auto flex flex-row-reverse gap-2">
+            <form action="?/deleteConnection" method="post" use:enhance={submitFunction}>
+                <input type="hidden" name="connectionId" value={connectionInfo.id} />
+                <button class="aspect-square h-8 text-2xl text-neutral-500 hover:text-lazuli-primary">
+                    <i class="fa-solid fa-xmark" />
+                </button>
+            </form>
         </div>
     </header>
     <hr class="mx-2 border-t-2 border-neutral-600" />

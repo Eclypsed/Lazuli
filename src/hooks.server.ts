@@ -6,8 +6,12 @@ export const handle: Handle = async ({ event, resolve }) => {
     const nonJwtProtectedRoutes = ['/login', '/api']
     const urlpath = event.url.pathname
 
-    if (urlpath.startsWith('/api') && event.request.headers.get('apikey') !== SECRET_INTERNAL_API_KEY && event.url.searchParams.get('apikey') !== SECRET_INTERNAL_API_KEY) {
-        return new Response('Unauthorized', { status: 401 })
+    if (urlpath.startsWith('/api')) {
+        const unprotectedAPIRoutes = ['/api/audio', '/api/remoteImage']
+        const apikey = event.request.headers.get('apikey') || event.url.searchParams.get('apikey')
+        if (!unprotectedAPIRoutes.includes(urlpath) && apikey !== SECRET_INTERNAL_API_KEY) {
+            return new Response('Unauthorized', { status: 401 })
+        }
     }
 
     if (!nonJwtProtectedRoutes.some((route) => urlpath.startsWith(route))) {

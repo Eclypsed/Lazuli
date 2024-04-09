@@ -1,11 +1,11 @@
 export class Jellyfin implements Connection {
-    public id: string
-    private userId: string
-    private jfUserId: string
-    private serverUrl: string
-    private accessToken: string
+    public readonly id: string
+    private readonly userId: string
+    private readonly jfUserId: string
+    private readonly serverUrl: string
+    private readonly accessToken: string
 
-    private readonly BASEHEADERS: Headers
+    private readonly authHeader: Headers
 
     constructor(id: string, userId: string, jellyfinUserId: string, serverUrl: string, accessToken: string) {
         this.id = id
@@ -14,33 +14,34 @@ export class Jellyfin implements Connection {
         this.serverUrl = serverUrl
         this.accessToken = accessToken
 
-        this.BASEHEADERS = new Headers({ Authorization: `MediaBrowser Token="${this.accessToken}"` })
+        this.authHeader = new Headers({ Authorization: `MediaBrowser Token="${this.accessToken}"` })
     }
 
-    // const audoSearchParams = new URLSearchParams({
-    //     MaxStreamingBitrate: '999999999',
-    //     Container: 'opus,webm|opus,mp3,aac,m4a|aac,m4b|aac,flac,webma,webm|webma,wav,ogg',
-    //     TranscodingContainer: 'ts',
-    //     TranscodingProtocol: 'hls',
-    //     AudioCodec: 'aac',
-    //     userId: this.jfUserId,
-    // })
-
     public getConnectionInfo = async (): Promise<Extract<ConnectionInfo, { type: 'jellyfin' }>> => {
-        const userUrl = new URL(`Users/${this.jfUserId}`, this.serverUrl).toString()
-        const systemUrl = new URL('System/Info', this.serverUrl).toString()
+        const userUrl = new URL(`Users/${this.jfUserId}`, this.serverUrl)
+        const systemUrl = new URL('System/Info', this.serverUrl)
 
-        const userData: JellyfinAPI.User = await fetch(userUrl, { headers: this.BASEHEADERS }).then((response) => response.json())
-        const systemData: JellyfinAPI.System = await fetch(systemUrl, { headers: this.BASEHEADERS }).then((response) => response.json())
+        const userData: JellyfinAPI.User | undefined = await fetch(userUrl, { headers: this.authHeader })
+            .then((response) => response.json())
+            .catch(() => {
+                console.error(`Fetch to ${userUrl.toString()} failed`)
+                return undefined
+            })
+        const systemData: JellyfinAPI.System | undefined = await fetch(systemUrl, { headers: this.authHeader })
+            .then((response) => response.json())
+            .catch(() => {
+                console.error(`Fetch to ${systemUrl.toString()} failed`)
+                return undefined
+            })
 
         return {
             id: this.id,
             userId: this.userId,
             type: 'jellyfin',
             serverUrl: this.serverUrl,
-            serverName: systemData.ServerName,
+            serverName: systemData?.ServerName,
             jellyfinUserId: this.jfUserId,
-            username: userData.Name,
+            username: userData?.Name,
         }
     }
 
@@ -53,16 +54,11 @@ export class Jellyfin implements Connection {
             limit: '10',
         })
 
-        const mostPlayedSongsURL = new URL(`/Users/${this.jfUserId}/Items?${searchParams.toString()}`, this.serverUrl).toString()
+        const mostPlayedSongsURL = new URL(`/Users/${this.jfUserId}/Items?${searchParams.toString()}`, this.serverUrl)
 
-        const mostPlayedResponse = await fetch(mostPlayedSongsURL, { headers: this.BASEHEADERS })
-        const mostPlayedData = await mostPlayedResponse.json()
+        const mostPlayed: { Items: JellyfinAPI.Song[] } = await fetch(mostPlayedSongsURL, { headers: this.authHeader }).then((response) => response.json())
 
-        return Array.from(mostPlayedData.Items as JellyfinAPI.Song[], (song) => this.parseSong(song))
-    }
-
-    public getSongAudio = (id: string): string => {
-        return 'need to implement'
+        return Array.from(mostPlayed.Items, (song) => this.parseSong(song))
     }
 
     public search = async (searchTerm: string, filter?: 'song' | 'album' | 'artist' | 'playlist'): Promise<(Song | Album | Playlist)[]> => {
@@ -72,9 +68,9 @@ export class Jellyfin implements Connection {
             recursive: 'true',
         })
 
-        const searchURL = new URL(`Users/${this.jfUserId}/Items?${searchParams.toString()}`, this.serverUrl).toString()
-        const searchResponse = await fetch(searchURL, { headers: this.BASEHEADERS })
-        if (!searchResponse.ok) throw new JellyfinFetchError('Failed to search Jellyfin', searchResponse.status, searchURL)
+        const searchURL = new URL(`Users/${this.jfUserId}/Items?${searchParams.toString()}`, this.serverUrl)
+        const searchResponse = await fetch(searchURL, { headers: this.authHeader })
+        if (!searchResponse.ok) throw new JellyfinFetchError('Failed to search Jellyfin', searchResponse.status, searchURL.toString())
         const searchResults = (await searchResponse.json()).Items as (JellyfinAPI.Song | JellyfinAPI.Album | JellyfinAPI.Playlist)[] // JellyfinAPI.Artist
 
         const parsedResults: (Song | Album | Playlist)[] = Array.from(searchResults, (result) => {
@@ -88,6 +84,21 @@ export class Jellyfin implements Connection {
             }
         })
         return parsedResults
+    }
+
+    public getAudioStream = async (id: string): Promise<Response> => {
+        const audoSearchParams = new URLSearchParams({
+            MaxStreamingBitrate: '2000000',
+            Container: 'opus,webm|opus,mp3,aac,m4a|aac,m4b|aac,flac,webma,webm|webma,wav,ogg',
+            TranscodingContainer: 'ts',
+            TranscodingProtocol: 'hls',
+            AudioCodec: 'aac',
+            userId: this.jfUserId,
+        })
+
+        const audioUrl = new URL(`Audio/${id}/universal?${audoSearchParams.toString()}`, this.serverUrl)
+
+        return await fetch(audioUrl, { headers: this.authHeader })
     }
 
     private parseSong = (song: JellyfinAPI.Song): Song => {

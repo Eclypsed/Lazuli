@@ -45,9 +45,9 @@
         </div>
         <slot />
     </section>
-    <section class="absolute bottom-0 z-40 max-h-full w-full">
+    <section class="absolute bottom-0 z-40 grid max-h-full w-full place-items-center">
         {#if $currentlyPlaying}
-            <MediaPlayer currentlyPlaying={$currentlyPlaying} />
+            <MediaPlayer song={$currentlyPlaying} />
         {/if}
     </section>
 </div>

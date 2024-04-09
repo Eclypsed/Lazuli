@@ -17,7 +17,14 @@
 <div id="card-wrapper" class="flex-shrink-0">
     <button id="thumbnail" class="relative h-52 transition-all duration-200 ease-out" on:click={() => goto(`/details/${mediaItem.type}?id=${mediaItem.id}`)}>
         {#if mediaItem.thumbnail}
-            <img bind:this={image} id="card-image" on:load={() => (captionText.style.width = `${image.width}px`)} class="h-full rounded transition-all" src={mediaItem.thumbnail} alt="{mediaItem.name} thumbnail" />
+            <img
+                bind:this={image}
+                id="card-image"
+                on:load={() => (captionText.style.width = `${image.width}px`)}
+                class="h-full rounded transition-all"
+                src="/api/remoteImage?url={mediaItem.thumbnail}"
+                alt="{mediaItem.name} thumbnail"
+            />
         {:else}
             <div id="card-image" class="grid aspect-square h-full place-items-center rounded-lg bg-lazuli-primary transition-all">
                 <i class="fa-solid fa-compact-disc text-7xl" />

@@ -17,12 +17,14 @@
     const fac = new FastAverageColor()
     $: fac.getColorAsync(`/api/remoteImage?url=${song.thumbnail}`, { algorithm: 'dominant' }).then((color) => (bgColor = color.rgb))
     $: fac.getColorAsync(`/api/remoteImage?url=${song.thumbnail}`, { algorithm: 'simple' }).then((color) => (primaryColor = color.rgb))
-    // let audioSource: HTMLAudioElement, progressBar: HTMLInputElement
-    // onMount(() => (audioSource.volume = 0.4))
+    const getColor = async () => {
+        const rgb = await fac.getColorAsync(`/api/remoteImage?url=${song.thumbnail}`, { algorithm: 'dominant' }).then((color) => color.value)
+        console.log(rgb)
+    }
 </script>
 
 <main class="relative m-4 flex h-24 flex-grow-0 gap-4 overflow-clip rounded-xl text-white transition-colors duration-1000" style="background-color: {bgColor};">
-    <img src={song.thumbnail} alt="" class="aspect-square max-h-full object-cover" />
+    <img src="/api/remoteImage?url={song.thumbnail}" alt="" class="aspect-square max-h-full object-cover" />
     <section class="flex w-96 flex-col justify-center gap-1">
         <div class="line-clamp-2">{song.name}</div>
         <div class="text-sm text-neutral-400">{song.artists?.map((artist) => artist.name) || song.createdBy?.name}</div>
@@ -32,7 +34,7 @@
             <button on:click={() => (shuffle = !shuffle)} class="aspect-square h-8">
                 <i class="fa-solid fa-shuffle" style="color: {shuffle ? primaryColor : 'rgb(163, 163, 163)'};" />
             </button>
-            <button class="aspect-square h-8">
+            <button on:click={() => getColor()} class="aspect-square h-8">
                 <i class="fa-solid fa-backward-step" />
             </button>
             <button on:click={() => (playing = !playing)} class="grid aspect-square h-10 place-items-center rounded-full bg-white">

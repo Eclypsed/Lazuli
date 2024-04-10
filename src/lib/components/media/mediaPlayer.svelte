@@ -14,13 +14,49 @@
     let bgColor = 'black',
         primaryColor = 'var(--lazuli-primary)'
 
-    const fac = new FastAverageColor()
-    $: fac.getColorAsync(`/api/remoteImage?url=${song.thumbnail}`, { algorithm: 'dominant' }).then((color) => (bgColor = color.rgb))
-    $: fac.getColorAsync(`/api/remoteImage?url=${song.thumbnail}`, { algorithm: 'simple' }).then((color) => (primaryColor = color.rgb))
-    const getColor = async () => {
-        const rgb = await fac.getColorAsync(`/api/remoteImage?url=${song.thumbnail}`, { algorithm: 'dominant' }).then((color) => color.value)
-        console.log(rgb)
+    const rgbToHsl = (red: number, green: number, blue: number): [number, number, number] => {
+        ;[red, green, blue].forEach((color) => {
+            if (!(color <= 255 && color >= 0)) throw new Error('RGB values must be between 0 and 255')
+        })
+        ;(red /= 255), (green /= 255), (blue /= 255)
+
+        const max = Math.max(red, green, blue),
+            min = Math.min(red, green, blue)
+        let hue = 0,
+            saturation = 0,
+            lightness = (max + min) / 2
+
+        if (max !== min) {
+            const delta = max - min
+            saturation = lightness > 0.5 ? delta / (2 - max - min) : delta / (max + min)
+
+            switch (max) {
+                case red:
+                    hue = (green - blue) / delta + (green < blue ? 6 : 0)
+                    break
+                case green:
+                    hue = (blue - red) / delta + 2
+                    break
+                case blue:
+                    hue = (red - green) / delta + 4
+                    break
+            }
+
+            hue /= 6
+        }
+
+        return [hue, saturation, lightness]
     }
+
+    const fac = new FastAverageColor()
+    $: fac.getColorAsync(`/api/remoteImage?url=${song.thumbnail}`, { algorithm: 'dominant' }).then((color) => {
+        const [red, green, blue] = color.value
+        // const [hue, staturation, lightness] = rgbToHsl(red, green, blue)
+        // bgColor = `hsl(${hue * 359} ${staturation * 100}% 20%)`
+        // primaryColor = `hsl(${hue * 359} ${staturation * 100}% 70%)`
+        bgColor = `rgb(${red / 2}, ${green / 2}, ${blue / 2})`
+        primaryColor = `rgb(${red}, ${green}, ${blue})`
+    })
 </script>
 
 <main class="relative m-4 flex h-24 flex-grow-0 gap-4 overflow-clip rounded-xl text-white transition-colors duration-1000" style="background-color: {bgColor};">
@@ -34,7 +70,7 @@
             <button on:click={() => (shuffle = !shuffle)} class="aspect-square h-8">
                 <i class="fa-solid fa-shuffle" style="color: {shuffle ? primaryColor : 'rgb(163, 163, 163)'};" />
             </button>
-            <button on:click={() => getColor()} class="aspect-square h-8">
+            <button class="aspect-square h-8">
                 <i class="fa-solid fa-backward-step" />
             </button>
             <button on:click={() => (playing = !playing)} class="grid aspect-square h-10 place-items-center rounded-full bg-white">

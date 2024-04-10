@@ -51,10 +51,14 @@
     const fac = new FastAverageColor()
     $: fac.getColorAsync(`/api/remoteImage?url=${song.thumbnail}`, { algorithm: 'dominant' }).then((color) => {
         const [red, green, blue] = color.value
+        const percievedLightness = Math.sqrt(0.299 * red ** 2 + 0.587 * green ** 2 + 0.114 * blue ** 2)
+        const redScalar = 0.547,
+            greenScalar = 0.766,
+            blueScalar = 0.338
         // const [hue, staturation, lightness] = rgbToHsl(red, green, blue)
         // bgColor = `hsl(${hue * 359} ${staturation * 100}% 20%)`
         // primaryColor = `hsl(${hue * 359} ${staturation * 100}% 70%)`
-        bgColor = `rgb(${red / 2}, ${green / 2}, ${blue / 2})`
+        bgColor = `rgb(${red}, ${green}, ${blue})`
         primaryColor = `rgb(${red}, ${green}, ${blue})`
     })
 </script>

@@ -1,18 +1,22 @@
 <script lang="ts">
+    import { createEventDispatcher } from 'svelte'
+
     export let value = 0
-    export let sliderColor: string | undefined = undefined
+    export let max = 100
+
+    const dispatch = createEventDispatcher()
 
     let sliderThumb: HTMLSpanElement, sliderTrail: HTMLSpanElement
 
     const trackThumb = (sliderPos: number): void => {
-        if (sliderThumb) sliderThumb.style.left = `${sliderPos}%`
-        if (sliderTrail) sliderTrail.style.right = `${100 - sliderPos}%`
+        if (sliderThumb) sliderThumb.style.left = `${(sliderPos / max) * 100}%`
+        if (sliderTrail) sliderTrail.style.right = `${100 - (sliderPos / max) * 100}%`
     }
 
     $: trackThumb(value)
 
     const handleKeyPress = (key: string) => {
-        if ((key === 'ArrowRight' || key === 'ArrowUp') && value < 100) return (value += 1)
+        if ((key === 'ArrowRight' || key === 'ArrowUp') && value < 1) return (value += 1)
         if ((key === 'ArrowLeft' || key === 'ArrowDown') && value > 0) return (value -= 1)
     }
 </script>
@@ -20,15 +24,27 @@
 <div
     id="slider-track"
     class="relative isolate h-1.5 w-full rounded-full bg-neutral-600"
-    style="--slider-color: {sliderColor || 'var(--lazuli-primary)'}"
+    style="--slider-color: var(--lazuli-primary)"
     role="slider"
     tabindex="0"
     aria-valuenow={value}
     aria-valuemin="0"
-    aria-valuemax="100"
+    aria-valuemax={max}
     on:keydown={(event) => handleKeyPress(event.key)}
 >
-    <input type="range" class="absolute z-10 h-1.5 w-full" step="any" min="0" max="100" bind:value tabindex="-1" aria-hidden="true" aria-disabled="true" />
+    <input
+        on:input={(event) => dispatch('seeking', { value: event.currentTarget.value })}
+        on:change={(event) => dispatch('seeked', { value: event.currentTarget.value })}
+        type="range"
+        class="absolute z-10 h-1.5 w-full"
+        step="any"
+        min="0"
+        {max}
+        bind:value
+        tabindex="-1"
+        aria-hidden="true"
+        aria-disabled="true"
+    />
     <span bind:this={sliderTrail} id="slider-trail" class="absolute left-0 h-1.5 rounded-full bg-white transition-colors" />
     <span bind:this={sliderThumb} id="slider-thumb" class="absolute top-1/2 aspect-square h-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white opacity-0 transition-opacity duration-300" />
 </div>

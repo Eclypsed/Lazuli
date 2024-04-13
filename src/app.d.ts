@@ -45,7 +45,7 @@ declare global {
         getRecommendations: () => Promise<(Song | Album | Artist | Playlist)[]>
         getConnectionInfo: () => Promise<ConnectionInfo>
         search: (searchTerm: string, filter?: 'song' | 'album' | 'artist' | 'playlist') => Promise<(Song | Album | Artist | Playlist)[]>
-        getAudioStream: (id: string) => Promise<Response>
+        getAudioStream: (id: string, range: string | null) => Promise<Response>
     }
     // These Schemas should only contain general info data that is necessary for data fetching purposes.
     // They are NOT meant to be stores for large amounts of data, i.e. Don't include the data for every single song the Playlist type.

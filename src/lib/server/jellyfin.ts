@@ -86,7 +86,7 @@ export class Jellyfin implements Connection {
         return parsedResults
     }
 
-    public getAudioStream = async (id: string): Promise<Response> => {
+    public getAudioStream = async (id: string, range: string | null): Promise<Response> => {
         const audoSearchParams = new URLSearchParams({
             MaxStreamingBitrate: '2000000',
             Container: 'opus,webm|opus,mp3,aac,m4a|aac,m4b|aac,flac,webma,webm|webma,wav,ogg',
@@ -98,14 +98,17 @@ export class Jellyfin implements Connection {
 
         const audioUrl = new URL(`Audio/${id}/universal?${audoSearchParams.toString()}`, this.serverUrl)
 
-        return await fetch(audioUrl, { headers: this.authHeader })
+        const headers = new Headers(this.authHeader)
+        headers.set('range', range || '0-')
+
+        return await fetch(audioUrl, { headers })
     }
 
     private parseSong = (song: JellyfinAPI.Song): Song => {
         const thumbnail = song.ImageTags?.Primary
-            ? new URL(`Items/${song.Id}/Images/Primary`, this.serverUrl).href
+            ? new URL(`Items/${song.Id}/Images/Primary`, this.serverUrl).toString()
             : song.AlbumPrimaryImageTag
-              ? new URL(`Items/${song.AlbumId}/Images/Primary`, this.serverUrl).href
+              ? new URL(`Items/${song.AlbumId}/Images/Primary`, this.serverUrl).toString()
               : undefined
 
         const artists: Song['artists'] = song.ArtistItems

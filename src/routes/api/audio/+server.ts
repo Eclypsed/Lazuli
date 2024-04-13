@@ -1,25 +1,30 @@
 import type { RequestHandler } from '@sveltejs/kit'
 import { Connections } from '$lib/server/connections'
 
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async ({ url, request }) => {
     const connectionId = url.searchParams.get('connection')
     const id = url.searchParams.get('id')
     if (!(connectionId && id)) return new Response('Missing query parameter', { status: 400 })
 
+    const range = request.headers.get('range')
     const connection = Connections.getConnections([connectionId])[0]
-    const stream = await connection.getAudioStream(id)
 
-    if (!stream.body) throw new Error(`Audio fetch did not return valid ReadableStream (Connection: ${connection.id})`)
+    const fetchStream = async (): Promise<Response> => {
+        const MAX_TRIES = 5
+        let tries = 0
+        while (tries < MAX_TRIES) {
+            ++tries
+            const stream = await connection.getAudioStream(id, range).catch((reason) => {
+                console.error(`Audio stream fetch failed: ${reason}`)
+                return null
+            })
+            if (!stream || !stream.body) continue
 
-    const contentLength = stream.headers.get('Content-Length')
-    if (!contentLength || isNaN(Number(contentLength))) throw new Error(`Audio fetch did not return valid Content-Length header (Connection: ${connection.id})`)
+            return stream
+        }
 
-    const headers = new Headers({
-        'Content-Range': `bytes 0-${Number(contentLength) - 1}/${contentLength}`,
-        'Accept-Ranges': 'bytes',
-        'Content-Length': contentLength.toString(),
-        'Content-Type': 'audio/webm',
-    })
+        throw new Error(`Audio stream fetch to connection: ${connection.id} of id ${id} failed`)
+    }
 
-    return new Response(stream.body, { status: 206, headers })
+    return await fetchStream()
 }

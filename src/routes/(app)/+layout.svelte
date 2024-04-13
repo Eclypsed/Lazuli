@@ -1,7 +1,6 @@
 <script lang="ts">
     import SearchBar from '$lib/components/util/searchBar.svelte'
     import type { LayoutData } from './$types'
-    import { currentlyPlaying } from '$lib/stores'
     import NavTab from '$lib/components/navbar/navTab.svelte'
     import PlaylistTab from '$lib/components/navbar/playlistTab.svelte'
     import MediaPlayer from '$lib/components/media/mediaPlayer.svelte'
@@ -46,8 +45,6 @@
         <slot />
     </section>
     <section class="absolute bottom-0 z-40 grid max-h-full w-full place-items-center">
-        {#if $currentlyPlaying}
-            <MediaPlayer song={$currentlyPlaying} />
-        {/if}
+        <MediaPlayer />
     </section>
 </div>

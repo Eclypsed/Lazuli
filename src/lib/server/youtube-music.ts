@@ -36,23 +36,35 @@ export class YouTubeMusic implements Connection {
     }
 
     private getAccessToken = async (): Promise<string> => {
+        const refreshTokens = async (): Promise<{ accessToken: string; expiry: number }> => {
+            const MAX_TRIES = 3
+            let tries = 0
+            const refreshDetails = { client_id: PUBLIC_YOUTUBE_API_CLIENT_ID, client_secret: YOUTUBE_API_CLIENT_SECRET, refresh_token: this.refreshToken, grant_type: 'refresh_token' }
+
+            while (tries < MAX_TRIES) {
+                ++tries
+                const response = await fetch('https://oauth2.googleapis.com/token', {
+                    method: 'POST',
+                    body: JSON.stringify(refreshDetails),
+                }).catch((reason) => {
+                    console.error(`Fetch to refresh endpoint failed: ${reason}`)
+                    return null
+                })
+                if (!response || !response.ok) continue
+
+                const { access_token, expires_in } = await response.json()
+                const expiry = Date.now() + expires_in * 1000
+                return { accessToken: access_token, expiry }
+            }
+
+            throw new Error(`Failed to refresh access tokens for YouTube Music connection: ${this.id}`)
+        }
+
         if (this.expiry < Date.now()) {
-            const response = await fetch('https://oauth2.googleapis.com/token', {
-                method: 'POST',
-                body: JSON.stringify({
-                    client_id: PUBLIC_YOUTUBE_API_CLIENT_ID,
-                    client_secret: YOUTUBE_API_CLIENT_SECRET,
-                    refresh_token: this.refreshToken,
-                    grant_type: 'refresh_token',
-                }),
-            })
-
-            const { access_token, expires_in } = await response.json()
-            const newExpiry = Date.now() + expires_in * 1000
-
-            DB.updateTokens(this.id, { accessToken: access_token, refreshToken: this.refreshToken, expiry: newExpiry })
-            this.accessToken = access_token
-            this.expiry = newExpiry
+            const { accessToken, expiry } = await refreshTokens()
+            DB.updateTokens(this.id, { accessToken, refreshToken: this.refreshToken, expiry })
+            this.accessToken = accessToken
+            this.expiry = expiry
         }
 
         return this.accessToken
@@ -108,7 +120,9 @@ export class YouTubeMusic implements Connection {
             if ('musicCardShelfRenderer' in section) {
                 parsedSearchResults.push(parseMusicCardShelfRenderer(this.id, section.musicCardShelfRenderer))
                 section.musicCardShelfRenderer.contents?.forEach((item) => {
-                    parsedSearchResults.push(parseResponsiveListItemRenderer(this.id, item.musicResponsiveListItemRenderer))
+                    if ('musicResponsiveListItemRenderer' in item) {
+                        parsedSearchResults.push(parseResponsiveListItemRenderer(this.id, item.musicResponsiveListItemRenderer))
+                    }
                 })
                 continue
             }
@@ -156,11 +170,13 @@ export class YouTubeMusic implements Connection {
         return recommendations
     }
 
-    public getAudioStream = async (id: string): Promise<Response> => {
+    public getAudioStream = async (id: string, range: string | null): Promise<Response> => {
         const videoInfo = await ytdl.getInfo(`http://www.youtube.com/watch?v=${id}`)
         const format = ytdl.chooseFormat(videoInfo.formats, { quality: 'highestaudio', filter: 'audioonly' })
 
-        return await fetch(format.url)
+        const headers = new Headers({ range: range || '0-' })
+
+        return await fetch(format.url, { headers })
     }
 }
 
@@ -355,9 +371,14 @@ declare namespace InnerTube {
                 }
             }>
         }
-        contents?: Array<{
-            musicResponsiveListItemRenderer: musicResponsiveListItemRenderer
-        }>
+        contents?: Array<
+            | {
+                  messageRenderer: unknown
+              }
+            | {
+                  musicResponsiveListItemRenderer: musicResponsiveListItemRenderer
+              }
+        >
         thumbnail: {
             musicThumbnailRenderer: musicThumbnailRenderer
         }

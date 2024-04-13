@@ -1,154 +1,121 @@
 <script lang="ts">
     import { onMount } from 'svelte'
-    import { fade } from 'svelte/transition'
+    import { fade, slide } from 'svelte/transition'
     import { currentlyPlaying } from '$lib/stores'
-    import { FastAverageColor } from 'fast-average-color'
+    // import { FastAverageColor } from 'fast-average-color'
     import Slider from '$lib/components/util/slider.svelte'
 
-    export let song: Song
-
-    let playing = false,
+    let paused = true,
         shuffle = false,
         repeat = false
 
-    let bgColor = 'black',
-        primaryColor = 'var(--lazuli-primary)'
+    let volume: number,
+        muted = false
 
-    const rgbToHsl = (red: number, green: number, blue: number): [number, number, number] => {
-        ;[red, green, blue].forEach((color) => {
-            if (!(color <= 255 && color >= 0)) throw new Error('RGB values must be between 0 and 255')
-        })
-        ;(red /= 255), (green /= 255), (blue /= 255)
+    $: if (volume) localStorage.setItem('volume', volume.toString())
 
-        const max = Math.max(red, green, blue),
-            min = Math.min(red, green, blue)
-        let hue = 0,
-            saturation = 0,
-            lightness = (max + min) / 2
-
-        if (max !== min) {
-            const delta = max - min
-            saturation = lightness > 0.5 ? delta / (2 - max - min) : delta / (max + min)
-
-            switch (max) {
-                case red:
-                    hue = (green - blue) / delta + (green < blue ? 6 : 0)
-                    break
-                case green:
-                    hue = (blue - red) / delta + 2
-                    break
-                case blue:
-                    hue = (red - green) / delta + 4
-                    break
-            }
-
-            hue /= 6
-        }
-
-        return [hue, saturation, lightness]
+    const formatTime = (seconds: number): string => {
+        seconds = Math.floor(seconds)
+        const hours = Math.floor(seconds / 3600)
+        seconds = seconds - hours * 3600
+        const minutes = Math.floor(seconds / 60)
+        seconds = seconds - minutes * 60
+        return hours > 0 ? `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}` : `${minutes}:${seconds.toString().padStart(2, '0')}`
     }
 
-    const fac = new FastAverageColor()
-    $: fac.getColorAsync(`/api/remoteImage?url=${song.thumbnail}`, { algorithm: 'dominant' }).then((color) => {
-        const [red, green, blue] = color.value
-        const percievedLightness = Math.sqrt(0.299 * red ** 2 + 0.587 * green ** 2 + 0.114 * blue ** 2)
-        const redScalar = 0.547,
-            greenScalar = 0.766,
-            blueScalar = 0.338
-        // const [hue, staturation, lightness] = rgbToHsl(red, green, blue)
-        // bgColor = `hsl(${hue * 359} ${staturation * 100}% 20%)`
-        // primaryColor = `hsl(${hue * 359} ${staturation * 100}% 70%)`
-        bgColor = `rgb(${red}, ${green}, ${blue})`
-        primaryColor = `rgb(${red}, ${green}, ${blue})`
+    onMount(() => {
+        const storedVolume = localStorage.getItem('volume')
+        if (storedVolume) {
+            volume = Number(storedVolume)
+        } else {
+            localStorage.setItem('volume', '0.5')
+            volume = 0.5
+        }
     })
+
+    let currentTime: number = 0
+    let duration: number = 0
+
+    let currentTimeTimestamp: HTMLSpanElement
+    let progressBar: Slider
+    let durationTimestamp: HTMLSpanElement
+
+    let seeking: boolean = false
+    $: if (!seeking && currentTimeTimestamp) currentTimeTimestamp.innerText = formatTime(currentTime)
+    $: if (!seeking && progressBar) progressBar.$set({ value: currentTime })
+    $: if (!seeking && durationTimestamp) durationTimestamp.innerText = formatTime(duration)
 </script>
 
-<main class="relative m-4 flex h-24 flex-grow-0 gap-4 overflow-clip rounded-xl text-white transition-colors duration-1000" style="background-color: {bgColor};">
-    <img src="/api/remoteImage?url={song.thumbnail}" alt="" class="aspect-square max-h-full object-cover" />
-    <section class="flex w-96 flex-col justify-center gap-1">
-        <div class="line-clamp-2">{song.name}</div>
-        <div class="text-sm text-neutral-400">{song.artists?.map((artist) => artist.name) || song.createdBy?.name}</div>
-    </section>
-    <section class="flex w-96 flex-col items-center justify-center gap-4">
-        <div class="flex items-center gap-3 text-xl">
-            <button on:click={() => (shuffle = !shuffle)} class="aspect-square h-8">
-                <i class="fa-solid fa-shuffle" style="color: {shuffle ? primaryColor : 'rgb(163, 163, 163)'};" />
-            </button>
-            <button class="aspect-square h-8">
-                <i class="fa-solid fa-backward-step" />
-            </button>
-            <button on:click={() => (playing = !playing)} class="grid aspect-square h-10 place-items-center rounded-full bg-white">
-                <i class="fa-solid {playing ? 'fa-pause' : 'fa-play'} text-black" />
-            </button>
-            <button class="aspect-square h-8">
-                <i class="fa-solid fa-forward-step" />
-            </button>
-            <button on:click={() => (repeat = !repeat)} class="aspect-square h-8">
-                <i class="fa-solid fa-repeat" style="color: {repeat ? primaryColor : 'rgb(163, 163, 163)'};" />
-            </button>
-        </div>
-        <Slider sliderColor={primaryColor} />
-    </section>
-</main>
-
-<!-- <main class="h-screen w-full">
-    <div class="relative h-full overflow-hidden">
-        <div class="absolute z-0 flex h-full w-full items-center justify-items-center bg-neutral-900">
-            <div class="absolute z-10 h-full w-full backdrop-blur-3xl"></div>
-            {#key song}
-                <img in:fade src={song.thumbnail} alt="" class="absolute h-full w-full object-cover brightness-50" />
-            {/key}
-        </div>
-        <div class="absolute grid h-full w-full grid-rows-[auto_8rem_3rem_6rem] justify-items-center p-8">
-            {#key song}
-                <img in:fade src={song.thumbnail} alt="" class="h-full min-h-[8rem] overflow-hidden rounded-xl object-contain p-2" />
-            {/key}
-            <div in:fade class="flex flex-col items-center justify-center gap-1 px-8 text-center font-notoSans">
-                {#key song}
-                    <span class="text-3xl text-neutral-300">{song.name}</span>
-                    {#if song.album?.name}
-                        <span class="text-xl text-neutral-300">{song.album.name}</span>
-                    {/if}
-                    <span class="text-xl text-neutral-300">{song.artists?.map((artist) => artist.name).join(' / ') || song.createdBy?.name}</span>
+{#if $currentlyPlaying}
+    <main transition:slide class="relative m-4 grid h-20 grid-cols-[1fr_26rem_1fr] gap-4 overflow-clip rounded-xl bg-neutral-925 text-white transition-colors duration-1000">
+        <section class="flex gap-3">
+            <div class="relative h-full w-20 min-w-20">
+                {#key $currentlyPlaying}
+                    <div transition:fade={{ duration: 500 }} class="absolute h-full w-full bg-cover bg-center bg-no-repeat" style="background-image: url(/api/remoteImage?url={$currentlyPlaying.thumbnail});" />
                 {/key}
             </div>
-            <input
-                id="progress-bar"
-                on:mouseup={() => (audioSource.currentTime = audioSource.duration * Number(progressBar.value))}
-                type="range"
-                value="0"
-                min="0"
-                max="1"
-                step="any"
-                class="w-[90%] cursor-pointer rounded-lg bg-gray-400"
-            />
-            <div class="flex h-full w-11/12 justify-around overflow-hidden text-3xl text-white">
-                <button class="relative z-0 aspect-square max-h-full max-w-full overflow-hidden rounded-full">
+            <section class="flex flex-col justify-center gap-1">
+                <div class="line-clamp-2 text-sm">{$currentlyPlaying.name}</div>
+                <div class="text-xs">{$currentlyPlaying.artists?.map((artist) => artist.name).join(', ') || $currentlyPlaying.createdBy?.name}</div>
+            </section>
+        </section>
+        <section class="flex flex-col items-center justify-center gap-1">
+            <div class="flex items-center gap-3 text-lg">
+                <button on:click={() => (shuffle = !shuffle)} class="aspect-square h-8">
+                    <i class="fa-solid fa-shuffle" />
+                </button>
+                <button class="aspect-square h-8">
                     <i class="fa-solid fa-backward-step" />
                 </button>
-                <button class="relative z-0 aspect-square max-h-full max-w-full overflow-hidden rounded-full">
-                    <i class={playing ? 'fa-solid fa-pause' : 'fa-solid fa-play'} />
+                <button on:click={() => (paused = !paused)} class="grid aspect-square h-8 place-items-center rounded-full bg-white">
+                    <i class="fa-solid {paused ? 'fa-play' : 'fa-pause'} text-black" />
                 </button>
-                <button on:click={() => ($currentlyPlaying = null)} class="relative z-0 aspect-square max-h-full max-w-full overflow-hidden rounded-full">
-                    <i class="fa-solid fa-stop" />
-                </button>
-                <button class="relative z-0 aspect-square max-h-full max-w-full overflow-hidden rounded-full">
+                <button class="aspect-square h-8">
                     <i class="fa-solid fa-forward-step" />
                 </button>
+                <button on:click={() => (repeat = !repeat)} class="aspect-square h-8">
+                    <i class="fa-solid fa-repeat" />
+                </button>
             </div>
-        </div>
-    </div>
-    <div class="no-scrollbar flex w-full flex-col items-center divide-y-[1px] divide-[#353535] overflow-y-scroll bg-neutral-900 p-4">
-        <div>This is where playlist items go</div>
-    </div>
-    {#key song}
-        <audio bind:this={audioSource} id="audio" class="hidden" src="/api/audio?id={song.id}&connection={song.connection}" />
-    {/key}
-</main> -->
+            <div class="grid w-full grid-cols-[1fr_18rem_1fr] items-center justify-items-center gap-2">
+                <span bind:this={currentTimeTimestamp} class="w-full text-right" />
+                <Slider
+                    bind:this={progressBar}
+                    max={duration}
+                    on:seeking={(event) => {
+                        currentTimeTimestamp.innerText = formatTime(event.detail.value)
+                        seeking = true
+                    }}
+                    on:seeked={(event) => {
+                        currentTime = event.detail.value
+                        seeking = false
+                    }}
+                />
+                <span bind:this={durationTimestamp} class="w-full text-left" />
+            </div>
+        </section>
+        <section class="flex items-center justify-end px-3 text-lg">
+            <div id="volume-slider" class="flex h-10 w-fit flex-shrink-0 flex-row-reverse items-center gap-2">
+                <button on:click={() => (muted = !muted)} class="aspect-square h-8">
+                    <i class="fa-solid {volume > 0.5 ? 'fa-volume-high' : volume > 0 ? 'fa-volume-low' : 'fa-volume-xmark'} w-full text-center text-base" />
+                </button>
+                <div id="slider-wrapper" class="w-0 transition-all duration-500">
+                    <Slider bind:value={volume} max={1} />
+                </div>
+            </div>
+            <button class="aspect-square h-8" on:click={() => ($currentlyPlaying = null)}>
+                <i class="fa-solid fa-xmark" />
+            </button>
+        </section>
+        <audio autoplay bind:paused bind:volume bind:currentTime bind:duration on:ended={() => ($currentlyPlaying = null)} src="/api/audio?connection={$currentlyPlaying.connection}&id={$currentlyPlaying.id}" />
+    </main>
+{/if}
 
-<!-- <style>
-    main {
-        display: grid;
-        grid-template-columns: 2fr 1fr;
+<style>
+    #volume-slider:hover > #slider-wrapper {
+        width: 6rem;
     }
-</style> -->
+    #slider-wrapper:focus-within {
+        width: 6rem;
+    }
+</style>

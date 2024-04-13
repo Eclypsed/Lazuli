@@ -25,7 +25,7 @@
         <div class="relative aspect-square h-full p-1">
             <img src={serviceData.icon} alt="{serviceData.displayName} icon" />
             {#if 'profilePicture' in connectionInfo}
-                <img src={connectionInfo.profilePicture} alt="" class="absolute bottom-0 right-0 aspect-square h-5 rounded-full" />
+                <img src="/api/remoteImage?url={connectionInfo.profilePicture}" alt="" class="absolute bottom-0 right-0 aspect-square h-5 rounded-full" />
             {/if}
         </div>
         <div>

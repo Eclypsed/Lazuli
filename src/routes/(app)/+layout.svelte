@@ -38,8 +38,8 @@
             <div class="overflow-clip text-ellipsis text-neutral-400">Playlist &bull; {data.user.username}</div>
         </div>
     </div>
-    <section class="no-scrollbar overflow-y-scroll px-[max(7rem,_7vw)]">
-        <div class="my-6 max-w-xl">
+    <section class="no-scrollbar h-full overflow-y-scroll px-[max(7rem,_7vw)]">
+        <div class="sticky top-0 max-w-xl py-6">
             <SearchBar />
         </div>
         <slot />

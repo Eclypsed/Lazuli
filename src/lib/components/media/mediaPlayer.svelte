@@ -47,7 +47,7 @@
 </script>
 
 {#if $currentlyPlaying}
-    <main transition:slide class="relative m-4 grid h-20 grid-cols-[1fr_26rem_1fr] gap-4 overflow-clip rounded-xl bg-neutral-925 text-white transition-colors duration-1000">
+    <main transition:slide class="relative m-4 grid h-20 grid-cols-[minmax(auto,_20rem)_auto_minmax(auto,_20rem)] gap-4 overflow-clip rounded-xl bg-neutral-925 text-white transition-colors duration-1000">
         <section class="flex gap-3">
             <div class="relative h-full w-20 min-w-20">
                 {#key $currentlyPlaying}
@@ -59,7 +59,7 @@
                 <div class="text-xs">{$currentlyPlaying.artists?.map((artist) => artist.name).join(', ') || $currentlyPlaying.createdBy?.name}</div>
             </section>
         </section>
-        <section class="flex flex-col items-center justify-center gap-1">
+        <section class="flex min-w-max flex-col items-center justify-center gap-1">
             <div class="flex items-center gap-3 text-lg">
                 <button on:click={() => (shuffle = !shuffle)} class="aspect-square h-8">
                     <i class="fa-solid fa-shuffle" />
@@ -77,24 +77,26 @@
                     <i class="fa-solid fa-repeat" />
                 </button>
             </div>
-            <div class="grid w-full grid-cols-[1fr_18rem_1fr] items-center justify-items-center gap-2">
-                <span bind:this={currentTimeTimestamp} class="w-full text-right" />
-                <Slider
-                    bind:this={progressBar}
-                    max={duration}
-                    on:seeking={(event) => {
-                        currentTimeTimestamp.innerText = formatTime(event.detail.value)
-                        seeking = true
-                    }}
-                    on:seeked={(event) => {
-                        currentTime = event.detail.value
-                        seeking = false
-                    }}
-                />
-                <span bind:this={durationTimestamp} class="w-full text-left" />
+            <div class="flex items-center justify-items-center gap-2">
+                <span bind:this={currentTimeTimestamp} class="w-8 text-right" />
+                <div class="w-72">
+                    <Slider
+                        bind:this={progressBar}
+                        max={duration}
+                        on:seeking={(event) => {
+                            currentTimeTimestamp.innerText = formatTime(event.detail.value)
+                            seeking = true
+                        }}
+                        on:seeked={(event) => {
+                            currentTime = event.detail.value
+                            seeking = false
+                        }}
+                    />
+                </div>
+                <span bind:this={durationTimestamp} class="w-8 text-left" />
             </div>
         </section>
-        <section class="flex items-center justify-end px-3 text-lg">
+        <section class="flex items-center justify-end pr-2 text-lg">
             <div id="volume-slider" class="flex h-10 w-fit flex-shrink-0 flex-row-reverse items-center gap-2">
                 <button on:click={() => (muted = !muted)} class="aspect-square h-8">
                     <i class="fa-solid {volume > 0.5 ? 'fa-volume-high' : volume > 0 ? 'fa-volume-low' : 'fa-volume-xmark'} w-full text-center text-base" />
@@ -107,7 +109,7 @@
                 <i class="fa-solid fa-xmark" />
             </button>
         </section>
-        <audio autoplay bind:paused bind:volume bind:currentTime bind:duration on:ended={() => ($currentlyPlaying = null)} src="/api/audio?connection={$currentlyPlaying.connection}&id={$currentlyPlaying.id}" />
+        <audio bind:paused bind:volume bind:currentTime bind:duration on:ended={() => ($currentlyPlaying = null)} src="/api/audio?connection={$currentlyPlaying.connection}&id={$currentlyPlaying.id}" />
     </main>
 {/if}
 

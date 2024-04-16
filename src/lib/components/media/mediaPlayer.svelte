@@ -5,8 +5,7 @@
     // import { FastAverageColor } from 'fast-average-color'
     import Slider from '$lib/components/util/slider.svelte'
 
-    let queuePosition = 0
-    $: currentlyPlaying = $queue[queuePosition]
+    $: console.log(`Queue is now: ${$queue}`)
 
     let paused = true,
         shuffle = false,
@@ -49,7 +48,8 @@
     $: if (!seeking && durationTimestamp) durationTimestamp.innerText = formatTime(duration)
 </script>
 
-{#if currentlyPlaying}
+{#if $queue.queue.length > 0}
+    {@const currentlyPlaying = $queue.getCurrent()}
     <main transition:slide class="relative m-4 grid h-20 grid-cols-[minmax(auto,_20rem)_auto_minmax(auto,_20rem)] gap-4 overflow-clip rounded-xl bg-neutral-925 text-white transition-colors duration-1000">
         <section class="flex gap-3">
             <div class="relative h-full w-20 min-w-20">
@@ -108,11 +108,11 @@
                     <Slider bind:value={volume} max={1} />
                 </div>
             </div>
-            <button class="aspect-square h-8" on:click={() => ($queue = [])}>
+            <button class="aspect-square h-8" on:click={() => console.log('close')}>
                 <i class="fa-solid fa-xmark" />
             </button>
         </section>
-        <audio bind:paused bind:volume bind:currentTime bind:duration on:ended={() => queuePosition++} src="/api/audio?connection={currentlyPlaying.connection}&id={currentlyPlaying.id}" />
+        <audio autoplay bind:paused bind:volume bind:currentTime bind:duration on:ended={() => console.log('next')} src="/api/audio?connection={currentlyPlaying.connection}&id={currentlyPlaying.id}" />
     </main>
 {/if}
 

@@ -28,7 +28,7 @@
             <IconButton
                 halo={true}
                 on:click={() => {
-                    if (mediaItem.type === 'song') $queue.push(mediaItem)
+                    if (mediaItem.type === 'song') $queue.enqueue(mediaItem)
                 }}
             >
                 <i slot="icon" class="fa-solid fa-play text-xl" />

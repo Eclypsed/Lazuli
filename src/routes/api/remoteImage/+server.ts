@@ -6,7 +6,7 @@ export const GET: RequestHandler = async ({ url }) => {
     const imageUrl = url.searchParams.get('url')
     if (!imageUrl || !URL.canParse(imageUrl)) return new Response('Missing or invalid url parameter', { status: 400 })
 
-    const fetchImage = async (): Promise<ArrayBuffer> => {
+    const fetchImage = async (): Promise<Response> => {
         const MAX_TRIES = 3
         let tries = 0
         while (tries < MAX_TRIES) {
@@ -20,11 +20,11 @@ export const GET: RequestHandler = async ({ url }) => {
             const contentType = response.headers.get('content-type')
             if (!contentType || !contentType.startsWith('image')) throw new Error(`Url ${imageUrl} does not link to an image`)
 
-            return await response.arrayBuffer()
+            return response
         }
 
         throw new Error('Exceed Max Retires')
     }
 
-    return new Response(await fetchImage())
+    return await fetchImage()
 }

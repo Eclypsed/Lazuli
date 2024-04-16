@@ -1,8 +1,17 @@
 <script lang="ts">
-    import { currentlyPlaying } from '$lib/stores'
+    import { queue } from '$lib/stores'
     import type { PageServerData } from './$types'
 
     export let data: PageServerData
+
+    const formatTime = (seconds: number): string => {
+        seconds = Math.floor(seconds)
+        const hours = Math.floor(seconds / 3600)
+        seconds = seconds - hours * 3600
+        const minutes = Math.floor(seconds / 60)
+        seconds = seconds - minutes * 60
+        return hours > 0 ? `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}` : `${minutes}:${seconds.toString().padStart(2, '0')}`
+    }
 </script>
 
 {#if data.searchResults}
@@ -13,7 +22,7 @@
                     <button
                         id="searchResult"
                         on:click={() => {
-                            if (searchResult.type === 'song') $currentlyPlaying = searchResult
+                            if (searchResult.type === 'song') $queue.push(searchResult)
                         }}
                         class="grid aspect-square h-full place-items-center bg-cover bg-center bg-no-repeat"
                         style="--thumbnail: url('/api/remoteImage?url={searchResult.thumbnail}')"
@@ -28,6 +37,9 @@
                             <div>{searchResult.createdBy?.name}</div>
                         {/if}
                     </div>
+                    {#if 'duration' in searchResult && searchResult.duration}
+                        <span class="justify-self-end">{formatTime(searchResult.duration)}</span>
+                    {/if}
                 </div>
             {/each}
         </section>

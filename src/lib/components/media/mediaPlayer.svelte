@@ -1,9 +1,12 @@
 <script lang="ts">
     import { onMount } from 'svelte'
     import { fade, slide } from 'svelte/transition'
-    import { currentlyPlaying } from '$lib/stores'
+    import { queue } from '$lib/stores'
     // import { FastAverageColor } from 'fast-average-color'
     import Slider from '$lib/components/util/slider.svelte'
+
+    let queuePosition = 0
+    $: currentlyPlaying = $queue[queuePosition]
 
     let paused = true,
         shuffle = false,
@@ -46,17 +49,17 @@
     $: if (!seeking && durationTimestamp) durationTimestamp.innerText = formatTime(duration)
 </script>
 
-{#if $currentlyPlaying}
+{#if currentlyPlaying}
     <main transition:slide class="relative m-4 grid h-20 grid-cols-[minmax(auto,_20rem)_auto_minmax(auto,_20rem)] gap-4 overflow-clip rounded-xl bg-neutral-925 text-white transition-colors duration-1000">
         <section class="flex gap-3">
             <div class="relative h-full w-20 min-w-20">
-                {#key $currentlyPlaying}
-                    <div transition:fade={{ duration: 500 }} class="absolute h-full w-full bg-cover bg-center bg-no-repeat" style="background-image: url(/api/remoteImage?url={$currentlyPlaying.thumbnail});" />
+                {#key currentlyPlaying}
+                    <div transition:fade={{ duration: 500 }} class="absolute h-full w-full bg-cover bg-center bg-no-repeat" style="background-image: url(/api/remoteImage?url={currentlyPlaying.thumbnail});" />
                 {/key}
             </div>
             <section class="flex flex-col justify-center gap-1">
-                <div class="line-clamp-2 text-sm">{$currentlyPlaying.name}</div>
-                <div class="text-xs">{$currentlyPlaying.artists?.map((artist) => artist.name).join(', ') || $currentlyPlaying.createdBy?.name}</div>
+                <div class="line-clamp-2 text-sm">{currentlyPlaying.name}</div>
+                <div class="text-xs">{currentlyPlaying.artists?.map((artist) => artist.name).join(', ') || currentlyPlaying.createdBy?.name}</div>
             </section>
         </section>
         <section class="flex min-w-max flex-col items-center justify-center gap-1">
@@ -78,7 +81,7 @@
                 </button>
             </div>
             <div class="flex items-center justify-items-center gap-2">
-                <span bind:this={currentTimeTimestamp} class="w-8 text-right" />
+                <span bind:this={currentTimeTimestamp} class="w-16 text-right" />
                 <div class="w-72">
                     <Slider
                         bind:this={progressBar}
@@ -93,7 +96,7 @@
                         }}
                     />
                 </div>
-                <span bind:this={durationTimestamp} class="w-8 text-left" />
+                <span bind:this={durationTimestamp} class="w-16 text-left" />
             </div>
         </section>
         <section class="flex items-center justify-end pr-2 text-lg">
@@ -105,11 +108,11 @@
                     <Slider bind:value={volume} max={1} />
                 </div>
             </div>
-            <button class="aspect-square h-8" on:click={() => ($currentlyPlaying = null)}>
+            <button class="aspect-square h-8" on:click={() => ($queue = [])}>
                 <i class="fa-solid fa-xmark" />
             </button>
         </section>
-        <audio bind:paused bind:volume bind:currentTime bind:duration on:ended={() => ($currentlyPlaying = null)} src="/api/audio?connection={$currentlyPlaying.connection}&id={$currentlyPlaying.id}" />
+        <audio bind:paused bind:volume bind:currentTime bind:duration on:ended={() => queuePosition++} src="/api/audio?connection={currentlyPlaying.connection}&id={currentlyPlaying.id}" />
     </main>
 {/if}
 

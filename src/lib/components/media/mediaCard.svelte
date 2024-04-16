@@ -3,15 +3,9 @@
 
     import IconButton from '$lib/components/util/iconButton.svelte'
     import { goto } from '$app/navigation'
-    import { currentlyPlaying } from '$lib/stores'
+    import { queue } from '$lib/stores'
 
     let image: HTMLImageElement, captionText: HTMLDivElement
-
-    const setCurrentlyPlaying = () => {
-        if (mediaItem.type === 'song') {
-            $currentlyPlaying = mediaItem
-        }
-    }
 </script>
 
 <div id="card-wrapper" class="flex-shrink-0">
@@ -31,7 +25,12 @@
             </div>
         {/if}
         <span id="play-button" class="absolute left-1/2 top-1/2 h-12 -translate-x-1/2 -translate-y-1/2 opacity-0 transition-opacity duration-200 ease-out">
-            <IconButton halo={true} on:click={setCurrentlyPlaying}>
+            <IconButton
+                halo={true}
+                on:click={() => {
+                    if (mediaItem.type === 'song') $queue.push(mediaItem)
+                }}
+            >
                 <i slot="icon" class="fa-solid fa-play text-xl" />
             </IconButton>
         </span>

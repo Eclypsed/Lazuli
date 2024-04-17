@@ -22,7 +22,7 @@
                     <button
                         id="searchResult"
                         on:click={() => {
-                            if (searchResult.type === 'song') $queue.push(searchResult)
+                            if (searchResult.type === 'song') $queue.enqueue(searchResult)
                         }}
                         class="grid aspect-square h-full place-items-center bg-cover bg-center bg-no-repeat"
                         style="--thumbnail: url('/api/remoteImage?url={searchResult.thumbnail}')"

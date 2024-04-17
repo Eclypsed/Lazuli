@@ -36,8 +36,8 @@ declare global {
     } | {
         type: 'youtube-music'
         youtubeUserId: string
-        username: string
-        profilePicture: string
+        username?: string
+        profilePicture?: string
     })
 
     interface Connection {

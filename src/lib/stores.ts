@@ -1,4 +1,4 @@
-import { writable, readable, type Writable, type Readable } from 'svelte/store'
+import { writable, readable, readonly, type Writable, type Readable } from 'svelte/store'
 import type { AlertType } from '$lib/components/util/alert.svelte'
 
 export const pageWidth: Writable<number> = writable()
@@ -9,43 +9,44 @@ const youtubeMusicBackground: string = 'https://www.gstatic.com/youtube/media/yt
 export const backgroundImage: Writable<string> = writable(youtubeMusicBackground)
 
 class Queue {
-    public currentPos: number
-    public queue: Song[]
+    private currentPos: number | null
+    private songs: Song[]
 
     constructor() {
-        this.queue = []
-        this.currentPos = 0
+        this.currentPos = null
+        this.songs = []
     }
 
-    public enqueue = (...songs: Song[]): void => {
-        this.queue.push(...songs)
+    public enqueue = (...songs: Song[]) => {
+        this.songs.push(...songs)
+        writeableQueue.set(this)
     }
 
-    public getStart = (): Song | undefined => {
-        return this.queue[0]
-    }
+    public next = () => {
+        if (this.songs.length === 0) return
 
-    public getCurrent = (): Song => {
-        return this.queue[this.currentPos]
-    }
-
-    public next = (): Song | undefined => {
-        if (this.queue.length > this.currentPos + 1) {
+        if (!this.currentPos) {
+            this.currentPos = 0
+        } else {
+            if (!(this.songs.length > this.currentPos + 1)) return
             this.currentPos += 1
-            return this.queue[this.currentPos]
         }
 
-        return undefined
+        writeableQueue.set(this)
     }
 
-    public previous = (): Song | undefined => {
-        if (this.currentPos > 0) {
-            this.currentPos -= 1
-            return this.queue[this.currentPos]
+    public current = () => {
+        if (this.songs.length > 0) {
+            if (!this.currentPos) this.currentPos = 0
+            return this.songs[this.currentPos]
         }
+        return null
+    }
 
-        return undefined
+    public getSongs = () => {
+        return this.songs
     }
 }
 
-export const queue: Readable<Queue> = readable(new Queue())
+const writeableQueue: Writable<Queue> = writable(new Queue())
+export const queue: Readable<Queue> = readonly(writeableQueue)

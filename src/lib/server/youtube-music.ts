@@ -72,16 +72,25 @@ export class YouTubeMusic implements Connection {
 
     public getConnectionInfo = async (): Promise<Extract<ConnectionInfo, { type: 'youtube-music' }>> => {
         const youtube = google.youtube('v3')
-        const userChannelResponse = await youtube.channels.list({ mine: true, part: ['snippet'], access_token: await this.getAccessToken() })
-        const userChannel = userChannelResponse.data.items![0]
+        const access_token = await this.getAccessToken().catch(() => {
+            return null
+        })
+
+        let username, profilePicture
+        if (access_token) {
+            const userChannelResponse = await youtube.channels.list({ mine: true, part: ['snippet'], access_token })
+            const userChannel = userChannelResponse?.data.items?.[0]
+            username = userChannel?.snippet?.title ?? undefined // ?? undefined will simply ensure that if it is null it get's converted to undefined
+            profilePicture = userChannel?.snippet?.thumbnails?.default?.url ?? undefined
+        }
 
         return {
             id: this.id,
             userId: this.userId,
             type: 'youtube-music',
             youtubeUserId: this.ytUserId,
-            username: userChannel.snippet?.title!,
-            profilePicture: userChannel.snippet?.thumbnails?.default?.url!,
+            username,
+            profilePicture,
         }
     }
 
@@ -182,10 +191,12 @@ export class YouTubeMusic implements Connection {
 
 const parseTwoRowItemRenderer = (connection: string, rowContent: InnerTube.musicTwoRowItemRenderer): Song | Album | Artist | Playlist => {
     const name = rowContent.title.runs[0].text
+    const thumbnail = refineThumbnailUrl(rowContent.thumbnailRenderer.musicThumbnailRenderer.thumbnail.thumbnails[0].url)
 
     let artists: (Song | Album)['artists'], createdBy: (Song | Playlist)['createdBy']
     for (const run of rowContent.subtitle.runs) {
         if (!run.navigationEndpoint) continue
+
         const pageType = run.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType
         if (pageType === 'MUSIC_PAGE_TYPE_ARTIST') {
             const artist = { id: run.navigationEndpoint.browseEndpoint.browseId, name: run.text }
@@ -194,8 +205,6 @@ const parseTwoRowItemRenderer = (connection: string, rowContent: InnerTube.music
             createdBy = { id: run.navigationEndpoint.browseEndpoint.browseId, name: run.text }
         }
     }
-
-    const thumbnail = refineThumbnailUrl(rowContent.thumbnailRenderer.musicThumbnailRenderer.thumbnail.thumbnails[0].url)
 
     if ('watchEndpoint' in rowContent.navigationEndpoint) {
         const id = rowContent.navigationEndpoint.watchEndpoint.videoId
@@ -222,6 +231,7 @@ const parseResponsiveListItemRenderer = (connection: string, listContent: InnerT
     let artists: (Song | Album)['artists'], createdBy: (Song | Playlist)['createdBy']
     for (const run of listContent.flexColumns[1].musicResponsiveListItemFlexColumnRenderer.text.runs) {
         if (!run.navigationEndpoint) continue
+
         const pageType = run.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType
         if (pageType === 'MUSIC_PAGE_TYPE_ARTIST') {
             const artist = { id: run.navigationEndpoint.browseEndpoint.browseId, name: run.text }

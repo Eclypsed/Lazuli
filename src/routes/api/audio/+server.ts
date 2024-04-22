@@ -18,7 +18,7 @@ export const GET: RequestHandler = async ({ url, request }) => {
                 console.error(`Audio stream fetch failed: ${reason}`)
                 return null
             })
-            if (!stream || !stream.body) continue
+            if (!stream || !stream.ok) continue
 
             return stream
         }

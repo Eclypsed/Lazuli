@@ -19,6 +19,8 @@
         playlistTooltip.style.left = `${x}px`
         playlistTooltip.style.top = `${y}px`
     }
+
+    let expanded = false
 </script>
 
 <div class="h-full overflow-hidden">
@@ -44,7 +46,5 @@
         </div>
         <slot />
     </section>
-    <section class="absolute bottom-0 z-40 grid max-h-full w-full place-items-center">
-        <MediaPlayer />
-    </section>
+    <MediaPlayer />
 </div>

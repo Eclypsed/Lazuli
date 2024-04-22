@@ -8,7 +8,7 @@ export class YouTubeMusic implements Connection {
     public readonly id: string
     private readonly userId: string
     private readonly ytUserId: string
-    private accessToken: string
+    private currentAccessToken: string
     private readonly refreshToken: string
     private expiry: number
 
@@ -16,63 +16,67 @@ export class YouTubeMusic implements Connection {
         this.id = id
         this.userId = userId
         this.ytUserId = youtubeUserId
-        this.accessToken = accessToken
+        this.currentAccessToken = accessToken
         this.refreshToken = refreshToken
         this.expiry = expiry
     }
 
-    private headers = async () => {
-        return new Headers({
-            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:88.0) Gecko/20100101 Firefox/88.0',
-            accept: '*/*',
-            'accept-encoding': 'gzip, deflate',
-            'content-type': 'application/json',
-            'content-encoding': 'gzip',
-            origin: 'https://music.youtube.com',
-            Cookie: 'SOCS=CAI;',
-            authorization: `Bearer ${await this.getAccessToken()}`,
-            'X-Goog-Request-Time': `${Date.now()}`,
-        })
+    private get innertubeRequestHeaders() {
+        return (async () => {
+            return new Headers({
+                'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:88.0) Gecko/20100101 Firefox/88.0',
+                accept: '*/*',
+                'accept-encoding': 'gzip, deflate',
+                'content-type': 'application/json',
+                'content-encoding': 'gzip',
+                origin: 'https://music.youtube.com',
+                Cookie: 'SOCS=CAI;',
+                authorization: `Bearer ${await this.accessToken}`,
+                'X-Goog-Request-Time': `${Date.now()}`,
+            })
+        })()
     }
 
-    private getAccessToken = async (): Promise<string> => {
-        const refreshTokens = async (): Promise<{ accessToken: string; expiry: number }> => {
-            const MAX_TRIES = 3
-            let tries = 0
-            const refreshDetails = { client_id: PUBLIC_YOUTUBE_API_CLIENT_ID, client_secret: YOUTUBE_API_CLIENT_SECRET, refresh_token: this.refreshToken, grant_type: 'refresh_token' }
+    private get accessToken(): Promise<string> {
+        return (async () => {
+            const refreshTokens = async (): Promise<{ accessToken: string; expiry: number }> => {
+                const MAX_TRIES = 3
+                let tries = 0
+                const refreshDetails = { client_id: PUBLIC_YOUTUBE_API_CLIENT_ID, client_secret: YOUTUBE_API_CLIENT_SECRET, refresh_token: this.refreshToken, grant_type: 'refresh_token' }
 
-            while (tries < MAX_TRIES) {
-                ++tries
-                const response = await fetch('https://oauth2.googleapis.com/token', {
-                    method: 'POST',
-                    body: JSON.stringify(refreshDetails),
-                }).catch((reason) => {
-                    console.error(`Fetch to refresh endpoint failed: ${reason}`)
-                    return null
-                })
-                if (!response || !response.ok) continue
+                while (tries < MAX_TRIES) {
+                    ++tries
+                    const response = await fetch('https://oauth2.googleapis.com/token', {
+                        method: 'POST',
+                        body: JSON.stringify(refreshDetails),
+                    }).catch((reason) => {
+                        console.error(`Fetch to refresh endpoint failed: ${reason}`)
+                        return null
+                    })
+                    if (!response || !response.ok) continue
 
-                const { access_token, expires_in } = await response.json()
-                const expiry = Date.now() + expires_in * 1000
-                return { accessToken: access_token, expiry }
+                    const { access_token, expires_in } = await response.json()
+                    const expiry = Date.now() + expires_in * 1000
+                    return { accessToken: access_token, expiry }
+                }
+
+                throw new Error(`Failed to refresh access tokens for YouTube Music connection: ${this.id}`)
             }
 
-            throw new Error(`Failed to refresh access tokens for YouTube Music connection: ${this.id}`)
-        }
+            if (this.expiry < Date.now()) {
+                const { accessToken, expiry } = await refreshTokens()
+                DB.updateTokens(this.id, { accessToken, refreshToken: this.refreshToken, expiry })
+                this.currentAccessToken = accessToken
+                this.expiry = expiry
+            }
 
-        if (this.expiry < Date.now()) {
-            const { accessToken, expiry } = await refreshTokens()
-            DB.updateTokens(this.id, { accessToken, refreshToken: this.refreshToken, expiry })
-            this.accessToken = accessToken
-            this.expiry = expiry
-        }
-
-        return this.accessToken
+            return this.currentAccessToken
+        })()
     }
 
-    public getConnectionInfo = async (): Promise<Extract<ConnectionInfo, { type: 'youtube-music' }>> => {
+    public async getConnectionInfo(): Promise<Extract<ConnectionInfo, { type: 'youtube-music' }>> {
         const youtube = google.youtube('v3')
-        const access_token = await this.getAccessToken().catch(() => {
+        const access_token = await this.accessToken.catch(() => {
             return null
         })
 
@@ -84,17 +88,10 @@ export class YouTubeMusic implements Connection {
             profilePicture = userChannel?.snippet?.thumbnails?.default?.url ?? undefined
         }
 
-        return {
-            id: this.id,
-            userId: this.userId,
-            type: 'youtube-music',
-            youtubeUserId: this.ytUserId,
-            username,
-            profilePicture,
-        }
+        return { id: this.id, userId: this.userId, type: 'youtube-music', youtubeUserId: this.ytUserId, username, profilePicture }
     }
 
-    public search = async (searchTerm: string, filter?: 'song' | 'album' | 'artist' | 'playlist'): Promise<(Song | Album | Artist | Playlist)[]> => {
+    public async search(searchTerm: string, filter?: 'song' | 'album' | 'artist' | 'playlist'): Promise<(Song | Album | Artist | Playlist)[]> {
         // Figure out how to handle Library and Uploads
         // Depending on how I want to handle the playlist & library sync feature
 
@@ -106,7 +103,7 @@ export class YouTubeMusic implements Connection {
         }
 
         const searchResulsts: InnerTube.SearchResponse = await fetch(`https://music.youtube.com/youtubei/v1/search`, {
-            headers: await this.headers(),
+            headers: await this.innertubeRequestHeaders,
             method: 'POST',
             body: JSON.stringify({
                 query: searchTerm,
@@ -146,9 +143,9 @@ export class YouTubeMusic implements Connection {
         return parsedSearchResults
     }
 
-    public getRecommendations = async (): Promise<(Song | Album | Artist | Playlist)[]> => {
+    public async getRecommendations(): Promise<(Song | Album | Artist | Playlist)[]> {
         const browseResponse: InnerTube.BrowseResponse = await fetch(`https://music.youtube.com/youtubei/v1/browse`, {
-            headers: await this.headers(),
+            headers: await this.innertubeRequestHeaders,
             method: 'POST',
             body: JSON.stringify({
                 browseId: 'FEmusic_home',
@@ -163,6 +160,7 @@ export class YouTubeMusic implements Connection {
         }).then((response) => response.json())
 
         const contents = browseResponse.contents.singleColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents
+        console.log(JSON.stringify(contents))
 
         const recommendations: (Song | Album | Artist | Playlist)[] = []
         const goodSections = ['Listen again', 'Forgotten favorites', 'Quick picks', 'From your library']
@@ -179,7 +177,7 @@ export class YouTubeMusic implements Connection {
         return recommendations
     }
 
-    public getAudioStream = async (id: string, range: string | null): Promise<Response> => {
+    public async getAudioStream(id: string, range: string | null): Promise<Response> {
         const videoInfo = await ytdl.getInfo(`http://www.youtube.com/watch?v=${id}`)
         const format = ytdl.chooseFormat(videoInfo.formats, { quality: 'highestaudio', filter: 'audioonly' })
 
@@ -189,7 +187,7 @@ export class YouTubeMusic implements Connection {
     }
 }
 
-const parseTwoRowItemRenderer = (connection: string, rowContent: InnerTube.musicTwoRowItemRenderer): Song | Album | Artist | Playlist => {
+function parseTwoRowItemRenderer(connection: string, rowContent: InnerTube.musicTwoRowItemRenderer): Song | Album | Artist | Playlist {
     const name = rowContent.title.runs[0].text
     const thumbnail = refineThumbnailUrl(rowContent.thumbnailRenderer.musicThumbnailRenderer.thumbnail.thumbnails[0].url)
 
@@ -205,6 +203,17 @@ const parseTwoRowItemRenderer = (connection: string, rowContent: InnerTube.music
             createdBy = { id: run.navigationEndpoint.browseEndpoint.browseId, name: run.text }
         }
     }
+
+    let album: Song['album']
+    rowContent.menu.menuRenderer.items.forEach((menuOption) => {
+        if (
+            'menuNavigationItemRenderer' in menuOption &&
+            'browseEndpoint' in menuOption.menuNavigationItemRenderer.navigationEndpoint &&
+            menuOption.menuNavigationItemRenderer.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType === 'MUSIC_PAGE_TYPE_ALBUM'
+        ) {
+            album = { id: menuOption.menuNavigationItemRenderer.navigationEndpoint.browseEndpoint.browseId, name: 'NEED TO FIND A WAY TO GET ALBUM NAME FROM ID' }
+        }
+    })
 
     if ('watchEndpoint' in rowContent.navigationEndpoint) {
         const id = rowContent.navigationEndpoint.watchEndpoint.videoId
@@ -224,7 +233,7 @@ const parseTwoRowItemRenderer = (connection: string, rowContent: InnerTube.music
     }
 }
 
-const parseResponsiveListItemRenderer = (connection: string, listContent: InnerTube.musicResponsiveListItemRenderer): Song | Album | Artist | Playlist => {
+function parseResponsiveListItemRenderer(connection: string, listContent: InnerTube.musicResponsiveListItemRenderer): Song | Album | Artist | Playlist {
     const name = listContent.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.text.runs[0].text
     const thumbnail = refineThumbnailUrl(listContent.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails[0].url)
 
@@ -245,7 +254,7 @@ const parseResponsiveListItemRenderer = (connection: string, listContent: InnerT
         const id = listContent.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.text.runs[0].navigationEndpoint.watchEndpoint.videoId
         const column2run = listContent.flexColumns[2]?.musicResponsiveListItemFlexColumnRenderer.text.runs?.[0]
         let album: Song['album']
-        if (column2run?.navigationEndpoint && column2run.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType === 'MUSIC_PAGE_TYPE_ALBUM') {
+        if (column2run?.navigationEndpoint?.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType === 'MUSIC_PAGE_TYPE_ALBUM') {
             album = { id: column2run.navigationEndpoint.browseEndpoint.browseId, name: column2run.text }
         }
 
@@ -265,7 +274,7 @@ const parseResponsiveListItemRenderer = (connection: string, listContent: InnerT
     }
 }
 
-const parseMusicCardShelfRenderer = (connection: string, cardContent: InnerTube.musicCardShelfRenderer): Song | Album | Artist | Playlist => {
+function parseMusicCardShelfRenderer(connection: string, cardContent: InnerTube.musicCardShelfRenderer): Song | Album | Artist | Playlist {
     const name = cardContent.title.runs[0].text
     const thumbnail = refineThumbnailUrl(cardContent.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails[0].url)
 
@@ -303,7 +312,7 @@ const parseMusicCardShelfRenderer = (connection: string, cardContent: InnerTube.
     }
 }
 
-const refineThumbnailUrl = (urlString: string): string => {
+function refineThumbnailUrl(urlString: string): string {
     if (!URL.canParse(urlString)) throw new Error('Invalid thumbnail url')
 
     const url = new URL(urlString)
@@ -322,7 +331,7 @@ const refineThumbnailUrl = (urlString: string): string => {
     }
 }
 
-const formatDate = (): string => {
+function formatDate(): string {
     const currentDate = new Date()
     const year = currentDate.getUTCFullYear()
     const month = (currentDate.getUTCMonth() + 1).toString().padStart(2, '0') // Months are zero-based, so add 1
@@ -474,6 +483,42 @@ declare namespace InnerTube {
             | {
                   browseEndpoint: browseEndpoint
               }
+        menu: {
+            menuRenderer: {
+                items: Array<
+                    | {
+                          menuNavigationItemRenderer: {
+                              text: {
+                                  runs: [
+                                      {
+                                          text: 'Start radio' | 'Save to playlist' | 'Go to album' | 'Go to artist' | 'Share'
+                                      },
+                                  ]
+                              }
+                              navigationEndpoint:
+                                  | {
+                                        watchEndpoint: watchEndpoint
+                                    }
+                                  | {
+                                        addToPlaylistEndpoint: unknown
+                                    }
+                                  | {
+                                        browseEndpoint: browseEndpoint
+                                    }
+                                  | {
+                                        shareEntityEndpoint: unknown
+                                    }
+                          }
+                      }
+                    | {
+                          menuServiceItemRenderer: unknown
+                      }
+                    | {
+                          toggleMenuServiceItemRenderer: unknown
+                      }
+                >
+            }
+        }
     }
 
     type musicResponsiveListItemRenderer = {

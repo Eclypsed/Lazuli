@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { createEventDispatcher } from 'svelte'
+    import { createEventDispatcher, onMount } from 'svelte'
 
     export let value = 0
     export let max = 100
@@ -14,6 +14,7 @@
     }
 
     $: trackThumb(value)
+    onMount(() => trackThumb(value))
 
     const handleKeyPress = (key: string) => {
         if ((key === 'ArrowRight' || key === 'ArrowUp') && value < 1) return (value += 1)

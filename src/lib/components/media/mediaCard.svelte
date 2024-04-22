@@ -5,6 +5,8 @@
     import { goto } from '$app/navigation'
     import { queue } from '$lib/stores'
 
+    let queueRef = $queue // This nonsense is to prevent an bug that causes svelte to throw an error when setting a property of the queue directly
+
     let image: HTMLImageElement, captionText: HTMLDivElement
 </script>
 
@@ -28,7 +30,7 @@
             <IconButton
                 halo={true}
                 on:click={() => {
-                    if (mediaItem.type === 'song') $queue.enqueue(mediaItem)
+                    if (mediaItem.type === 'song') queueRef.current = mediaItem
                 }}
             >
                 <i slot="icon" class="fa-solid fa-play text-xl" />

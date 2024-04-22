@@ -2,6 +2,8 @@
     import { queue } from '$lib/stores'
     import type { PageServerData } from './$types'
 
+    let queueRef = $queue // This nonsense is to prevent an bug that causes svelte to throw an error when setting a property of the queue directly
+
     export let data: PageServerData
 
     const formatTime = (seconds: number): string => {
@@ -22,7 +24,7 @@
                     <button
                         id="searchResult"
                         on:click={() => {
-                            if (searchResult.type === 'song') $queue.enqueue(searchResult)
+                            if (searchResult.type === 'song') queueRef.current = searchResult
                         }}
                         class="grid aspect-square h-full place-items-center bg-cover bg-center bg-no-repeat"
                         style="--thumbnail: url('/api/remoteImage?url={searchResult.thumbnail}')"
@@ -30,7 +32,7 @@
                         <i class="fa-solid fa-play opacity-0" />
                     </button>
                     <div>
-                        <div>{searchResult.name}</div>
+                        <div>{searchResult.name}{searchResult.type === 'song' && searchResult.album?.name ? ` - ${searchResult.album.name}` : ''}</div>
                         {#if 'artists' in searchResult && searchResult.artists}
                             <div>{searchResult.artists.map((artist) => artist.name).join(', ')}</div>
                         {:else if 'createdBy' in searchResult && searchResult.createdBy}

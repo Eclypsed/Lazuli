@@ -31,4 +31,7 @@
             if (event.key === 'Enter') triggerSearch(searchInput.value)
         }}
     />
+    <button class="aspect-square h-6 transition-colors duration-200 hover:text-lazuli-primary" on:click|preventDefault={() => (searchInput.value = '')}>
+        <i class="fa-solid fa-xmark" />
+    </button>
 </search>

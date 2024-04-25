@@ -52,61 +52,79 @@ declare global {
     // Big data should be fetched as needed in the app, these exist to ensure that the info necessary to fetch that data is there.
 
     type Song = {
-        connection: string
+        connection: {
+            id: string
+            type: 'jellyfin' | 'youtube-music'
+        }
         id: string
         name: string
         type: 'song'
-        duration?: number
-        thumbnail?: string
-        artists?: {
+        duration: number // Seconds
+        thumbnailUrl: string // Base/maxres url of song, any scaling for performance purposes will be handled by remoteImage endpoint
+        artists: { // Should try to order
             id: string
             name: string
+            profilePicture?: string
         }[]
         album?: {
             id: string
             name: string
+            thumbnailUrl: string
         }
-        createdBy?: {
+        isVideo: boolean
+        uploader?: {
             id: string
             name: string
+            profilePicture?: string
         }
-        releaseDate?: string
+        releaseDate: string // YYYY-MM-DD || YYYY-MM || YYYY
     }
 
     type Album = {
-        connection: string
+        connection: {
+            id: string
+            type: 'jellyfin' | 'youtube-music'
+        }
         id: string
         name: string
-        type: 'album'
-        duration?: number
-        thumbnail?: string
-        artists?: {
-            // Album Artists
+        type: 'song'
+        duration: number // Seconds
+        thumbnailUrl: string
+        artists: { // Should try to order
             id: string
             name: string
-        }[]
-        releaseDate?: string
+            profilePicture?: string
+        }[] | 'Various Artists'
+        releaseDate: string // YYYY-MM-DD || YYYY-MM || YYYY
+        length: number
     }
 
     // Need to figure out how to do Artists, maybe just query MusicBrainz?
     type Artist = {
-        connection: string
+        connection: {
+            id: string
+            type: 'jellyfin' | 'youtube-music'
+        }
         id: string
         name: string
         type: 'artist'
-        thumbnail?: string
+        profilePicture?: string
     }
 
     type Playlist = {
-        connection: string
+        connection: {
+            id: string
+            type: 'jellyfin' | 'youtube-music'
+        }
         id: string
         name: string
         type: 'playlist'
+        thumbnailUrl: string
         createdBy?: {
             id: string
             name: string
+            profilePicture?: string
         }
-        thumbnail?: string
     }
 }
 

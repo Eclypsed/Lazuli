@@ -29,12 +29,13 @@
             $newestAlert = ['caution', 'All fields must be filled out']
             return cancel()
         }
-        try {
-            formData.set('serverUrl', new URL(serverUrl.toString()).origin)
-        } catch {
+
+        if (!URL.canParse(serverUrl.toString())) {
             $newestAlert = ['caution', 'Server URL is invalid']
             return cancel()
         }
+
+        formData.set('serverUrl', new URL(serverUrl.toString()).origin)
 
         const deviceId = getDeviceUUID()
         formData.append('deviceId', deviceId)

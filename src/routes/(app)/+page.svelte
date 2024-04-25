@@ -1,18 +1,15 @@
 <script lang="ts">
     import ScrollableCardMenu from '$lib/components/media/scrollableCardMenu.svelte'
     import type { PageData } from './$types'
+    import Loader from '$lib/components/util/loader.svelte'
 
     export let data: PageData
 </script>
 
 <div id="main">
-    {#await data.recommendations then recommendations}
+    {#await data.recommendations}
+        <Loader />
+    {:then recommendations}
         <ScrollableCardMenu header={'Listen Again'} cardDataList={recommendations} />
     {/await}
-    <!-- <h1 class="mb-6 text-4xl"><strong>Listen Again</strong></h1>
-    <div class="flex flex-wrap justify-between gap-6">
-        {#each data.recommendations as recommendation}
-            <MediaCard mediaItem={recommendation} />
-        {/each}
-    </div> -->
 </div>

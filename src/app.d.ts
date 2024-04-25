@@ -60,7 +60,10 @@ declare global {
         name: string
         type: 'song'
         duration: number // Seconds
-        thumbnailUrl: string // Base/maxres url of song, any scaling for performance purposes will be handled by remoteImage endpoint
+        thumbnailUrl: string // Base/maxres url of song, any scaling for performance purposes will be handled by remoteImage endpoint    
+        releaseDate: string // YYYY-MM-DD || YYYY-MM || YYYY
+    } & ({
+        isVideo: true
         artists: { // Should try to order
             id: string
             name: string
@@ -71,14 +74,14 @@ declare global {
             name: string
             thumbnailUrl: string
         }
-        isVideo: boolean
-        uploader?: {
+    } | {
+        isVideo: false
+        uploader: {
             id: string
             name: string
             profilePicture?: string
         }
-        releaseDate: string // YYYY-MM-DD || YYYY-MM || YYYY
-    }
+    })
 
     type Album = {
         connection: {
@@ -87,8 +90,7 @@ declare global {
         }
         id: string
         name: string
-        type: 'song'
-        duration: number // Seconds
+        type: 'album'
         thumbnailUrl: string
         artists: { // Should try to order
             id: string

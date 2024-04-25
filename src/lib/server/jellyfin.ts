@@ -1,3 +1,5 @@
+import { PUBLIC_VERSION } from '$env/static/public'
+
 export class Jellyfin implements Connection {
     public readonly id: string
     private readonly userId: string
@@ -175,7 +177,7 @@ export class Jellyfin implements Connection {
             }),
             headers: {
                 'Content-Type': 'application/json; charset=utf-8',
-                'X-Emby-Authorization': `MediaBrowser Client="Lazuli", Device="Chrome", DeviceId="${deviceId}", Version="1.0.0.0"`,
+                'X-Emby-Authorization': `MediaBrowser Client="Lazuli", Device="Chrome", DeviceId="${deviceId}", Version="${PUBLIC_VERSION}"`,
             },
         })
             .catch(() => {

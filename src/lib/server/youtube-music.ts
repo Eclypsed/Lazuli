@@ -3,6 +3,7 @@ import ytdl from 'ytdl-core'
 import { DB } from './db'
 import { PUBLIC_YOUTUBE_API_CLIENT_ID } from '$env/static/public'
 import { YOUTUBE_API_CLIENT_SECRET } from '$env/static/private'
+import { MusicBrainz } from './musicBrainz'
 
 export class YouTubeMusic implements Connection {
     public readonly id: string
@@ -161,8 +162,19 @@ export class YouTubeMusic implements Connection {
 
         const contents = homeResponse.contents.singleColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents
 
-        const playlist = await google.youtube('v3').playlistItems.list({ playlistId: 'OLAK5uy_luC2CX2NPU_qVCVvCh4r4M2igAltIJ0Bc', part: ['snippet'], maxResults: 50, access_token: await this.accessToken })
-        console.log(JSON.stringify(playlist))
+        const albums = [
+            'AD:Trance 10',
+            'Hardcore Syndrome 3',
+            'Nanosecond Eternity',
+            'Social Outcast',
+            'Kathastrophe',
+            'Reverse Clock',
+            'SPEED BALL GT',
+            'HYPER FULL THROTTLE',
+            'IRREPARABLE HARDCORE IS BACK 2',
+            'Cruel Wounds',
+        ]
+        albums.forEach((album) => MusicBrainz.searchAlbum(album))
 
         return []
 
@@ -468,17 +480,27 @@ function formatDate(): string {
     return year + month + day
 }
 
-// NOTE 1:
+// NOTE 1: Thumbnails
 // When scraping thumbnails from the YTMusic browse pages, there are two different types of images that can be returned,
 // standard video thumbnais and auto-generated square thumbnails for propper releases. The auto-generated thumbanils we want to
 // keep from the scrape because:
 // a) They can be easily scaled with ytmusic's weird fake query parameters (Ex: https://baseUrl=w1000&h1000)
 // b) When fetched from the youtube data api it returns the 16:9 filled thumbnails like you would see in the standard yt player, we want the squares
 //
-// However when the thumbnail is for a video, we want to ignore it because the highest quality thumbnail will rarely be used in the ytmusic player
+// However when the thumbnail is for a video, we want to ignore it because the highest quality thumbnail will rarely be used in the ytmusic webapp
 // and there is no easy way scale them due to the fixed sizes (default, medium, high, standard, maxres) without any way to determine if a higher quality exists.
-// Therefor, these thumbanils should be fetched from the youtube data api and the highest res should be chosen. In the remoteImage endpoint this his res can
+// Therefor, these thumbanils should be fetched from the youtube data api and the highest res should be chosen. In the remoteImage endpoint this high res can
 // be scaled to the desired resolution with image processing.
+//
+// NOTE 2: browseIds vs playlistIds
+// The browseId for a playlist is just "VL" + playlistId. The browseId will get you the playlist page, the playlistId is what appears as a query parameter
+// in the url and what you would use with the youtube data api to get data about the playlist. For this reason, for the id parameter of the playlist type
+// for ytmusic playlists, use the playlistId and not the browseId. The browseId can be generated as needed.
+//
+// However for albums use the browseId because you need it to query the v1 ytmusic api, and there is no way to get that from the playlistId. Additionally
+// we don't really need the album's playlistId because the official youtube data API is so useless it doesn't provide anything of value that can't
+// also be scraped from the browseId response.
+
 type ScrapedSong = {
     id: string
     name: string
@@ -730,6 +752,7 @@ declare namespace InnerTube {
                 },
             ]
         }
+    } & {
         subtitle: {
             runs: Array<{
                 text: string
@@ -738,69 +761,51 @@ declare namespace InnerTube {
                 }
             }>
         }
-        navigationEndpoint:
-            | {
-                  watchEndpoint: watchEndpoint
-              }
-            | {
-                  browseEndpoint: browseEndpoint
-              }
-        menu?: {
-            menuRenderer: {
-                items: Array<
-                    | {
-                          menuNavigationItemRenderer: {
-                              text: {
-                                  runs: [
-                                      {
-                                          text: 'Start radio' | 'Save to playlist' | 'Go to album' | 'Go to artist' | 'Share'
-                                      },
-                                  ]
-                              }
-                              navigationEndpoint:
-                                  | {
-                                        watchEndpoint: watchEndpoint
-                                    }
-                                  | {
-                                        addToPlaylistEndpoint: unknown
-                                    }
-                                  | {
-                                        browseEndpoint: browseEndpoint
-                                    }
-                                  | {
-                                        shareEntityEndpoint: unknown
-                                    }
-                          }
-                      }
-                    | {
-                          menuServiceItemRenderer: {
-                              text: {
-                                  runs: [
-                                      {
-                                          text: 'Play next' | 'Add to queue'
-                                      },
-                                  ]
-                              }
-                              serviceEndpoint: {
-                                  queueAddEndpoint: {
-                                      queueTarget:
-                                          | {
-                                                playlistId: string
-                                            }
-                                          | {
-                                                videoId: string
-                                            }
-                                  }
-                              }
-                          }
-                      }
-                    | {
-                          toggleMenuServiceItemRenderer: unknown
-                      }
-                >
-            }
-        }
     }
+    //     navigationEndpoint:
+    //         | {
+    //               watchEndpoint: watchEndpoint
+    //           }
+    //         | {
+    //               browseEndpoint: browseEndpoint
+    //           }
+    //     menu?: {
+    //         menuRenderer: {
+    //             items: Array<
+    //                 | {
+    //                       menuNavigationItemRenderer: {
+    //                           text: {
+    //                               runs: [
+    //                                   {
+    //                                       text: 'Start radio' | 'Save to playlist' | 'Go to album' | 'Go to artist' | 'Share'
+    //                                   },
+    //                               ]
+    //                           }
+    //                           navigationEndpoint:
+    //                               | {
+    //                                     watchEndpoint: watchEndpoint
+    //                                 }
+    //                               | {
+    //                                     addToPlaylistEndpoint: unknown
+    //                                 }
+    //                               | {
+    //                                     browseEndpoint: browseEndpoint
+    //                                 }
+    //                               | {
+    //                                     shareEntityEndpoint: unknown
+    //                                 }
+    //                       }
+    //                   }
+    //                 | {
+    //                       menuServiceItemRenderer: unknown
+    //                   }
+    //                 | {
+    //                       toggleMenuServiceItemRenderer: unknown
+    //                   }
+    //             >
+    //         }
+    //     }
+    // }
 
     type musicResponsiveListItemRenderer = {
         thumbnail: {

@@ -56,15 +56,16 @@ declare global {
             id: string
             type: 'jellyfin' | 'youtube-music'
         }
-        id: string
+        ids: {
+            connection: string
+            musicBrainz?: string
+        }
         name: string
         type: 'song'
         duration: number // Seconds
         thumbnailUrl: string // Base/maxres url of song, any scaling for performance purposes will be handled by remoteImage endpoint    
         releaseDate: string // YYYY-MM-DD || YYYY-MM || YYYY
-    } & ({
-        isVideo: true
-        artists: { // Should try to order
+        artists?: { // Should try to order
             id: string
             name: string
             profilePicture?: string
@@ -74,21 +75,23 @@ declare global {
             name: string
             thumbnailUrl: string
         }
-    } | {
-        isVideo: false
-        uploader: {
+        uploader?: {
             id: string
             name: string
             profilePicture?: string
         }
-    })
+        isVideo: boolean
+    }
 
     type Album = {
         connection: {
             id: string
             type: 'jellyfin' | 'youtube-music'
         }
-        id: string
+        ids: {
+            connection: string
+            musicBrainz?: string
+        }
         name: string
         type: 'album'
         thumbnailUrl: string
@@ -107,7 +110,10 @@ declare global {
             id: string
             type: 'jellyfin' | 'youtube-music'
         }
-        id: string
+        ids: {
+            connection: string
+            musicBrainz?: string
+        }
         name: string
         type: 'artist'
         profilePicture?: string

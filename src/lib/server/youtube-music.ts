@@ -1,4 +1,4 @@
-import { google, type youtube_v3 } from 'googleapis'
+import { google, run_v1, type youtube_v3 } from 'googleapis'
 import ytdl from 'ytdl-core'
 import { DB } from './db'
 import { PUBLIC_YOUTUBE_API_CLIENT_ID } from '$env/static/public'
@@ -178,14 +178,14 @@ export class YouTubeMusic implements Connection {
 
         return []
 
-        const recommendations: (Song | Album | Artist | Playlist)[] = []
+        const recommendations: (InnerTube.Home.ScrapedSong | InnerTube.Home.ScrapedAlbum | InnerTube.Home.ScrapedArtist | InnerTube.Home.ScrapedPlaylist)[] = []
         const goodSections = ['Listen again', 'Forgotten favorites', 'Quick picks', 'From your library']
         for (const section of contents) {
             const sectionType = section.musicCarouselShelfRenderer.header.musicCarouselShelfBasicHeaderRenderer.title.runs[0].text
             if (!goodSections.includes(sectionType)) continue
 
             const parsedContent = section.musicCarouselShelfRenderer.contents.map((content) =>
-                'musicTwoRowItemRenderer' in content ? parseTwoRowItemRenderer(this.id, content.musicTwoRowItemRenderer) : parseResponsiveListItemRenderer(this.id, content.musicResponsiveListItemRenderer),
+                'musicTwoRowItemRenderer' in content ? parseTwoRowItemRenderer(content.musicTwoRowItemRenderer) : parseResponsiveListItemRenderer(content.musicResponsiveListItemRenderer),
             )
             recommendations.push(...parsedContent)
         }
@@ -233,7 +233,7 @@ export class YouTubeMusic implements Connection {
 
     public async getUser(id: string): Promise<ScrapedUser> {}
 
-    private async buildFullSongProfiles(scrapedSongs: ScrapedSong[]): Promise<Song[]> {
+    private async buildFullSongProfiles(scrapedSongs: InnerTube.Home.ScrapedSong[]): Promise<Song[]> {
         const connection = { id: this.id, type: 'youtube-music' } satisfies Song['connection']
 
         const songIds = new Set<string>(),
@@ -295,107 +295,118 @@ export class YouTubeMusic implements Connection {
             return { connection, id: song.id, name: song.name, type: 'song', duration, thumbnailUrl, artists, album, isVideo: song.isVideo, uploader, releaseDate }
         })
     }
+
+    private async scrapedToFull(scrapedItems: (InnerTube.Home.ScrapedSong | InnerTube.Home.ScrapedAlbum | InnerTube.Home.ScrapedArtist | InnerTube.Home.ScrapedPlaylist)[]): Promise<(Song | Album | Artist | Playlist)[]> {
+        const connection = { id: this.id, type: 'youtube-music' } as const satisfies Album['connection']
+        
+        const musicBrainzAlbumData = await Promise.all(scrapedAlbums.map((album) => ({ scrapedAlbum: album, musicBrainzData: MusicBrainz.searchAlbum(album.name) })))
+
+        musicBrainzAlbumData.forEach((album) => {
+            const ids: Album['ids'] = { connection: album.scrapedAlbum.id, musicBrainz: album.musicBrainzData}
+
+            const album = { connection, ids: {}} satisfies Album
+        })
+    }
 }
 
-function parseTwoRowItemRenderer(rowContent: InnerTube.musicTwoRowItemRenderer): ScrapedSong | ScrapedAlbum | ScrapedArtist | ScrapedPlaylist {
+function parseTwoRowItemRenderer(rowContent: InnerTube.musicTwoRowItemRenderer): InnerTube.Home.ScrapedSong | InnerTube.Home.ScrapedAlbum | InnerTube.Home.ScrapedArtist | InnerTube.Home.ScrapedPlaylist {
     const name = rowContent.title.runs[0].text
-
+    
     if ('watchEndpoint' in rowContent.navigationEndpoint) {
-        let album: ScrapedSong['album'],
-            artists: ScrapedSong['artists'] = [],
-            uploader: ScrapedSong['uploader']
-        rowContent.menu.menuRenderer.items.forEach((menuOption) => {
+        const id = rowContent.navigationEndpoint.watchEndpoint.videoId
+        const isVideo = rowContent.navigationEndpoint.watchEndpoint.watchEndpointMusicSupportedConfigs.watchEndpointMusicConfig.musicVideoType === 'MUSIC_VIDEO_TYPE_UGC'
+        const thumbnailUrl: InnerTube.Home.ScrapedSong['thumbnailUrl'] = isVideo ? undefined : refineThumbnailUrl(rowContent.thumbnailRenderer.musicThumbnailRenderer.thumbnail.thumbnails[0].url)
+
+        let albumId: string | undefined
+        rowContent.menu?.menuRenderer.items.forEach((menuOption) => {
             if (
                 'menuNavigationItemRenderer' in menuOption &&
                 'browseEndpoint' in menuOption.menuNavigationItemRenderer.navigationEndpoint &&
                 menuOption.menuNavigationItemRenderer.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType === 'MUSIC_PAGE_TYPE_ALBUM'
-            ) {
-                album = { id: menuOption.menuNavigationItemRenderer.navigationEndpoint.browseEndpoint.browseId }
-            }
-        })
-        rowContent.subtitle.runs.forEach((run) => {
-            if (!run.navigationEndpoint) return
-
-            const pageType = run.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType
-            const runData = { id: run.navigationEndpoint.browseEndpoint.browseId, name: run.text }
-            if (pageType === 'MUSIC_PAGE_TYPE_ARTIST') {
-                artists.push(runData)
-            } else if (pageType === 'MUSIC_PAGE_TYPE_USER_CHANNEL') {
-                uploader = runData
-            }
+            )  albumId = menuOption.menuNavigationItemRenderer.navigationEndpoint.browseEndpoint.browseId
         })
 
-        const isUserUploaded = rowContent.navigationEndpoint.watchEndpoint.watchEndpointMusicSupportedConfigs.watchEndpointMusicConfig.musicVideoType === 'MUSIC_VIDEO_TYPE_UGC'
-        const thumbnailUrl: ScrapedSong['thumbnailUrl'] = isUserUploaded ? undefined : refineThumbnailUrl(rowContent.thumbnailRenderer.musicThumbnailRenderer.thumbnail.thumbnails[0].url)
+        const album: InnerTube.Home.ScrapedSong['album'] = albumId ? { id: albumId } : undefined
 
-        const id = rowContent.navigationEndpoint.watchEndpoint.videoId
-        return { id, name, type: 'song', thumbnailUrl, album, artists, uploader, isVideo: isUserUploaded } satisfies ScrapedSong
+        const artists = rowContent.subtitle.runs.map((run) => {
+            if (run.navigationEndpoint?.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType === 'MUSIC_PAGE_TYPE_ARTIST') {
+                return { id: run.navigationEndpoint.browseEndpoint.browseId, name: run.text }
+            }
+        }).filter((value): value is { id: string, name: string } => value !== undefined)
+
+        const uploaderRun = rowContent.subtitle.runs.find((run) => run.navigationEndpoint?.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType === 'MUSIC_PAGE_TYPE_USER_CHANNEL')
+        const uploader = uploaderRun?.navigationEndpoint?.browseEndpoint.browseId ? { id: uploaderRun.navigationEndpoint.browseEndpoint.browseId, name: uploaderRun.text } : undefined
+
+        return { id, name, type: 'song', thumbnailUrl, artists, album, uploader, isVideo } satisfies InnerTube.Home.ScrapedSong
     }
 
     const pageType = rowContent.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType
-    rowContent.menu.menuRenderer.items.forEach((menuItem) => {
-        if ('menuServiceItemRenderer' in menuItem) {
-            const queueTarget = menuItem.menuServiceItemRenderer.serviceEndpoint.queueAddEndpoint.queueTarget
-            if ('playlistId' in queueTarget) {
-                const thumbnailUrl = refineThumbnailUrl(rowContent.thumbnailRenderer.musicThumbnailRenderer.thumbnail.thumbnails[0].url)
-                if (pageType === 'MUSIC_PAGE_TYPE_ALBUM') {
-                    const album = { id: queueTarget.playlistId, name, type: 'album', thumbnailUrl } satisfies ScrapedAlbum
-                }
-            }
-        }
-    })
-
     const id = rowContent.navigationEndpoint.browseEndpoint.browseId
     const thumbnailUrl = refineThumbnailUrl(rowContent.thumbnailRenderer.musicThumbnailRenderer.thumbnail.thumbnails[0].url)
+
+    const artists = rowContent.subtitle.runs.map((run) => {
+        if (run.navigationEndpoint?.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType === 'MUSIC_PAGE_TYPE_ARTIST') {
+            return { id: run.navigationEndpoint.browseEndpoint.browseId, name: run.text }
+        }
+    }).filter((value): value is { id: string, name: string } => value !== undefined)
+
+    const creatorRun = rowContent.subtitle.runs.find((run) => run.navigationEndpoint?.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType === 'MUSIC_PAGE_TYPE_USER_CHANNEL')!
+    const createdBy = { id: creatorRun.navigationEndpoint?.browseEndpoint.browseId!, name: creatorRun.text }
+
     switch (pageType) {
         case 'MUSIC_PAGE_TYPE_ALBUM':
-            return { id, name, type: 'album', artists, thumbnailUrl } satisfies ScrapedAlbum
+            return { id, name, type: 'album', artists: artists.length > 0 ? artists : undefined, thumbnailUrl } satisfies InnerTube.Home.ScrapedAlbum
         case 'MUSIC_PAGE_TYPE_ARTIST':
         case 'MUSIC_PAGE_TYPE_USER_CHANNEL':
-            return { id, name, type: 'artist', profilePicture: thumbnailUrl } satisfies ScrapedArtist
+            return { id, name, type: 'artist', profilePicture: thumbnailUrl } satisfies InnerTube.Home.ScrapedArtist
         case 'MUSIC_PAGE_TYPE_PLAYLIST':
-            return { id, name, type: 'playlist', createdBy, thumbnailUrl } satisfies ScrapedPlaylist
+            return { id, name, type: 'playlist', createdBy, thumbnailUrl } satisfies InnerTube.Home.ScrapedPlaylist
     }
 }
 
-function parseResponsiveListItemRenderer(connection: string, listContent: InnerTube.musicResponsiveListItemRenderer): Song | Album | Artist | Playlist {
+function parseResponsiveListItemRenderer(listContent: InnerTube.musicResponsiveListItemRenderer): InnerTube.Home.ScrapedSong | InnerTube.Home.ScrapedAlbum | InnerTube.Home.ScrapedArtist | InnerTube.Home.ScrapedPlaylist {
     const name = listContent.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.text.runs[0].text
-    const thumbnail = refineThumbnailUrl(listContent.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails[0].url)
+    const column1Runs = listContent.flexColumns[1].musicResponsiveListItemFlexColumnRenderer.text.runs
 
-    let artists: (Song | Album)['artists'], createdBy: (Song | Playlist)['createdBy']
-    for (const run of listContent.flexColumns[1].musicResponsiveListItemFlexColumnRenderer.text.runs) {
-        if (!run.navigationEndpoint) continue
-
-        const pageType = run.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType
-        if (pageType === 'MUSIC_PAGE_TYPE_ARTIST') {
-            const artist = { id: run.navigationEndpoint.browseEndpoint.browseId, name: run.text }
-            artists ? artists.push(artist) : (artists = [artist])
-        } else if (pageType === 'MUSIC_PAGE_TYPE_USER_CHANNEL') {
-            createdBy = { id: run.navigationEndpoint.browseEndpoint.browseId, name: run.text }
+    const artists = column1Runs.map((run) => {
+        if (run.navigationEndpoint?.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType === 'MUSIC_PAGE_TYPE_ARTIST') {
+            return { id: run.navigationEndpoint.browseEndpoint.browseId, name: run.text}
         }
-    }
+    }).filter((artist): artist is { id: string, name: string } => artist !== undefined)
 
     if (!('navigationEndpoint' in listContent)) {
         const id = listContent.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.text.runs[0].navigationEndpoint.watchEndpoint.videoId
-        const column2run = listContent.flexColumns[2]?.musicResponsiveListItemFlexColumnRenderer.text.runs?.[0]
-        let album: Song['album']
-        if (column2run?.navigationEndpoint?.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType === 'MUSIC_PAGE_TYPE_ALBUM') {
-            album = { id: column2run.navigationEndpoint.browseEndpoint.browseId, name: column2run.text }
-        }
+        const isVideo = listContent.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.text.runs[0].navigationEndpoint.watchEndpoint.watchEndpointMusicSupportedConfigs.watchEndpointMusicConfig.musicVideoType === 'MUSIC_VIDEO_TYPE_UGC'
+        const thumbnailUrl = isVideo ? undefined : refineThumbnailUrl(listContent.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails[0].url)
 
-        return { connection, id, name, type: 'song', artists, album, createdBy, thumbnail } satisfies Song
+        const column2run = listContent.flexColumns[2]?.musicResponsiveListItemFlexColumnRenderer.text.runs?.[0]
+        const album = (() => {
+            if (column2run?.navigationEndpoint?.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType === 'MUSIC_PAGE_TYPE_ALBUM') {
+                return { id: column2run.navigationEndpoint.browseEndpoint.browseId, name: column2run.text }
+            }
+        })()
+
+        const uploaderRun = column1Runs.find((run) => run.navigationEndpoint?.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType === 'MUSIC_PAGE_TYPE_USER_CHANNEL')
+        const uploader = uploaderRun?.navigationEndpoint?.browseEndpoint.browseId ? { id: uploaderRun.navigationEndpoint.browseEndpoint.browseId, name: uploaderRun.text } : undefined
+
+        return { id, name, type: 'song', thumbnailUrl, artists, album, uploader, isVideo } satisfies InnerTube.Home.ScrapedSong
     }
 
     const id = listContent.navigationEndpoint.browseEndpoint.browseId
     const pageType = listContent.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType
+    const thumbnailUrl = refineThumbnailUrl(listContent.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails[0].url)
+
+    const creatorRun = column1Runs.find((run) => run.navigationEndpoint?.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType === 'MUSIC_PAGE_TYPE_USER_CHANNEL')!
+    const createdBy = { id: creatorRun.navigationEndpoint?.browseEndpoint.browseId!, name: creatorRun.text }
+
     switch (pageType) {
         case 'MUSIC_PAGE_TYPE_ALBUM':
-            return { connection, id, name, type: 'album', artists, thumbnail } satisfies Album
+            return { id, name, type: 'album', thumbnailUrl, artists: artists.length > 0 ? artists : undefined } satisfies InnerTube.Home.ScrapedAlbum
         case 'MUSIC_PAGE_TYPE_ARTIST':
         case 'MUSIC_PAGE_TYPE_USER_CHANNEL':
-            return { connection, id, name, type: 'artist', thumbnail } satisfies Artist
+            return { id, name, type: 'artist', profilePicture: thumbnailUrl } satisfies InnerTube.Home.ScrapedArtist
         case 'MUSIC_PAGE_TYPE_PLAYLIST':
-            return { connection, id, name, type: 'playlist', createdBy, thumbnail } satisfies Playlist
+            return { id, name, type: 'playlist', thumbnailUrl, createdBy } satisfies InnerTube.Home.ScrapedPlaylist
     }
 }
 
@@ -501,67 +512,57 @@ function formatDate(): string {
 // we don't really need the album's playlistId because the official youtube data API is so useless it doesn't provide anything of value that can't
 // also be scraped from the browseId response.
 
-type ScrapedSong = {
-    id: string
-    name: string
-    type: 'song'
-    thumbnailUrl: string
-    artists: {
-        id: string
-        name?: string
-    }[]
-    album?: {
-        id: string
-        name?: string
-    }
-    uploader?: {
-        id: string
-        name?: string
-    }
-    isVideo: boolean
-}
-
-type ScrapedAlbum = {
-    id: string
-    name: string
-    type: 'album'
-    thumbnailUrl: string
-    artists:
-        | {
-              id: string
-              name?: string
-          }[]
-        | 'Various Artists'
-    releaseYear?: string
-    length?: number
-}
-
-type ScrapedArtist = {
-    id: string
-    name: string
-    type: 'artist'
-    profilePicture?: string
-}
-
-type ScrapedPlaylist = {
-    id: string
-    name: string
-    type: 'playlist'
-    thumbnailUrl: string
-    createdBy?: {
-        id: string
-        name?: string
-    }
-}
-
-type ScrapedUser = {
-    id: string
-    name: string
-    type: 'user'
-    profilePicture?: string
-}
-
 declare namespace InnerTube {
+    namespace Home {
+        type ScrapedSong = {
+            id: string
+            name: string
+            type: 'song'
+            thumbnailUrl?: string
+            artists: {
+                id?: string
+                name: string
+            }[]
+            album?: {
+                id: string
+                name?: string
+            }
+            uploader?: {
+                id: string
+                name: string
+            }
+            isVideo: boolean
+        }
+
+        type ScrapedAlbum = {
+            id: string
+            name: string
+            type: 'album'
+            thumbnailUrl: string
+            artists?: {
+                id: string
+                name: string
+            }[]
+        }
+
+        type ScrapedArtist = {
+            id: string
+            name: string
+            type: 'artist'
+            profilePicture: string
+        }
+
+        type ScrapedPlaylist = {
+            id: string
+            name: string
+            type: 'playlist'
+            thumbnailUrl: string
+            createdBy: {
+                id: string
+                name: string
+            }
+        }
+    }
     interface AlbumResponse {
         contents: {
             singleColumnBrowseResultsRenderer: {
@@ -752,7 +753,6 @@ declare namespace InnerTube {
                 },
             ]
         }
-    } & {
         subtitle: {
             runs: Array<{
                 text: string
@@ -761,51 +761,53 @@ declare namespace InnerTube {
                 }
             }>
         }
+        navigationEndpoint:
+            | {
+                  watchEndpoint: watchEndpoint
+              }
+            | {
+                  browseEndpoint: browseEndpoint
+              }
+        menu?: {
+            menuRenderer: {
+                items: Array<
+                    | {
+                          menuNavigationItemRenderer: {
+                              text: {
+                                  runs: [
+                                      {
+                                          text: 'Go to album' | 'Go to artist' | 
+                                      },
+                                  ]
+                              }
+                              navigationEndpoint:
+                                  | {
+                                        browseEndpoint: browseEndpoint
+                                    }
+                                  | {
+                                        watchPlaylistEndpoint: unknown
+                                    }
+                                  | {
+                                        addToPlaylistEndpoint: unknown
+                                    }
+                                  | {
+                                        shareEntityEndpoint: unknown
+                                    }
+                                  | {
+                                        watchEndpoint: unknown
+                                    }
+                          }
+                      }
+                    | {
+                          menuServiceItemRenderer: unknown
+                      }
+                    | {
+                          toggleMenuServiceItemRenderer: unknown
+                      }
+                >
+            }
+        }
     }
-    //     navigationEndpoint:
-    //         | {
-    //               watchEndpoint: watchEndpoint
-    //           }
-    //         | {
-    //               browseEndpoint: browseEndpoint
-    //           }
-    //     menu?: {
-    //         menuRenderer: {
-    //             items: Array<
-    //                 | {
-    //                       menuNavigationItemRenderer: {
-    //                           text: {
-    //                               runs: [
-    //                                   {
-    //                                       text: 'Start radio' | 'Save to playlist' | 'Go to album' | 'Go to artist' | 'Share'
-    //                                   },
-    //                               ]
-    //                           }
-    //                           navigationEndpoint:
-    //                               | {
-    //                                     watchEndpoint: watchEndpoint
-    //                                 }
-    //                               | {
-    //                                     addToPlaylistEndpoint: unknown
-    //                                 }
-    //                               | {
-    //                                     browseEndpoint: browseEndpoint
-    //                                 }
-    //                               | {
-    //                                     shareEntityEndpoint: unknown
-    //                                 }
-    //                       }
-    //                   }
-    //                 | {
-    //                       menuServiceItemRenderer: unknown
-    //                   }
-    //                 | {
-    //                       toggleMenuServiceItemRenderer: unknown
-    //                   }
-    //             >
-    //         }
-    //     }
-    // }
 
     type musicResponsiveListItemRenderer = {
         thumbnail: {

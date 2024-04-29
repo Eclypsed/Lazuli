@@ -8,7 +8,7 @@ const mbApi = new MusicBrainzApi({
 })
 
 export class MusicBrainz {
-    static async searchAlbum(albumName: string, albumArtists?: string[]): Promise<MusicBrainz.ReleaseSearchResult | null> {
+    static async searchRelease(albumName: string, artistNames?: string[]): Promise<MusicBrainz.ReleaseSearchResult | null> {
         const searchResulst = await mbApi.search('release', { query: albumName, limit: 10 })
         if (searchResulst.releases.length === 0) {
             console.log(JSON.stringify('Nothing returned for ' + albumName))
@@ -22,12 +22,11 @@ export class MusicBrainz {
             return prev.score > current.score ? prev : current
         })
 
-        // const trackCount = bestMatch.media.reduce(accum)
-        // bestMatch.media.forEach((mediaItem) => (trackCount += mediaItem['track-count']))
+        const { id, title, date } = bestMatch
+        const trackCount = bestMatch.media.reduce((acummulator, current) => acummulator + current['track-count'], 0)
         const artists = bestMatch['artist-credit']?.map((artist) => ({ id: artist.artist.id, name: artist.artist.name }))
 
-        const { id, title, date } = bestMatch
-        return { id, name: title, releaseDate: date, artists, trackCount: 0 }
+        return { id, name: title, releaseDate: date, artists, trackCount } satisfies MusicBrainz.ReleaseSearchResult
     }
 }
 

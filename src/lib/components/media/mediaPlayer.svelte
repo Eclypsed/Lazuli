@@ -33,9 +33,9 @@
         if ('mediaSession' in navigator) {
             navigator.mediaSession.metadata = new MediaMetadata({
                 title: media.name,
-                artist: media.artists?.map((artist) => artist.name).join(', ') || media.createdBy?.name,
+                artist: media.artists?.map((artist) => artist.name).join(', ') || media.uploader?.name,
                 album: media.album?.name,
-                artwork: [{ src: `/api/remoteImage?url=${media.thumbnail}`, sizes: '256x256', type: 'image/png' }],
+                artwork: [{ src: `/api/remoteImage?url=${media.thumbnailUrl}`, sizes: '256x256', type: 'image/png' }],
             })
         }
     }
@@ -85,12 +85,12 @@
                 <section class="flex gap-3">
                     <div class="relative h-full w-20 min-w-20">
                         {#key currentlyPlaying}
-                            <div transition:fade={{ duration: 500 }} class="absolute h-full w-full bg-cover bg-center bg-no-repeat" style="background-image: url(/api/remoteImage?url={currentlyPlaying.thumbnail});" />
+                            <div transition:fade={{ duration: 500 }} class="absolute h-full w-full bg-cover bg-center bg-no-repeat" style="background-image: url(/api/remoteImage?url={currentlyPlaying.thumbnailUrl});" />
                         {/key}
                     </div>
                     <section class="flex flex-col justify-center gap-1">
                         <div class="line-clamp-2 text-sm">{currentlyPlaying.name}</div>
-                        <div class="text-xs">{currentlyPlaying.artists?.map((artist) => artist.name).join(', ') || currentlyPlaying.createdBy?.name}</div>
+                        <div class="text-xs">{currentlyPlaying.artists?.map((artist) => artist.name).join(', ') || currentlyPlaying.uploader?.name}</div>
                     </section>
                 </section>
                 <section class="flex min-w-max flex-col items-center justify-center gap-1">
@@ -148,11 +148,11 @@
                 </section>
             </main>
         {:else}
-            <main in:fade={{ delay: 500 }} out:fade={{ duration: 75 }} class="expanded-player h-full" style="--currentlyPlayingImage: url(/api/remoteImage?url={currentlyPlaying.thumbnail});">
+            <main in:fade={{ delay: 500 }} out:fade={{ duration: 75 }} class="expanded-player h-full" style="--currentlyPlayingImage: url(/api/remoteImage?url={currentlyPlaying.thumbnailUrl});">
                 <section class="song-queue-wrapper h-full px-24 py-20">
                     <section class="relative">
                         {#key currentlyPlaying}
-                            <img transition:fade={{ duration: 300 }} class="absolute h-full max-w-full object-contain py-8" src="/api/remoteImage?url={currentlyPlaying.thumbnail}" alt="" />
+                            <img transition:fade={{ duration: 300 }} class="absolute h-full max-w-full object-contain py-8" src="/api/remoteImage?url={currentlyPlaying.thumbnailUrl}" alt="" />
                         {/key}
                     </section>
                     <section class="flex flex-col gap-2">
@@ -166,12 +166,12 @@
                                 class="queue-item w-full items-center gap-3 rounded-xl p-3 {isCurrent ? 'bg-[rgba(64,_64,_64,_0.5)]' : 'bg-[rgba(10,_10,_10,_0.5)]'}"
                             >
                                 <div class="justify-self-center">{index + 1}</div>
-                                <img class="justify-self-center" src="/api/remoteImage?url={item.thumbnail}" alt="" draggable="false" />
+                                <img class="justify-self-center" src="/api/remoteImage?url={item.thumbnailUrl}" alt="" draggable="false" />
                                 <div class="justify-items-left text-left">
                                     <div class="line-clamp-2">{item.name}</div>
-                                    <div class="mt-[.15rem] text-neutral-500">{currentlyPlaying.artists?.map((artist) => artist.name).join(', ') || currentlyPlaying.createdBy?.name}</div>
+                                    <div class="mt-[.15rem] text-neutral-500">{currentlyPlaying.artists?.map((artist) => artist.name).join(', ') || currentlyPlaying.uploader?.name}</div>
                                 </div>
-                                <span class="text-right">{item.duration ?? ''}</span>
+                                <span class="text-right">{formatTime(item.duration)}</span>
                             </button>
                         {/each}
                     </section>
@@ -197,7 +197,7 @@
                         <div>
                             <div class="mb-2 line-clamp-2 text-3xl">{currentlyPlaying.name}</div>
                             <div class="line-clamp-1 text-lg">
-                                {currentlyPlaying.artists?.map((artist) => artist.name).join(', ') || currentlyPlaying.createdBy?.name}{currentlyPlaying.album ? ` - ${currentlyPlaying.album.name}` : ''}
+                                {currentlyPlaying.artists?.map((artist) => artist.name).join(', ') || currentlyPlaying.uploader?.name}{currentlyPlaying.album ? ` - ${currentlyPlaying.album.name}` : ''}
                             </div>
                         </div>
                         <div class="flex w-full items-center justify-center gap-2 text-2xl">
@@ -237,7 +237,7 @@
                 </section>
             </main>
         {/if}
-        <audio autoplay bind:paused bind:volume bind:currentTime bind:duration on:ended={() => $queue.next()} src="/api/audio?connection={currentlyPlaying.connection}&id={currentlyPlaying.id}" />
+        <audio autoplay bind:paused bind:volume bind:currentTime bind:duration on:ended={() => $queue.next()} src="/api/audio?connection={currentlyPlaying.connection.id}&id={currentlyPlaying.id}" />
     </div>
 {/if}
 

@@ -56,15 +56,12 @@ declare global {
             id: string
             type: 'jellyfin' | 'youtube-music'
         }
-        ids: {
-            connection: string
-            musicBrainz?: string
-        }
+        id: string
         name: string
         type: 'song'
         duration: number // Seconds
         thumbnailUrl: string // Base/maxres url of song, any scaling for performance purposes will be handled by remoteImage endpoint    
-        releaseDate: string // YYYY-MM-DD || YYYY-MM || YYYY
+        releaseDate: string // ISOString
         artists?: { // Should try to order
             id: string
             name: string
@@ -73,7 +70,7 @@ declare global {
         album?: {
             id: string
             name: string
-            thumbnailUrl: string
+            thumbnailUrl?: string
         }
         uploader?: {
             id: string
@@ -88,20 +85,18 @@ declare global {
             id: string
             type: 'jellyfin' | 'youtube-music'
         }
-        ids: {
-            connection: string
-            musicBrainz?: string
-        }
+        id: string
         name: string
         type: 'album'
+        duration?: number // Seconds
         thumbnailUrl: string
         artists: { // Should try to order
             id: string
             name: string
             profilePicture?: string
         }[] | 'Various Artists'
-        releaseDate: string // YYYY-MM-DD || YYYY-MM || YYYY
-        length: number
+        releaseDate?: string // ISOString
+        length?: number
     }
 
     // Need to figure out how to do Artists, maybe just query MusicBrainz?
@@ -110,16 +105,13 @@ declare global {
             id: string
             type: 'jellyfin' | 'youtube-music'
         }
-        ids: {
-            connection: string
-            musicBrainz?: string
-        }
+        id: string
         name: string
         type: 'artist'
         profilePicture?: string
     }
 
-    type Playlist = {
+    type Playlist = { // Keep Playlist items seperate from the playlist itself. What's really nice is playlist items can just be an ordered array of Songs
         connection: {
             id: string
             type: 'jellyfin' | 'youtube-music'
@@ -127,12 +119,14 @@ declare global {
         id: string
         name: string
         type: 'playlist'
+        duration: number
         thumbnailUrl: string
         createdBy?: {
             id: string
             name: string
             profilePicture?: string
         }
+        length: number
     }
 }
 

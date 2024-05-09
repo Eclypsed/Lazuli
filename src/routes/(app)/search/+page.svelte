@@ -27,14 +27,14 @@
                             if (searchResult.type === 'song') queueRef.current = searchResult
                         }}
                         class="grid aspect-square h-full place-items-center bg-cover bg-center bg-no-repeat"
-                        style="--thumbnail: url('/api/remoteImage?url={searchResult.thumbnail}')"
+                        style="--thumbnail: url('/api/remoteImage?url={'thumbnailUrl' in searchResult ? searchResult.thumbnailUrl : searchResult.profilePicture}')"
                     >
                         <i class="fa-solid fa-play opacity-0" />
                     </button>
                     <div>
                         <div>{searchResult.name}{searchResult.type === 'song' && searchResult.album?.name ? ` - ${searchResult.album.name}` : ''}</div>
                         {#if 'artists' in searchResult && searchResult.artists}
-                            <div>{searchResult.artists.map((artist) => artist.name).join(', ')}</div>
+                            <div>{searchResult.artists === 'Various Artists' ? searchResult.artists : searchResult.artists.map((artist) => artist.name).join(', ')}</div>
                         {:else if 'createdBy' in searchResult && searchResult.createdBy}
                             <div>{searchResult.createdBy?.name}</div>
                         {/if}

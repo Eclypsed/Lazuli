@@ -47,9 +47,13 @@ declare global {
         search: (searchTerm: string, filter?: 'song' | 'album' | 'artist' | 'playlist') => Promise<(Song | Album | Artist | Playlist)[]>
         getAudioStream: (id: string, range: string | null) => Promise<Response>
     }
+
     // These Schemas should only contain general info data that is necessary for data fetching purposes.
     // They are NOT meant to be stores for large amounts of data, i.e. Don't include the data for every single song the Playlist type.
     // Big data should be fetched as needed in the app, these exist to ensure that the info necessary to fetch that data is there.
+
+    // Additionally, these types are meant to represent the "previews" of the respective media item (e.g. Recomendation, search result).
+    // As a result, in order to lessen the number of fetches made to external sources, only include data that is needed for these previews.
 
     type Song = {
         connection: {
@@ -119,7 +123,6 @@ declare global {
         id: string
         name: string
         type: 'playlist'
-        duration: number
         thumbnailUrl: string
         createdBy?: {
             id: string

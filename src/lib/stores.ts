@@ -18,11 +18,10 @@ class Queue {
     }
 
     get current() {
-        if (this.songs.length > 0) {
-            if (this.currentPosition === -1) this.currentPosition = 0
-            return this.songs[this.currentPosition]
-        }
-        return null
+        if (this.songs.length === 0) return null
+
+        if (this.currentPosition === -1) this.currentPosition = 0
+        return this.songs[this.currentPosition]
     }
 
     set current(newSong: Song | null) {
@@ -45,7 +44,7 @@ class Queue {
     }
 
     public next() {
-        if (this.songs.length === 0 || !(this.songs.length > this.currentPosition + 1)) return
+        if (this.songs.length === 0 || this.songs.length <= this.currentPosition + 1) return
 
         this.currentPosition += 1
         writableQueue.set(this)

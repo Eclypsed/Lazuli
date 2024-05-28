@@ -40,12 +40,52 @@ declare global {
         profilePicture?: string
     })
 
+    type SearchFilterMap<Filter> =
+        Filter extends 'song' ? Song :
+        Filter extends 'album' ? Album :
+        Filter extends 'artist' ? Artist :
+        Filter extends 'playlist' ? Playlist :
+        Filter extends undefined ? Song | Album | Artist | Playlist :
+        never
+
     interface Connection {
         public id: string
-        getRecommendations: () => Promise<(Song | Album | Artist | Playlist)[]>
         getConnectionInfo: () => Promise<ConnectionInfo>
-        search: (searchTerm: string, filter?: 'song' | 'album' | 'artist' | 'playlist') => Promise<(Song | Album | Artist | Playlist)[]>
-        getAudioStream: (id: string, range: string | null) => Promise<Response>
+        getRecommendations: () => Promise<(Song | Album | Artist | Playlist)[]>
+        search: <T extends 'song' | 'album' | 'artist' | 'playlist'>(searchTerm: string, filter?: T) => Promise<SearchFilterMap<T>[]>
+
+        /**
+         * @param id The id of the requested song
+         * @param headers The request headers sent by the Lazuli client that need to be relayed to the connection's request to the server (e.g. 'range').
+         * @returns A promise of response object containing the audio stream for the specified byte range
+         * 
+         * Fetches the audio stream for a song.
+         */
+        getAudioStream: (id: string, headers: Headers) => Promise<Response>
+
+        /**
+         * @param id The id of an album
+         * @returns A promise of the album as an Album object
+         */
+        getAlbum: (id: string) => Promise<Album>
+
+        /**
+         * @param id The id of an album
+         * @returns A promise of the songs in the album as and array of Song objects
+         */
+        getAlbumItems: (id: string) => Promise<Song[]>
+
+        /**
+         * @param id The id of a playlist
+         * @returns A promise of the playlist of as a Playlist object
+         */
+        getPlaylist: (id: string) => Promise<Playlist>
+
+        /**
+         * @param id The id of a playlist
+         * @returns A promise of the songs in the playlist as and array of Song objects
+         */
+        getPlaylistItems: (id: string) => Promise<Song[]>
     }
 
     // These Schemas should only contain general info data that is necessary for data fetching purposes.
@@ -84,6 +124,7 @@ declare global {
         isVideo: boolean
     }
 
+    // Properties like duration and track count are properties of album items not the album itself
     type Album = {
         connection: {
             id: string
@@ -92,15 +133,13 @@ declare global {
         id: string
         name: string
         type: 'album'
-        duration?: number // Seconds
         thumbnailUrl: string
         artists: { // Should try to order
             id: string
             name: string
             profilePicture?: string
         }[] | 'Various Artists'
-        releaseDate?: string // ISOString
-        length?: number
+        releaseYear?: string // ####
     }
 
     // Need to figure out how to do Artists, maybe just query MusicBrainz?
@@ -129,8 +168,9 @@ declare global {
             name: string
             profilePicture?: string
         }
-        length: number
     }
+
+    type HasDefinedProperty<T, K extends keyof T> = T & { [P in K]-?: Exclude<T[P], undefined> };
 }
 
 export {}

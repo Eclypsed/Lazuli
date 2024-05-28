@@ -8,8 +8,23 @@ export const handle: Handle = async ({ event, resolve }) => {
 
     if (urlpath.startsWith('/api')) {
         const unprotectedAPIRoutes = ['/api/audio', '/api/remoteImage']
-        const apikey = event.request.headers.get('apikey') || event.url.searchParams.get('apikey')
-        if (!unprotectedAPIRoutes.includes(urlpath) && apikey !== SECRET_INTERNAL_API_KEY) {
+
+        function checkAuthorization(): boolean {
+            const apikey = event.request.headers.get('apikey') || event.url.searchParams.get('apikey')
+            if (apikey === SECRET_INTERNAL_API_KEY) return true
+
+            const authToken = event.cookies.get('lazuli-auth')
+            if (!authToken) return false
+
+            try {
+                jwt.verify(authToken, SECRET_JWT_KEY)
+                return true
+            } catch {
+                return false
+            }
+        }
+
+        if (!unprotectedAPIRoutes.includes(urlpath) && !checkAuthorization()) {
             return new Response('Unauthorized', { status: 401 })
         }
     }

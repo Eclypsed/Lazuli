@@ -31,7 +31,7 @@ export const actions: Actions = {
 
         const newConnectionId = DB.addConnectionInfo({ userId: locals.user.id, type: 'jellyfin', service: { userId: authData.User.Id, serverUrl: serverUrl.toString() }, tokens: { accessToken: authData.AccessToken } })
 
-        const response = await fetch(`/api/connections?ids=${newConnectionId}`, {
+        const response = await fetch(`/api/connections?id=${newConnectionId}`, {
             method: 'GET',
             headers: { apikey: SECRET_INTERNAL_API_KEY },
         }).then((response) => {
@@ -57,7 +57,7 @@ export const actions: Actions = {
             tokens: { accessToken: tokens.access_token!, refreshToken: tokens.refresh_token!, expiry: tokens.expiry_date! },
         })
 
-        const response = await fetch(`/api/connections?ids=${newConnectionId}`, {
+        const response = await fetch(`/api/connections?id=${newConnectionId}`, {
             method: 'GET',
             headers: { apikey: SECRET_INTERNAL_API_KEY },
         })

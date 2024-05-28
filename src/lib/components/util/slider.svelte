@@ -16,9 +16,11 @@
     $: trackThumb(value)
     onMount(() => trackThumb(value))
 
+    const keyPressJumpIntervalCount = 20
+
     const handleKeyPress = (key: string) => {
-        if ((key === 'ArrowRight' || key === 'ArrowUp') && value < 1) return (value += 1)
-        if ((key === 'ArrowLeft' || key === 'ArrowDown') && value > 0) return (value -= 1)
+        if ((key === 'ArrowRight' || key === 'ArrowUp') && value < max) value = Math.min(max, value + max / keyPressJumpIntervalCount)
+        if ((key === 'ArrowLeft' || key === 'ArrowDown') && value > 0) value = Math.max(0, value - max / keyPressJumpIntervalCount) // For some reason this is kinda broken
     }
 </script>
 

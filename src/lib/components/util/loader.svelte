@@ -1,6 +1,9 @@
 <!-- Credit to https://cssloaders.github.io/ -->
+<script lang="ts">
+    export let size = 5
+</script>
 
-<span id="loader" class="absolute left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2" />
+<span id="loader" style="height: {size}rem; width: {size}rem;" class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" />
 
 <style>
     #loader:after {

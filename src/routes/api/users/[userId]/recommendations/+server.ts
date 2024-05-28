@@ -6,13 +6,21 @@ import { Connections } from '$lib/server/connections'
 export const GET: RequestHandler = async ({ params }) => {
     const userId = params.userId!
 
-    const recommendations: (Song | Album | Artist | Playlist)[] = []
-    for (const connection of Connections.getUserConnections(userId)) {
-        await connection
-            .getRecommendations()
-            .then((connectionRecommendations) => recommendations.push(...connectionRecommendations))
-            .catch((reason) => console.log(`Failed to fetch recommendations: ${reason}`))
-    }
+    const userConnections = Connections.getUserConnections(userId)
+    if (!userConnections) return new Response('Invalid user id', { status: 400 })
+
+    const recommendations = (
+        await Promise.all(
+            userConnections.map((connection) =>
+                connection.getRecommendations().catch((reason) => {
+                    console.log(`Failed to fetch recommendations: ${reason}`)
+                    return undefined
+                }),
+            ),
+        )
+    )
+        .flat()
+        .filter((recommendation): recommendation is Song | Album | Artist | Playlist => recommendation?.id !== undefined)
 
     return Response.json({ recommendations })
 }

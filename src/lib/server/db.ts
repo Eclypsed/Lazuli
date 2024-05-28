@@ -67,12 +67,12 @@ class Storage {
     }
 
     public getUser = (id: string): User | undefined => {
-        const user = this.database.prepare(`SELECT * FROM Users WHERE id = ?`).get(id) as User | undefined
+        const user = this.database.prepare(`SELECT * FROM Users WHERE id = ? LIMIT 1`).get(id) as User | undefined
         return user
     }
 
     public getUsername = (username: string): User | undefined => {
-        const user = this.database.prepare(`SELECT * FROM Users WHERE lower(username) = ?`).get(username.toLowerCase()) as User | undefined
+        const user = this.database.prepare(`SELECT * FROM Users WHERE lower(username) = ? LIMIT 1`).get(username.toLowerCase()) as User | undefined
         return user
     }
 
@@ -87,21 +87,20 @@ class Storage {
         if (commandInfo.changes === 0) throw new Error(`User with id ${id} does not exist`)
     }
 
-    public getConnectionInfo = (ids: string[]): ConnectionRow[] => {
-        const connectionInfo: ConnectionRow[] = []
-        for (const id of ids) {
-            const result = this.database.prepare(`SELECT * FROM Connections WHERE id = ?`).get(id) as DBConnectionsTableSchema | undefined
-            if (!result) continue
+    public getConnectionInfo = (id: string): ConnectionRow | undefined => {
+        const result = this.database.prepare(`SELECT * FROM Connections WHERE id = ? LIMIT 1`).get(id) as DBConnectionsTableSchema | undefined
+        if (!result) return undefined
 
-            const { userId, type, service, tokens } = result
-            const parsedService = service ? JSON.parse(service) : undefined
-            const parsedTokens = tokens ? JSON.parse(tokens) : undefined
-            connectionInfo.push({ id, userId, type: type as ConnectionRow['type'], service: parsedService, tokens: parsedTokens })
-        }
-        return connectionInfo
+        const { userId, type, service, tokens } = result
+        const parsedService = service ? JSON.parse(service) : undefined
+        const parsedTokens = tokens ? JSON.parse(tokens) : undefined
+        return { id, userId, type: type as ConnectionRow['type'], service: parsedService, tokens: parsedTokens }
     }
 
-    public getUserConnectionInfo = (userId: string): ConnectionRow[] => {
+    public getUserConnectionInfo = (userId: string): ConnectionRow[] | undefined => {
+        const user = this.getUser(userId)
+        if (!user) return undefined
+
         const connectionRows = this.database.prepare(`SELECT * FROM Connections WHERE userId = ?`).all(userId) as DBConnectionsTableSchema[]
         const connections: ConnectionRow[] = []
         for (const { id, type, service, tokens } of connectionRows) {

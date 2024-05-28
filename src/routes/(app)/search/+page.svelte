@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { goto } from '$app/navigation'
     import { queue } from '$lib/stores'
     import type { PageServerData } from './$types'
 
@@ -24,7 +25,11 @@
                     <button
                         id="searchResult"
                         on:click={() => {
-                            if (searchResult.type === 'song') queueRef.current = searchResult
+                            if (searchResult.type === 'song') {
+                                queueRef.current = searchResult
+                            } else {
+                                goto(`/details/${searchResult.type}?id=${searchResult.id}&connection=${searchResult.connection.id}`)
+                            }
                         }}
                         class="grid aspect-square h-full place-items-center bg-cover bg-center bg-no-repeat"
                         style="--thumbnail: url('/api/remoteImage?url={'thumbnailUrl' in searchResult ? searchResult.thumbnailUrl : searchResult.profilePicture}')"

@@ -210,89 +210,150 @@ export namespace InnerTube {
         }
     }
 
-    interface AlbumResponse {
-        contents: {
-            singleColumnBrowseResultsRenderer: {
-                tabs: [
-                    {
-                        tabRenderer: {
-                            content: {
-                                sectionListRenderer: {
-                                    contents: [
-                                        {
-                                            musicShelfRenderer: {
-                                                contents: Array<{
-                                                    musicResponsiveListItemRenderer: {
-                                                        flexColumns: Array<{
-                                                            musicResponsiveListItemFlexColumnRenderer: {
-                                                                text: {
-                                                                    runs?: [
-                                                                        {
-                                                                            text: string
-                                                                            navigationEndpoint?: {
-                                                                                watchEndpoint: watchEndpoint
-                                                                            }
-                                                                        },
-                                                                    ]
-                                                                }
+    namespace Album {
+        interface AlbumResponse {
+            contents: {
+                singleColumnBrowseResultsRenderer: {
+                    tabs: [
+                        {
+                            tabRenderer: {
+                                content: {
+                                    sectionListRenderer: {
+                                        contents: [
+                                            {
+                                                musicShelfRenderer: {
+                                                    contents: Array<AlbumItem>
+                                                    continuations?: [
+                                                        {
+                                                            nextContinuationData: {
+                                                                continuation: string
                                                             }
-                                                        }>
-                                                        fixedColumns: [
-                                                            {
-                                                                musicResponsiveListItemFixedColumnRenderer: {
-                                                                    text: {
-                                                                        runs: [
-                                                                            {
-                                                                                text: string
-                                                                            },
-                                                                        ]
-                                                                    }
-                                                                }
-                                                            },
-                                                        ]
-                                                    }
-                                                }>
-                                            }
-                                        },
-                                    ]
+                                                        },
+                                                    ]
+                                                }
+                                            },
+                                        ]
+                                    }
                                 }
+                            }
+                        },
+                    ]
+                }
+            }
+            header: {
+                musicDetailHeaderRenderer: {
+                    title: {
+                        runs: [
+                            {
+                                text: string
+                            },
+                        ]
+                    }
+                    subtitle: {
+                        // Alright let's break down this dumbass pattern. First run will always have the text 'Album', last will always be the release year. Interspersed throughout the middle will be the artist runs
+                        // which, if they have a dedicated channel, will have a navigation endpoint. Every other run is some kind of delimiter (• , &). Because y'know, it's perfectly sensible to include your decorative
+                        // elements in your api responses /s
+                        runs: Array<{
+                            text: string
+                            navigationEndpoint?: {
+                                browseEndpoint: browseEndpoint
+                            }
+                        }>
+                    }
+                    secondSubtitle: {
+                        // Slightly less dumbass. Three runs, first is the number of songs in the format: "# songs". Second is another bullshit delimiter. Last is the album's duration, spelled out rather than as a timestamp
+                        // for god knows what reason. Duration follows the following format: "# hours, # minutes" or just "# minutes".
+                        runs: {
+                            text: string
+                        }[]
+                    }
+                    thumbnail: {
+                        croppedSquareThumbnailRenderer: musicThumbnailRenderer
+                    }
+                }
+            }
+        }
+
+        type AlbumItem = {
+            musicResponsiveListItemRenderer: {
+                flexColumns: [
+                    {
+                        musicResponsiveListItemFlexColumnRenderer: {
+                            text: {
+                                runs: [
+                                    {
+                                        text: string
+                                        navigationEndpoint: {
+                                            watchEndpoint: watchEndpoint
+                                        }
+                                    },
+                                ]
+                            }
+                        }
+                    },
+                    {
+                        musicResponsiveListItemFlexColumnRenderer: {
+                            text: {
+                                runs?: {
+                                    text: string
+                                    navigationEndpoint?: {
+                                        browseEndpoint: browseEndpoint
+                                    }
+                                }[]
+                            }
+                        }
+                    },
+                ]
+                fixedColumns: [
+                    {
+                        musicResponsiveListItemFixedColumnRenderer: {
+                            text: {
+                                runs: [
+                                    {
+                                        text: string
+                                    },
+                                ]
                             }
                         }
                     },
                 ]
             }
         }
-        header: {
-            musicDetailHeaderRenderer: {
-                title: {
-                    runs: [
-                        {
-                            text: string
-                        },
-                    ]
-                }
-                subtitle: {
-                    // Alright let's break down this dumbass pattern. First run will always have the text 'Album', last will always be the release year. Interspersed throughout the middle will be the artist runs
-                    // which, if they have a dedicated channel, will have a navigation endpoint. Every other run is some kind of delimiter (• , &). Because y'know, it's perfectly sensible to include your decorative
-                    // elements in your api responses /s
-                    runs: Array<{
-                        text: string
-                        navigationEndpoint?: {
-                            browseEndpoint: browseEndpoint
-                        }
-                    }>
-                }
-                secondSubtitle: {
-                    // Slightly less dumbass. Three runs, first is the number of songs in the format: "# songs". Second is another bullshit delimiter. Last is the album's duration, spelled out rather than as a timestamp
-                    // for god knows what reason. Duration follows the following format: "# hours, # minutes" or just "# minutes".
-                    runs: {
-                        text: string
-                    }[]
-                }
-                thumbnail: {
-                    croppedSquareThumbnailRenderer: musicThumbnailRenderer
-                }
+
+        type ContentShelf = {
+            contents: Array<AlbumItem>
+            continuations?: [
+                {
+                    nextContinuationData: {
+                        continuation: string
+                    }
+                },
+            ]
+        }
+
+        interface ContinuationResponse {
+            continuationContents: {
+                musicShelfContinuation: ContentShelf
             }
+        }
+    }
+
+    namespace Player {
+        interface PlayerResponse {
+            streamingData: {
+                formats: Format[]
+                adaptiveFormats: Format[]
+            }
+        }
+
+        type Format = {
+            itag: number
+            url?: string // Only present for Android client requests, not web requests
+            mimeType: string
+            bitrate: number
+            qualityLabel?: string // If present, format contains video (144p, 240p, 360p, etc.)
+            audioQuality?: string // If present, format contains audio (AUDIO_QUALITY_LOW, AUDIO_QUALITY_MEDIUM, AUDIO_QUALITY_HIGH)
+            signatureCipher?: string // Only present for Web client requests, not android requests
         }
     }
 
@@ -311,6 +372,9 @@ export namespace InnerTube {
                                           }
                                         | {
                                               musicShelfRenderer: musicShelfRenderer
+                                          }
+                                        | {
+                                              itemSectionRenderer: unknown
                                           }
                                     >
                                 }
@@ -397,7 +461,7 @@ export namespace InnerTube {
                 title: {
                     runs: [
                         {
-                            text: 'Listen again' | 'Forgotten favorites' | 'Quick picks' | 'New releases' | 'From your library'
+                            text: string
                         },
                     ]
                 }

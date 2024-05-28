@@ -11,19 +11,16 @@ export const GET: RequestHandler = async ({ url }) => {
         let tries = 0
         while (tries < MAX_TRIES) {
             ++tries
-            const response = await fetch(imageUrl).catch((reason) => {
-                console.error(`Image fetch to ${imageUrl} failed: ${reason}`)
-                return null
-            })
+            const response = await fetch(imageUrl).catch(() => null)
             if (!response || !response.ok) continue
 
             const contentType = response.headers.get('content-type')
-            if (!contentType || !contentType.startsWith('image')) throw new Error(`Url ${imageUrl} does not link to an image`)
+            if (!contentType || !contentType.startsWith('image')) throw Error(`Url ${imageUrl} does not link to an image`)
 
             return response
         }
 
-        throw new Error('Exceed Max Retires')
+        throw Error(`Failed to fetch image at ${url} Exceed Max Retires`)
     }
 
     return await fetchImage()

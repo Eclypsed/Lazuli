@@ -62,6 +62,12 @@ class Queue {
         writableQueue.set(this)
     }
 
+    public setQueue(...songs: Song[]) {
+        this.songs = songs
+        this.currentPosition = songs.length === 0 ? -1 : 0
+        writableQueue.set(this)
+    }
+
     public clear() {
         this.currentPosition = -1
         this.songs = []

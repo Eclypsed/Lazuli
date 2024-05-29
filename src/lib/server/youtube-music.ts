@@ -163,7 +163,7 @@ export class YouTubeMusic implements Connection {
         return fetch(url, { headers, method: 'POST', body: JSON.stringify(body) })
     }
 
-    // TODO: Figure out why this still breaks sometimes
+    // TODO: Figure out why this still breaks sometimes (Figured out one cause: "Episodes" can appear as videos)
     public async search(searchTerm: string, filter: 'song'): Promise<Song[]>
     public async search(searchTerm: string, filter: 'album'): Promise<Album[]>
     public async search(searchTerm: string, filter: 'artist'): Promise<Artist[]>
@@ -187,7 +187,12 @@ export class YouTubeMusic implements Connection {
                     parsedSearchResults.push(parseMusicCardShelfRenderer(section.musicCardShelfRenderer))
                     section.musicCardShelfRenderer.contents?.forEach((item) => {
                         if ('musicResponsiveListItemRenderer' in item) {
-                            parsedSearchResults.push(parseResponsiveListItemRenderer(item.musicResponsiveListItemRenderer))
+                            try {
+                                // ! TEMPORARY I need to rework all my parsers to be able to handle edge cases
+                                parsedSearchResults.push(parseResponsiveListItemRenderer(item.musicResponsiveListItemRenderer))
+                            } catch {
+                                return
+                            }
                         }
                     })
                     continue
@@ -196,8 +201,14 @@ export class YouTubeMusic implements Connection {
                 const sectionType = section.musicShelfRenderer.title.runs[0].text
                 if (!goodSections.includes(sectionType)) continue
 
-                const parsedSectionContents = section.musicShelfRenderer.contents.map((item) => parseResponsiveListItemRenderer(item.musicResponsiveListItemRenderer))
-                parsedSearchResults.push(...parsedSectionContents)
+                section.musicShelfRenderer.contents.forEach((item) => {
+                    try {
+                        // ! TEMPORARY I need to rework all my parsers to be able to handle edge cases
+                        parsedSearchResults.push(parseResponsiveListItemRenderer(item.musicResponsiveListItemRenderer))
+                    } catch {
+                        return
+                    }
+                })
             }
 
             return this.scrapedToMediaItems(parsedSearchResults)
@@ -208,7 +219,7 @@ export class YouTubeMusic implements Connection {
         }
     }
 
-    // TODO: Figure out why this still breaks sometimes
+    // TODO: Figure out why this still breaks sometimes (Figured out one cause: "Episodes" can appear as videos)
     public async getRecommendations() {
         const homeResponse = (await this.ytMusicv1ApiRequest({ type: 'browse', browseId: 'FEmusic_home' }).then((response) => response.json())) as InnerTube.HomeResponse
 
@@ -235,7 +246,7 @@ export class YouTubeMusic implements Connection {
         }
     }
 
-    public async getAudioStream(id: string, headers: Headers): Promise<Response> {
+    public async getAudioStream(id: string, headers: Headers) {
         if (!/^[a-zA-Z0-9-_]{11}$/.test(id)) throw TypeError('Invalid youtube video Id')
 
         // ? In the future, may want to implement the TVHTML5_SIMPLY_EMBEDDED_PLAYER client method both in order to bypass age-restrictions and just to serve as a fallback
@@ -688,7 +699,9 @@ function parseResponsiveListItemRenderer(listContent: InnerTube.musicResponsiveL
     })
 
     if (!('navigationEndpoint' in listContent)) {
-        const id = listContent.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.text.runs[0].navigationEndpoint.watchEndpoint.videoId
+        const id = listContent.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.text.runs[0].navigationEndpoint.watchEndpoint?.videoId
+        if (!id) throw TypeError('Encountered a bad responsiveListItemRenderer, potentially and "Episode or something like that"') // ! I need to rework all my parsers to be able to handle these kinds of edge cases
+
         const isVideo =
             listContent.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.text.runs[0].navigationEndpoint.watchEndpoint.watchEndpointMusicSupportedConfigs.watchEndpointMusicConfig.musicVideoType !==
             'MUSIC_VIDEO_TYPE_ATV'

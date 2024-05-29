@@ -161,7 +161,7 @@ declare global {
         name: string
         type: 'playlist'
         thumbnailUrl: string
-        createdBy?: {
+        createdBy?: { // Optional, in the case that a playlist is auto-generated or it's the user's playlist in which case this is unnecessary
             id: string
             name: string
         }

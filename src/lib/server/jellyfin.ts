@@ -1,5 +1,7 @@
 import { PUBLIC_VERSION } from '$env/static/public'
 
+const jellyfinLogo = 'https://raw.githubusercontent.com/jellyfin/jellyfin-ux/55616553b692b1a6c7d8e786eeb7d8216e9b50df/branding/SVG/icon-transparent.svg'
+
 export class Jellyfin implements Connection {
     public readonly id: string
     private readonly userId: string
@@ -19,22 +21,21 @@ export class Jellyfin implements Connection {
         this.authHeader = new Headers({ Authorization: `MediaBrowser Token="${this.accessToken}"` })
     }
 
-    public getConnectionInfo = async (): Promise<Extract<ConnectionInfo, { type: 'jellyfin' }>> => {
+    public async getConnectionInfo() {
         const userUrl = new URL(`Users/${this.jfUserId}`, this.serverUrl)
         const systemUrl = new URL('System/Info', this.serverUrl)
 
-        const userData: JellyfinAPI.User | undefined = await fetch(userUrl, { headers: this.authHeader })
-            .then((response) => response.json())
-            .catch(() => {
-                console.error(`Fetch to ${userUrl.toString()} failed`)
-                return undefined
-            })
-        const systemData: JellyfinAPI.System | undefined = await fetch(systemUrl, { headers: this.authHeader })
-            .then((response) => response.json())
-            .catch(() => {
-                console.error(`Fetch to ${systemUrl.toString()} failed`)
-                return undefined
-            })
+        const userData = await fetch(userUrl, { headers: this.authHeader })
+            .then((response) => response.json() as Promise<JellyfinAPI.User>)
+            .catch(() => null)
+
+        if (!userData) console.error(`Fetch to ${userUrl.toString()} failed`)
+
+        const systemData = await fetch(systemUrl, { headers: this.authHeader })
+            .then((response) => response.json() as Promise<JellyfinAPI.System>)
+            .catch(() => null)
+
+        if (!systemData) console.error(`Fetch to ${systemUrl.toString()} failed`)
 
         return {
             id: this.id,
@@ -44,10 +45,10 @@ export class Jellyfin implements Connection {
             serverName: systemData?.ServerName,
             jellyfinUserId: this.jfUserId,
             username: userData?.Name,
-        }
+        } satisfies ConnectionInfo
     }
 
-    public getRecommendations = async (): Promise<(Song | Album | Playlist)[]> => {
+    public async getRecommendations(): Promise<(Song | Album | Artist | Playlist)[]> {
         const searchParams = new URLSearchParams({
             SortBy: 'PlayCount',
             SortOrder: 'Descending',
@@ -60,35 +61,43 @@ export class Jellyfin implements Connection {
 
         const mostPlayed: { Items: JellyfinAPI.Song[] } = await fetch(mostPlayedSongsURL, { headers: this.authHeader }).then((response) => response.json())
 
-        return Array.from(mostPlayed.Items, (song) => this.parseSong(song))
+        return mostPlayed.Items.map((song) => this.parseSong(song))
     }
 
-    public search = async (searchTerm: string, filter?: 'song' | 'album' | 'artist' | 'playlist'): Promise<(Song | Album | Playlist)[]> => {
+    public async search(searchTerm: string, filter: 'song'): Promise<Song[]>
+    public async search(searchTerm: string, filter: 'album'): Promise<Album[]>
+    public async search(searchTerm: string, filter: 'artist'): Promise<Artist[]>
+    public async search(searchTerm: string, filter: 'playlist'): Promise<Playlist[]>
+    public async search(searchTerm: string, filter?: undefined): Promise<(Song | Album | Artist | Playlist)[]>
+    public async search(searchTerm: string, filter?: 'song' | 'album' | 'artist' | 'playlist'): Promise<(Song | Album | Artist | Playlist)[]> {
+        const filterMap = { song: 'Audio', album: 'MusicAlbum', artist: 'MusicArtist', playlist: 'Playlist' } as const
+
         const searchParams = new URLSearchParams({
             searchTerm,
-            includeItemTypes: 'Audio,MusicAlbum,Playlist', // Potentially add MusicArtist
+            includeItemTypes: filter ? filterMap[filter] : Object.values(filterMap).join(','),
             recursive: 'true',
         })
 
         const searchURL = new URL(`Users/${this.jfUserId}/Items?${searchParams.toString()}`, this.serverUrl)
         const searchResponse = await fetch(searchURL, { headers: this.authHeader })
         if (!searchResponse.ok) throw new JellyfinFetchError('Failed to search Jellyfin', searchResponse.status, searchURL.toString())
-        const searchResults = (await searchResponse.json()).Items as (JellyfinAPI.Song | JellyfinAPI.Album | JellyfinAPI.Playlist)[] // JellyfinAPI.Artist
+        const searchResults = (await searchResponse.json()).Items as (JellyfinAPI.Song | JellyfinAPI.Album | JellyfinAPI.Artist | JellyfinAPI.Playlist)[]
 
-        const parsedResults: (Song | Album | Playlist)[] = Array.from(searchResults, (result) => {
+        return searchResults.map((result) => {
             switch (result.Type) {
                 case 'Audio':
                     return this.parseSong(result)
                 case 'MusicAlbum':
                     return this.parseAlbum(result)
+                case 'MusicArtist':
+                    return this.parseArtist(result)
                 case 'Playlist':
                     return this.parsePlaylist(result)
             }
         })
-        return parsedResults
     }
 
-    public getAudioStream = async (id: string, range: string | null): Promise<Response> => {
+    public getAudioStream = async (id: string, headers: Headers): Promise<Response> => {
         const audoSearchParams = new URLSearchParams({
             MaxStreamingBitrate: '2000000',
             Container: 'opus,webm|opus,mp3,aac,m4a|aac,m4b|aac,flac,webma,webm|webma,wav,ogg',
@@ -100,70 +109,71 @@ export class Jellyfin implements Connection {
 
         const audioUrl = new URL(`Audio/${id}/universal?${audoSearchParams.toString()}`, this.serverUrl)
 
-        const headers = new Headers(this.authHeader)
-        headers.set('range', range || '0-')
-
-        return await fetch(audioUrl, { headers })
+        return fetch(audioUrl, { headers })
     }
 
     private parseSong = (song: JellyfinAPI.Song): Song => {
-        const thumbnail = song.ImageTags?.Primary
+        const thumbnailUrl = song.ImageTags?.Primary
             ? new URL(`Items/${song.Id}/Images/Primary`, this.serverUrl).toString()
             : song.AlbumPrimaryImageTag
               ? new URL(`Items/${song.AlbumId}/Images/Primary`, this.serverUrl).toString()
-              : undefined
+              : jellyfinLogo
 
-        const artists: Song['artists'] = song.ArtistItems
-            ? Array.from(song.ArtistItems, (artist) => {
-                  return { id: artist.Id, name: artist.Name }
-              })
-            : undefined
+        const artists: Song['artists'] = song.ArtistItems?.map((artist) => ({ id: artist.Id, name: artist.Name }))
 
         const album: Song['album'] = song.AlbumId && song.Album ? { id: song.AlbumId, name: song.Album } : undefined
 
         return {
-            connection: this.id,
-            type: 'song',
+            connection: { id: this.id, type: 'jellyfin' },
             id: song.Id,
             name: song.Name,
+            type: 'song',
             duration: ticksToSeconds(song.RunTimeTicks),
-            thumbnail,
+            thumbnailUrl,
+            releaseDate: song.ProductionYear ? new Date(song.ProductionYear.toString()).toISOString() : undefined,
             artists,
             album,
-            releaseDate: song.ProductionYear?.toString(),
+            isVideo: false,
         }
     }
 
     private parseAlbum = (album: JellyfinAPI.Album): Album => {
-        const thumbnail = album.ImageTags?.Primary ? new URL(`Items/${album.Id}/Images/Primary`, this.serverUrl).toString() : undefined
+        const thumbnailUrl = album.ImageTags?.Primary ? new URL(`Items/${album.Id}/Images/Primary`, this.serverUrl).toString() : jellyfinLogo
 
-        const artists: Album['artists'] = album.AlbumArtists
-            ? Array.from(album.AlbumArtists, (artist) => {
-                  return { id: artist.Id, name: artist.Name }
-              })
-            : undefined
+        const artists: Album['artists'] = album.AlbumArtists?.map((artist) => ({ id: artist.Id, name: artist.Name })) ?? 'Various Artists'
 
         return {
-            connection: this.id,
-            type: 'album',
+            connection: { id: this.id, type: 'jellyfin' },
             id: album.Id,
             name: album.Name,
-            duration: ticksToSeconds(album.RunTimeTicks),
-            thumbnail,
+            type: 'album',
+            thumbnailUrl,
             artists,
-            releaseDate: album.ProductionYear?.toString(),
+            releaseYear: album.ProductionYear?.toString(),
+        }
+    }
+
+    private parseArtist(artist: JellyfinAPI.Artist): Artist {
+        const profilePicture = artist.ImageTags?.Primary ? new URL(`Items/${artist.Id}/Images/Primary`, this.serverUrl).toString() : jellyfinLogo
+
+        return {
+            connection: { id: this.id, type: 'jellyfin' },
+            id: artist.Id,
+            name: artist.Name,
+            type: 'artist',
+            profilePicture,
         }
     }
 
     private parsePlaylist = (playlist: JellyfinAPI.Playlist): Playlist => {
-        const thumbnail = playlist.ImageTags?.Primary ? new URL(`Items/${playlist.Id}/Images/Primary`, this.serverUrl).toString() : undefined
+        const thumbnailUrl = playlist.ImageTags?.Primary ? new URL(`Items/${playlist.Id}/Images/Primary`, this.serverUrl).toString() : jellyfinLogo
 
         return {
-            connection: this.id,
+            connection: { id: this.id, type: 'jellyfin' },
             id: playlist.Id,
             name: playlist.Name,
             type: 'playlist',
-            thumbnail,
+            thumbnailUrl,
         }
     }
 

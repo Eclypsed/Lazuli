@@ -55,42 +55,50 @@ export class YouTubeMusic implements Connection {
         this.expiry = expiry
     }
 
-    // TODO: Need to figure out a way to prevent this from this refresh the access token twice in the event that it is requested again while awaiting the first refreshed token
+    private accessTokenRefreshRequest: Promise<string> | null = null
     private get accessToken() {
-        return (async () => {
-            const refreshTokens = async (): Promise<{ accessToken: string; expiry: number }> => {
-                const MAX_TRIES = 3
-                let tries = 0
-                const refreshDetails = { client_id: PUBLIC_YOUTUBE_API_CLIENT_ID, client_secret: YOUTUBE_API_CLIENT_SECRET, refresh_token: this.refreshToken, grant_type: 'refresh_token' }
+        const refreshAccessToken = async () => {
+            const MAX_TRIES = 3
+            let tries = 0
+            const refreshDetails = { client_id: PUBLIC_YOUTUBE_API_CLIENT_ID, client_secret: YOUTUBE_API_CLIENT_SECRET, refresh_token: this.refreshToken, grant_type: 'refresh_token' }
 
-                while (tries < MAX_TRIES) {
-                    ++tries
-                    const response = await fetch('https://oauth2.googleapis.com/token', {
-                        method: 'POST',
-                        body: JSON.stringify(refreshDetails),
-                    }).catch((reason) => {
-                        console.error(`Fetch to refresh endpoint failed: ${reason}`)
-                        return null
-                    })
-                    if (!response || !response.ok) continue
+            while (tries < MAX_TRIES) {
+                ++tries
+                const response = await fetch('https://oauth2.googleapis.com/token', {
+                    method: 'POST',
+                    body: JSON.stringify(refreshDetails),
+                }).catch((reason) => {
+                    console.error(`Fetch to refresh endpoint failed: ${reason}`)
+                    return null
+                })
+                if (!response || !response.ok) continue
 
-                    const { access_token, expires_in } = await response.json()
-                    const expiry = Date.now() + expires_in * 1000
-                    return { accessToken: access_token, expiry }
-                }
-
-                throw new Error(`Failed to refresh access tokens for YouTube Music connection: ${this.id}`)
+                const { access_token, expires_in } = await response.json()
+                const expiry = Date.now() + expires_in * 1000
+                return { accessToken: access_token as string, expiry }
             }
 
-            if (this.expiry < Date.now()) {
-                const { accessToken, expiry } = await refreshTokens()
+            throw Error(`Failed to refresh access tokens for YouTube Music connection: ${this.id}`)
+        }
+
+        if (this.expiry > Date.now()) return new Promise<string>((resolve) => resolve(this.currentAccessToken))
+
+        if (this.accessTokenRefreshRequest) return this.accessTokenRefreshRequest
+
+        this.accessTokenRefreshRequest = refreshAccessToken()
+            .then(({ accessToken, expiry }) => {
                 DB.updateTokens(this.id, { accessToken, refreshToken: this.refreshToken, expiry })
                 this.currentAccessToken = accessToken
                 this.expiry = expiry
-            }
+                this.accessTokenRefreshRequest = null
+                return accessToken
+            })
+            .catch((error: Error) => {
+                this.accessTokenRefreshRequest = null
+                throw error
+            })
 
-            return this.currentAccessToken
-        })()
+        return this.accessTokenRefreshRequest
     }
 
     public async getConnectionInfo() {
@@ -110,11 +118,6 @@ export class YouTubeMusic implements Connection {
     private async ytMusicv1ApiRequest(requestDetails: ytMusicv1ApiRequestParams) {
         const headers = new Headers({
             'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:88.0) Gecko/20100101 Firefox/88.0',
-            accept: '*/*',
-            'accept-encoding': 'gzip, deflate',
-            'content-type': 'application/json',
-            'content-encoding': 'gzip',
-            origin: 'https://music.youtube.com',
             authorization: `Bearer ${await this.accessToken}`,
         })
 
@@ -127,40 +130,35 @@ export class YouTubeMusic implements Connection {
             client: {
                 clientName: 'WEB_REMIX',
                 clientVersion: `1.${year + month + day}.01.00`,
-                hl: 'en',
             },
         }
 
-        const fetchData = (): [URL, Object] => {
-            switch (requestDetails.type) {
-                case 'browse':
-                    return [
-                        new URL('https://music.youtube.com/youtubei/v1/browse'),
-                        {
-                            browseId: requestDetails.browseId,
-                            context,
-                        },
-                    ]
-                case 'search':
-                    return [
-                        new URL('https://music.youtube.com/youtubei/v1/search'),
-                        {
-                            query: requestDetails.searchTerm,
-                            filter: requestDetails.filter ? searchFilterParams[requestDetails.filter] : undefined,
-                            context,
-                        },
-                    ]
-                case 'continuation':
-                    return [
-                        new URL(`https://music.youtube.com/youtubei/v1/browse?ctoken=${requestDetails.ctoken}&continuation=${requestDetails.ctoken}`),
-                        {
-                            context,
-                        },
-                    ]
-            }
-        }
+        let url: string
+        let body: Record<string, any>
 
-        const [url, body] = fetchData()
+        switch (requestDetails.type) {
+            case 'browse':
+                url = 'https://music.youtube.com/youtubei/v1/browse'
+                body = {
+                    browseId: requestDetails.browseId,
+                    context,
+                }
+                break
+            case 'search':
+                url = 'https://music.youtube.com/youtubei/v1/search'
+                body = {
+                    query: requestDetails.searchTerm,
+                    filter: requestDetails.filter ? searchFilterParams[requestDetails.filter] : undefined,
+                    context,
+                }
+                break
+            case 'continuation':
+                url = `https://music.youtube.com/youtubei/v1/browse?ctoken=${requestDetails.ctoken}&continuation=${requestDetails.ctoken}`
+                body = {
+                    context,
+                }
+                break
+        }
 
         return fetch(url, { headers, method: 'POST', body: JSON.stringify(body) })
     }
@@ -238,29 +236,23 @@ export class YouTubeMusic implements Connection {
     }
 
     public async getAudioStream(id: string, headers: Headers): Promise<Response> {
-        if (!/^[a-zA-Z0-9-_]{11}$/.test(id)) throw TypeError('Invalid youtube video ID')
+        if (!/^[a-zA-Z0-9-_]{11}$/.test(id)) throw TypeError('Invalid youtube video Id')
 
-        // ? In the future, may want to implement the original web client method both in order to bypass age-restrictions and just to serve as a fallback
-        // ? However this has the downsides of being slower and requiring the user's cookies if the video is premium exclusive.
+        // ? In the future, may want to implement the TVHTML5_SIMPLY_EMBEDDED_PLAYER client method both in order to bypass age-restrictions and just to serve as a fallback
+        // ? However this has the downsides of being slower and (I think) requiring the user's cookies if the video is premium exclusive.
         // ? Ideally, I want to avoid having to mess with a user's cookies at all costs because:
         // ?    a) It's another security risk
         // ?    b) A user would have to manually copy them over, which is about as user friendly as a kick to the face
         // ?    c) Cookies get updated with every request, meaning the db would get hit more frequently, and it's just another thing to maintain
         // ? Ulimately though, I may have to implment cookie support anyway dependeding on how youtube tracks a user's watch history and prefrences
 
-        // * MASSIVE props and credit to Oleksii Holub (https://github.com/Tyrrrz) for documenting the android client method of player fetching: https://tyrrrz.me/blog/reverse-engineering-youtube-revisited.
+        // * MASSIVE props and credit to Oleksii Holub for documenting the android client method of player fetching (See refrences at bottom).
         // * Go support him and go support Ukraine (he's Ukrainian)
 
-        // TODO: Differentiate errors thrown by the player fetch and handle them respectively, rather than just a global catch. (Throw TypeError if the request contained an invalid videoId)
         const playerResponse = await fetch('https://www.youtube.com/youtubei/v1/player', {
             headers: {
-                'user-agent': 'com.google.android.youtube/17.36.4 (Linux; U; Android 12; GB) gzip',
-                accept: '*/*',
-                'accept-encoding': 'gzip, deflate',
-                'content-type': 'application/json',
-                'content-encoding': 'gzip',
-                origin: 'https://music.youtube.com',
-                authorization: `Bearer ${await this.accessToken}`,
+                // 'user-agent': 'com.google.android.youtube/17.36.4 (Linux; U; Android 12; GB) gzip', <-- I thought this was necessary but it appears it might not be?
+                authorization: `Bearer ${await this.accessToken}`, // * Including the access token is what enables access to premium content
             },
             method: 'POST',
             body: JSON.stringify({
@@ -269,33 +261,39 @@ export class YouTubeMusic implements Connection {
                     client: {
                         clientName: 'ANDROID_TESTSUITE',
                         clientVersion: '1.9',
-                        androidSdkVersion: 30,
-                        hl: 'en',
-                        gl: 'US',
-                        utcOffsetMinutes: 0,
+                        // androidSdkVersion: 30, <-- I thought this was necessary but it appears it might not be?
                     },
                 },
             }),
         })
-            .then((response) => response.json() as Promise<InnerTube.Player.PlayerResponse>)
+            .then((response) => response.json() as Promise<InnerTube.Player.PlayerResponse | InnerTube.Player.PlayerErrorResponse>)
             .catch(() => null)
 
         if (!playerResponse) throw Error(`Failed to fetch player for song ${id} of connection ${this.id}`)
 
-        const audioOnlyFormats = playerResponse.streamingData.formats.concat(playerResponse.streamingData.adaptiveFormats).filter(
+        if (!('streamingData' in playerResponse)) {
+            if (playerResponse.playabilityStatus.reason === 'This video is unavailable') throw TypeError('Invalid youtube video Id')
+
+            const errorMessage = `Unknown player response error: ${playerResponse.playabilityStatus.reason}`
+            console.error(errorMessage)
+            throw Error(errorMessage)
+        }
+
+        const formats = playerResponse.streamingData.formats?.concat(playerResponse.streamingData.adaptiveFormats ?? [])
+        const audioOnlyFormats = formats?.filter(
             (format): format is HasDefinedProperty<InnerTube.Player.Format, 'url' | 'audioQuality'> =>
                 format.qualityLabel === undefined &&
                 format.audioQuality !== undefined &&
                 format.url !== undefined &&
                 !/\bsource[/=]yt_live_broadcast\b/.test(format.url) && // Filters out live broadcasts
-                !/\/manifest\/hls_(variant|playlist)\//.test(format.url) && // Filters out HLS streams
-                !/\/manifest\/dash\//.test(format.url), // Filters out DashMPD streams
+                !/\/manifest\/hls_(variant|playlist)\//.test(format.url) && // Filters out HLS streams (Might not be applicable to the ANDROID_TESTSUITE client)
+                !/\/manifest\/dash\//.test(format.url), // Filters out DashMPD streams (Might not be applicable to the ANDROID_TESTSUITE client)
             // ? For each of the three above filters, I may want to look into how to support them.
             // ? Especially live streams, being able to support those live music stream channels seems like a necessary feature.
-            // ? HLS and DashMPD I *think* are more efficient so it would be nice to support those too.
+            // ? HLS and DashMPD I *think* are more efficient so it would be nice to support those too, if applicable.
         )
 
-        if (audioOnlyFormats.length === 0) throw Error(`No valid audio formats returned for song ${id} of connection ${this.id}`)
+        if (!audioOnlyFormats || audioOnlyFormats.length === 0) throw Error(`No valid audio formats returned for song ${id} of connection ${this.id}`)
 
         const hqAudioFormat = audioOnlyFormats.reduce((previous, current) => (previous.bitrate > current.bitrate ? previous : current))
 
@@ -401,7 +399,19 @@ export class YouTubeMusic implements Connection {
      * @param id The id of the playlist (not the browseId!).
      */
     public async getPlaylist(id: string): Promise<Playlist> {
-        const playlistResponse = (await this.ytMusicv1ApiRequest({ type: 'browse', browseId: 'VL'.concat(id) }).then((response) => response.json())) as InnerTube.Playlist.PlaylistResponse
+        const playlistResponse = await this.ytMusicv1ApiRequest({ type: 'browse', browseId: 'VL'.concat(id) })
+            .then((response) => response.json() as Promise<InnerTube.Playlist.PlaylistResponse | InnerTube.Playlist.PlaylistErrorResponse>)
+            .catch(() => null)
+
+        if (!playlistResponse) throw Error(`Failed to fetch playlist ${id} of connection ${this.id}`)
+
+        if ('error' in playlistResponse) {
+            if (playlistResponse.error.status === 'NOT_FOUND' || playlistResponse.error.status === 'INVALID_ARGUMENT') throw TypeError('Invalid youtube playlist id')
+
+            const errorMessage = `Unknown playlist response error: ${playlistResponse.error.message}`
+            console.error(errorMessage)
+            throw Error(errorMessage)
+        }
 
         const header =
             'musicEditablePlaylistDetailHeaderRenderer' in playlistResponse.header
@@ -425,27 +435,42 @@ export class YouTubeMusic implements Connection {
 
     /**
      * @param id The id of the playlist (not the browseId!).
+     * @param startIndex The index to start at (0 based). All playlist items with a lower index will be dropped from the results
+     * @param limit The maximum number of playlist items to return
      */
-    // TODO: Add startIndex and length parameters
-    public async getPlaylistItems(id: string): Promise<Song[]> {
-        const playlistResponse = (await this.ytMusicv1ApiRequest({ type: 'browse', browseId: 'VL'.concat(id) }).then((response) => response.json())) as InnerTube.Playlist.PlaylistResponse
+    public async getPlaylistItems(id: string, startIndex?: number, limit?: number): Promise<Song[]> {
+        const playlistResponse = await this.ytMusicv1ApiRequest({ type: 'browse', browseId: 'VL'.concat(id) })
+            .then((response) => response.json() as Promise<InnerTube.Playlist.PlaylistResponse | InnerTube.Playlist.PlaylistErrorResponse>)
+            .catch(() => null)
 
-        const contents = playlistResponse.contents.singleColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents[0].musicPlaylistShelfRenderer.contents
+        if (!playlistResponse) throw Error(`Failed to fetch playlist ${id} of connection ${this.id}`)
+
+        if ('error' in playlistResponse) {
+            if (playlistResponse.error.status === 'NOT_FOUND' || playlistResponse.error.status === 'INVALID_ARGUMENT') throw TypeError('Invalid youtube playlist id')
+
+            const errorMessage = `Unknown playlist items response error: ${playlistResponse.error.message}`
+            console.error(errorMessage)
+            throw Error(errorMessage)
+        }
+
+        const playableContents = playlistResponse.contents.singleColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents[0].musicPlaylistShelfRenderer.contents.filter(
+            (item) => item.musicResponsiveListItemRenderer.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.text.runs[0].navigationEndpoint?.watchEndpoint?.videoId !== undefined,
+        )
+
         let continuation =
             playlistResponse.contents.singleColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents[0].musicPlaylistShelfRenderer.continuations?.[0].nextContinuationData.continuation
 
-        while (continuation) {
+        while (continuation && (!limit || playableContents.length < (startIndex ?? 0) + limit)) {
             const continuationResponse = (await this.ytMusicv1ApiRequest({ type: 'continuation', ctoken: continuation }).then((response) => response.json())) as InnerTube.Playlist.ContinuationResponse
+            const playableContinuationContents = continuationResponse.continuationContents.musicPlaylistShelfContinuation.contents.filter(
+                (item) => item.musicResponsiveListItemRenderer.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.text.runs[0].navigationEndpoint?.watchEndpoint?.videoId !== undefined,
+            )
 
-            contents.push(...continuationResponse.continuationContents.musicPlaylistShelfContinuation.contents)
+            playableContents.push(...playableContinuationContents)
             continuation = continuationResponse.continuationContents.musicPlaylistShelfContinuation.continuations?.[0].nextContinuationData.continuation
         }
 
-        // This is simply to handle completely fucked playlists where the playlist items might be missing navigation endpoints (e.g. Deleted Videos)
-        // or in some really bad cases, have a navigationEndpoint, but not a watchEndpoint somehow (Possibly for unlisted/private content?)
-        const playableItems = contents.filter((item) => item.musicResponsiveListItemRenderer.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.text.runs[0].navigationEndpoint?.watchEndpoint?.videoId !== undefined)
-
-        const scrapedItems = playableItems.map((item) => {
+        const scrapedItems = playableContents.slice(startIndex ?? 0, limit ? (startIndex ?? 0) + limit : undefined).map((item) => {
             const [col0, col1, col2] = item.musicResponsiveListItemRenderer.flexColumns
 
             const id = col0.musicResponsiveListItemFlexColumnRenderer.text.runs[0].navigationEndpoint!.watchEndpoint.videoId
@@ -503,22 +528,16 @@ export class YouTubeMusic implements Connection {
     private async scrapedToMediaItems<T extends (InnerTube.ScrapedSong | InnerTube.ScrapedAlbum | InnerTube.ScrapedArtist | InnerTube.ScrapedPlaylist)[]>(scrapedItems: T): Promise<ScrapedMediaItemMap<T[number]>[]> {
         const songIds = new Set<string>(),
             albumIds = new Set<string>(),
-            artistIds = new Set<string>(),
             playlistIds = new Set<string>()
 
         scrapedItems.forEach((item) => {
             switch (item.type) {
                 case 'song':
                     songIds.add(item.id)
-                    if (item.album?.id) albumIds.add(item.album.id)
-                    item.artists?.forEach((artist) => artistIds.add(artist.id))
+                    if (item.album?.id && !item.album.name) albumIds.add(item.album.id) // This is here because sometimes it is not possible to get the album name directly from a page, only the id
                     break
                 case 'album':
                     albumIds.add(item.id)
-                    if (item.artists instanceof Array) item.artists.forEach((artist) => artistIds.add(artist.id))
-                    break
-                case 'artist':
-                    artistIds.add(item.id)
                     break
                 case 'playlist':
                     playlistIds.add(item.id)
@@ -554,7 +573,7 @@ export class YouTubeMusic implements Connection {
         return scrapedItems.map((item) => {
             switch (item.type) {
                 case 'song':
-                    const { id, name, artists, album, isVideo, uploader } = item
+                    const { id, name, artists, isVideo, uploader } = item
                     const songDetails = songDetailsMap.get(id)!
                     const duration = secondsFromISO8601(songDetails.contentDetails?.duration!)
 
@@ -563,10 +582,13 @@ export class YouTubeMusic implements Connection {
 
                     const releaseDate = new Date(songDetails.snippet?.description?.match(/Released on: \d{4}-\d{2}-\d{2}/)?.[0] ?? songDetails.snippet?.publishedAt!).toISOString()
 
-                    const albumDetails = album ? albumDetailsMap.get(album.id)! : undefined
-                    const fullAlbum = (albumDetails ? { id: albumDetails.id, name: albumDetails.name, thumbnailUrl: albumDetails.thumbnailUrl } : undefined) satisfies Song['album']
+                    let album: Song['album']
+                    if (item.album?.id) {
+                        const albumName = item.album.name ? item.album.name : albumDetailsMap.get(item.album.id)!.name
+                        album = { id: item.album.id, name: albumName }
+                    }
 
-                    return { connection, id, name, type: 'song', duration, thumbnailUrl, releaseDate, artists, album: fullAlbum, isVideo, uploader } satisfies Song
+                    return { connection, id, name, type: 'song', duration, thumbnailUrl, releaseDate, artists, album, isVideo, uploader } satisfies Song
                 case 'album':
                     return albumDetailsMap.get(item.id)! satisfies Album
                 case 'artist':
@@ -843,3 +865,12 @@ function parseAndSetCookies(response: Response) {
         return result
     })
 }
+
+// ? Helpfull Docummentation:
+// ?  - Making requests to the youtube player: https://tyrrrz.me/blog/reverse-engineering-youtube-revisited (Oleksii Holub, https://github.com/Tyrrrz)
+// ?  - YouTube API Clients: https://github.com/zerodytrash/YouTube-Internal-Clients (https://github.com/zerodytrash)
+
+// ? Video Test ids:
+// ?  - DJ Sharpnel Blue Army full ver: iyL0zueK4CY (Standard video; 144p, 240p)
+// ?  - HELLOHELL: p0qace56glE (Music video type ATV; Premium Exclusive)
+// ?  - The Stampy Channel - Endless Episodes - 🔴 Rebroadcast: S8s3eRBPCX0 (Live stream; 144p, 240p, 360p, 480p, 720p, 1080p)

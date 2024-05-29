@@ -59,7 +59,7 @@ declare global {
          * @param headers The request headers sent by the Lazuli client that need to be relayed to the connection's request to the server (e.g. 'range').
          * @returns A promise of response object containing the audio stream for the specified byte range
          * 
-         * Fetches the audio stream for a song.
+         * Fetches the audio stream for a song. Will return an response containing the audio stream if the fetch was successfull, otherwise throw an error.
          */
         getAudioStream: (id: string, headers: Headers) => Promise<Response>
 
@@ -83,9 +83,11 @@ declare global {
 
         /**
          * @param id The id of a playlist
+         * @param startIndex The index to start at (0 based). All playlist items with a lower index will be dropped from the results
+         * @param limit The maximum number of playlist items to return
          * @returns A promise of the songs in the playlist as and array of Song objects
          */
-        getPlaylistItems: (id: string) => Promise<Song[]>
+        getPlaylistItems: (id: string, startIndex?: number, limit?: number) => Promise<Song[]>
     }
 
     // These Schemas should only contain general info data that is necessary for data fetching purposes.
@@ -105,21 +107,18 @@ declare global {
         type: 'song'
         duration: number // Seconds
         thumbnailUrl: string // Base/maxres url of song, any scaling for performance purposes will be handled by remoteImage endpoint    
-        releaseDate: string // ISOString
+        releaseDate?: string // ISOString
         artists?: { // Should try to order
             id: string
             name: string
-            profilePicture?: string
         }[]
         album?: {
             id: string
             name: string
-            thumbnailUrl?: string
         }
         uploader?: {
             id: string
             name: string
-            profilePicture?: string
         }
         isVideo: boolean
     }
@@ -137,7 +136,6 @@ declare global {
         artists: { // Should try to order
             id: string
             name: string
-            profilePicture?: string
         }[] | 'Various Artists'
         releaseYear?: string // ####
     }
@@ -166,7 +164,6 @@ declare global {
         createdBy?: {
             id: string
             name: string
-            profilePicture?: string
         }
     }
 

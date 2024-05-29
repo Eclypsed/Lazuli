@@ -16,7 +16,7 @@ export const GET: RequestHandler = async ({ url, request }) => {
         // * Withing the .getAudioStream() method of connections, a TypeError should be thrown if the request was invalid (e.g. non-existent id)
         // * A standard Error should be thrown if the fetch to the service's server failed or the request returned invalid data
         .catch((error: TypeError | Error) => {
-            if (error instanceof TypeError) return new Response('Malformed Request', { status: 400 })
+            if (error instanceof TypeError) return new Response('Bad Request', { status: 400 })
             return new Response('Failed to fetch valid audio stream', { status: 502 })
         })
 

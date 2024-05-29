@@ -100,6 +100,14 @@ export namespace InnerTube {
                   }
         }
 
+        interface PlaylistErrorResponse {
+            error: {
+                code: number
+                message: string
+                status: string
+            }
+        }
+
         interface ContinuationResponse {
             continuationContents: {
                 musicPlaylistShelfContinuation: ContentShelf
@@ -339,10 +347,22 @@ export namespace InnerTube {
     }
 
     namespace Player {
-        interface PlayerResponse {
+        type PlayerResponse = {
+            playabilityStatus: {
+                status: 'OK'
+            }
             streamingData: {
-                formats: Format[]
-                adaptiveFormats: Format[]
+                formats?: Format[]
+                adaptiveFormats?: Format[]
+                dashManifestUrl?: string
+                hlsManifestUrl?: string
+            }
+        }
+
+        interface PlayerErrorResponse {
+            playabilityStatus: {
+                status: 'ERROR'
+                reason: string
             }
         }
 

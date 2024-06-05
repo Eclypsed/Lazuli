@@ -1,6 +1,6 @@
-import type { PageLoad } from './$types'
+import type { PageServerLoad } from '../$types'
 
-export const load: PageLoad = async ({ fetch, url }) => {
+export const load: PageServerLoad = async ({ fetch, url }) => {
     const connectionId = url.searchParams.get('connection')
     const id = url.searchParams.get('id')
 

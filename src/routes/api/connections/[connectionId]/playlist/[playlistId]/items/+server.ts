@@ -16,7 +16,7 @@ export const GET: RequestHandler = async ({ params, url }) => {
     const limit = Number.isInteger(numberLimit) && numberLimit > 0 ? numberLimit : undefined
 
     const response = await connection
-        .getPlaylistItems(playlistId!, startIndex, limit)
+        .getPlaylistItems(playlistId!, { startIndex, limit })
         .then((items) => Response.json({ items }))
         .catch((error: TypeError | Error) => {
             if (error instanceof TypeError) return new Response('Bad Request', { status: 400 })

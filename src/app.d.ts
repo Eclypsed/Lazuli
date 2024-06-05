@@ -40,6 +40,13 @@ declare global {
         profilePicture?: string
     })
 
+    type MediaItemTypeMap = {
+        song: Song
+        album: Album
+        artist: Artist
+        playlist: Playlist
+    }
+
     type SearchFilterMap<Filter> =
         Filter extends 'song' ? Song :
         Filter extends 'album' ? Album :
@@ -49,9 +56,19 @@ declare global {
         never
 
     interface Connection {
-        public id: string
+        public readonly id: string
+
+        /** Retireves general information about the connection */
         getConnectionInfo: () => Promise<ConnectionInfo>
+
+        /** Get's the user's recommendations from the corresponding service */
         getRecommendations: () => Promise<(Song | Album | Artist | Playlist)[]>
+
+        /**
+         * @param searchTerm The string of text to query
+         * @param filter Optional. A string of either 'song', 'album', 'artist', or 'playlist' to filter the kind of media items queried
+         * @returns A promise of an array of media items
+         */
         search: <T extends 'song' | 'album' | 'artist' | 'playlist'>(searchTerm: string, filter?: T) => Promise<SearchFilterMap<T>[]>
 
         /**
@@ -87,7 +104,13 @@ declare global {
          * @param limit The maximum number of playlist items to return
          * @returns A promise of the songs in the playlist as and array of Song objects
          */
-        getPlaylistItems: (id: string, startIndex?: number, limit?: number) => Promise<Song[]>
+        getPlaylistItems: (id: string, options?: { startIndex?: number, limit?: number }) => Promise<Song[]>
+
+        public readonly library: {
+            albums: () => Promise<Album[]>
+            artists: () => Promise<Artist[]>
+            playlists: () => Promise<Playlist[]>
+        }
     }
 
     // These Schemas should only contain general info data that is necessary for data fetching purposes.

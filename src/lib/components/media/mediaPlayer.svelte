@@ -11,30 +11,27 @@
     let expanded = false
 
     let paused = true,
-        shuffle = false,
-        repeat = false
+        loop = false
 
-    let volume: number,
-        muted = false
+    $: shuffled = $queue.isShuffled
 
     const maxVolume = 0.5
+    let volume: number
 
     let waiting: boolean
 
-    $: muted ? (volume = 0) : (volume = Number(localStorage.getItem('volume')))
-    $: if (volume && !muted) localStorage.setItem('volume', volume.toString())
-
-    const formatTime = (seconds: number): string => {
-        seconds = Math.floor(seconds)
+    function formatTime(seconds: number) {
+        seconds = Math.round(seconds)
         const hours = Math.floor(seconds / 3600)
         seconds = seconds - hours * 3600
         const minutes = Math.floor(seconds / 60)
         seconds = seconds - minutes * 60
-        return hours > 0 ? `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}` : `${minutes}:${seconds.toString().padStart(2, '0')}`
+        const durationString = `${minutes}:${seconds.toString().padStart(2, '0')}`
+        return hours > 0 ? `${hours}:`.concat(durationString) : durationString
     }
 
     $: if (currentlyPlaying) updateMediaSession(currentlyPlaying)
-    const updateMediaSession = (media: Song) => {
+    function updateMediaSession(media: Song) {
         if ('mediaSession' in navigator) {
             navigator.mediaSession.metadata = new MediaMetadata({
                 title: media.name,
@@ -51,7 +48,7 @@
             volume = Number(storedVolume)
         } else {
             localStorage.setItem('volume', (maxVolume / 2).toString())
-            volume = 0.5
+            volume = maxVolume / 2
         }
 
         if ('mediaSession' in navigator) {
@@ -103,13 +100,13 @@
                     </div>
                     <section class="flex flex-col justify-center gap-1">
                         <div class="line-clamp-2 text-sm">{currentlyPlaying.name}</div>
-                        <div class="text-xs">{currentlyPlaying.artists?.map((artist) => artist.name).join(', ') ?? currentlyPlaying.uploader?.name}</div>
+                        <div class="text-xs">{currentlyPlaying.artists?.map((artist) => artist.name).join(', ') || currentlyPlaying.uploader?.name}</div>
                     </section>
                 </section>
                 <section class="flex min-w-max flex-col items-center justify-center gap-1">
                     <div class="flex items-center gap-3 text-lg">
-                        <button on:click={() => (shuffle = !shuffle)} class="aspect-square h-8">
-                            <i class="fa-solid fa-shuffle" />
+                        <button on:click={() => (shuffled ? $queue.reorder() : $queue.shuffle())} class="aspect-square h-8">
+                            <i class="fa-solid {shuffled ? 'fa-shuffle' : 'fa-right-left'}" />
                         </button>
                         <button class="aspect-square h-8" on:click={() => $queue.previous()}>
                             <i class="fa-solid fa-backward-step" />
@@ -124,8 +121,8 @@
                         <button class="aspect-square h-8" on:click={() => $queue.next()}>
                             <i class="fa-solid fa-forward-step" />
                         </button>
-                        <button on:click={() => (repeat = !repeat)} class="aspect-square h-8">
-                            <i class="fa-solid fa-repeat" />
+                        <button on:click={() => (loop = !loop)} class="aspect-square h-8">
+                            <i class="fa-solid fa-repeat {loop ? 'text-lazuli-primary' : 'text-white'}" />
                         </button>
                     </div>
                     <div class="flex items-center justify-items-center gap-2">
@@ -149,11 +146,17 @@
                 </section>
                 <section class="flex items-center justify-end gap-2 pr-2 text-lg">
                     <div id="volume-slider" class="flex h-10 flex-row-reverse items-center gap-2">
-                        <button on:click={() => (muted = !muted)} class="aspect-square h-8">
+                        <button on:click={() => (volume = volume > 0 ? 0 : Number(localStorage.getItem('volume')))} class="aspect-square h-8">
                             <i class="fa-solid {volume > maxVolume / 2 ? 'fa-volume-high' : volume > 0 ? 'fa-volume-low' : 'fa-volume-xmark'} w-full text-center" />
                         </button>
                         <div id="slider-wrapper" class="w-24 transition-all duration-500">
-                            <Slider bind:value={volume} max={maxVolume} />
+                            <Slider
+                                bind:value={volume}
+                                max={maxVolume}
+                                on:seeked={() => {
+                                    if (volume > 0) localStorage.setItem('volume', volume.toString())
+                                }}
+                            />
                         </div>
                     </div>
                     <button class="aspect-square h-8" on:click={() => (expanded = true)}>
@@ -188,7 +191,7 @@
                                 <div class="h-20 w-20 bg-cover bg-center" style="background-image: url('/api/remoteImage?url={item.thumbnailUrl}');" />
                                 <div class="justify-items-left text-left">
                                     <div class="line-clamp-1">{item.name}</div>
-                                    <div class="mt-[.15rem] line-clamp-1 text-neutral-400">{item.artists?.map((artist) => artist.name).join(', ') ?? item.uploader?.name}</div>
+                                    <div class="mt-[.15rem] line-clamp-1 text-neutral-400">{item.artists?.map((artist) => artist.name).join(', ') || item.uploader?.name}</div>
                                 </div>
                                 <span class="mr-4 text-right">{formatTime(item.duration)}</span>
                             </button>
@@ -223,7 +226,7 @@
                                 >
                             </div>
                             <div class="line-clamp-1 flex flex-nowrap" style="font-size: 0;">
-                                {#if 'artists' in currentlyPlaying && currentlyPlaying.artists && currentlyPlaying.artists.length > 0}
+                                {#if currentlyPlaying.artists && currentlyPlaying.artists.length > 0}
                                     {#each currentlyPlaying.artists as artist, index}
                                         <a
                                             on:click={() => (expanded = false)}
@@ -234,7 +237,7 @@
                                             <span class="mr-1 text-lg">,</span>
                                         {/if}
                                     {/each}
-                                {:else if 'uploader' in currentlyPlaying && currentlyPlaying.uploader}
+                                {:else if currentlyPlaying.uploader}
                                     <a
                                         on:click={() => (expanded = false)}
                                         class="line-clamp-1 flex-shrink-0 text-lg hover:underline focus:underline"
@@ -252,8 +255,8 @@
                             </div>
                         </div>
                         <div class="flex w-full items-center justify-center gap-2 text-2xl">
-                            <button on:click={() => (shuffle = !shuffle)} class="aspect-square h-16">
-                                <i class="fa-solid fa-shuffle" />
+                            <button on:click={() => (shuffled ? $queue.reorder() : $queue.shuffle())} class="aspect-square h-16">
+                                <i class="fa-solid {shuffled ? 'fa-shuffle' : 'fa-right-left'}" />
                             </button>
                             <button class="aspect-square h-16" on:click={() => $queue.previous()}>
                                 <i class="fa-solid fa-backward-step" />
@@ -268,17 +271,23 @@
                             <button class="aspect-square h-16" on:click={() => $queue.next()}>
                                 <i class="fa-solid fa-forward-step" />
                             </button>
-                            <button on:click={() => (repeat = !repeat)} class="aspect-square h-16">
-                                <i class="fa-solid fa-repeat" />
+                            <button on:click={() => (loop = !loop)} class="aspect-square h-16">
+                                <i class="fa-solid fa-repeat {loop ? 'text-lazuli-primary' : 'text-white'}" />
                             </button>
                         </div>
                         <section class="flex items-center justify-end gap-2 text-xl">
                             <div id="volume-slider" class="flex h-10 flex-row-reverse items-center gap-2">
-                                <button on:click={() => (muted = !muted)} class="aspect-square h-8">
+                                <button on:click={() => (volume = volume > 0 ? 0 : Number(localStorage.getItem('volume')))} class="aspect-square h-8">
                                     <i class="fa-solid {volume > maxVolume / 2 ? 'fa-volume-high' : volume > 0 ? 'fa-volume-low' : 'fa-volume-xmark'} w-full text-center" />
                                 </button>
                                 <div id="slider-wrapper" class="w-24 transition-all duration-500">
-                                    <Slider bind:value={volume} max={maxVolume} />
+                                    <Slider
+                                        bind:value={volume}
+                                        max={maxVolume}
+                                        on:seeked={() => {
+                                            if (volume > 0) localStorage.setItem('volume', volume.toString())
+                                        }}
+                                    />
                                 </div>
                             </div>
                             <button class="aspect-square h-8" on:click={() => (expanded = false)}>
@@ -305,6 +314,7 @@
             on:ended={() => $queue.next()}
             on:error={() => setTimeout(() => audioElement.load(), 5000)}
             src="/api/audio?connection={currentlyPlaying.connection.id}&id={currentlyPlaying.id}"
+            {loop}
         />
     </div>
 {/if}

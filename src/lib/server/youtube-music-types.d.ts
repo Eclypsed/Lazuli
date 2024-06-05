@@ -2,7 +2,7 @@
 // When scraping thumbnails from the YTMusic browse pages, there are two different types of images that can be returned,
 // standard video thumbnais and auto-generated square thumbnails for propper releases. The auto-generated thumbanils we want to
 // keep from the scrape because:
-// a) They can be easily scaled with ytmusic's weird fake query parameters (Ex: https://baseUrl=h1000)
+// a) They can be easily scaled with ytmusic's weird fake query parameters (Ex: https://baseUrl=s1000)
 // b) When fetched from the youtube data api it returns the 16:9 filled thumbnails like you would see in the standard yt player, we want the squares
 //
 // However when the thumbnail is for a video, we want to ignore it because the highest quality thumbnail will rarely be used in the ytmusic webapp
@@ -64,9 +64,276 @@ export namespace InnerTube {
         id: string
         name: string
         type: 'playlist'
+        thumbnailUrl: string
         createdBy: {
             id: string
             name: string
+        }
+    }
+
+    namespace Library {
+        interface AlbumResponse {
+            contents: {
+                singleColumnBrowseResultsRenderer: {
+                    tabs: [
+                        {
+                            tabRenderer: {
+                                content: {
+                                    sectionListRenderer: {
+                                        contents: [
+                                            {
+                                                gridRenderer: {
+                                                    items: Array<{
+                                                        musicTwoRowItemRenderer: AlbumMusicTwoRowItemRenderer
+                                                    }>
+                                                    continuations?: [
+                                                        {
+                                                            nextContinuationData: {
+                                                                continuation: string
+                                                            }
+                                                        },
+                                                    ]
+                                                }
+                                            },
+                                        ]
+                                    }
+                                }
+                            }
+                        },
+                    ]
+                }
+            }
+        }
+
+        interface AlbumContinuationResponse {
+            continuationContents: {
+                gridContinuation: {
+                    items: Array<{
+                        musicTwoRowItemRenderer: AlbumMusicTwoRowItemRenderer
+                    }>
+                    continuations?: [
+                        {
+                            nextContinuationData: {
+                                continuation: string
+                            }
+                        },
+                    ]
+                }
+            }
+        }
+
+        type AlbumMusicTwoRowItemRenderer = {
+            thumbnailRenderer: {
+                musicThumbnailRenderer: musicThumbnailRenderer
+            }
+            title: {
+                runs: [
+                    {
+                        text: string
+                        navigationEndpoint: {
+                            browseEndpoint: {
+                                browseId: string
+                            }
+                        }
+                    },
+                ]
+            }
+            subtitle: {
+                runs: Array<{
+                    // Run's containing navigationEndpoints will be the album's artists. If many artists worked on an album a run will contain the text 'Various Artists'.
+                    // The first run will always be 'Album', the last will always be the release year
+                    text: string
+                    navigationEndpoint?: {
+                        browseEndpoint: {
+                            browseId: string
+                        }
+                    }
+                }>
+            }
+            navigationEndpoint: {
+                browseEndpoint: {
+                    browseId: string
+                }
+            }
+        }
+
+        interface ArtistResponse {
+            contents: {
+                singleColumnBrowseResultsRenderer: {
+                    tabs: [
+                        {
+                            tabRenderer: {
+                                content: {
+                                    sectionListRenderer: {
+                                        contents: [
+                                            {
+                                                musicShelfRenderer: {
+                                                    contents: Array<{
+                                                        musicResponsiveListItemRenderer: ArtistMusicResponsiveListItemRenderer
+                                                    }>
+                                                    continuations?: [
+                                                        {
+                                                            nextContinuationData: {
+                                                                continuation: string
+                                                            }
+                                                        },
+                                                    ]
+                                                }
+                                            },
+                                        ]
+                                    }
+                                }
+                            }
+                        },
+                    ]
+                }
+            }
+        }
+
+        interface ArtistContinuationResponse {
+            continuationContents: {
+                musicShelfContinuation: {
+                    contents: Array<{
+                        musicResponsiveListItemRenderer: ArtistMusicResponsiveListItemRenderer
+                    }>
+                    continuations?: [
+                        {
+                            nextContinuationData: {
+                                continuation: string
+                            }
+                        },
+                    ]
+                }
+            }
+        }
+
+        type ArtistMusicResponsiveListItemRenderer = {
+            thumbnail: {
+                musicThumbnailRenderer: musicThumbnailRenderer
+            }
+            flexColumns: [
+                {
+                    musicResponsiveListItemFlexColumnRenderer: {
+                        text: {
+                            runs: [
+                                {
+                                    text: string
+                                },
+                            ]
+                        }
+                    }
+                },
+            ]
+            navigationEndpoint: {
+                browseEndpoint: {
+                    browseId: string
+                }
+            }
+        }
+
+        interface PlaylistResponse {
+            contents: {
+                singleColumnBrowseResultsRenderer: {
+                    tabs: [
+                        {
+                            tabRenderer: {
+                                content: {
+                                    sectionListRenderer: {
+                                        contents: [
+                                            {
+                                                gridRenderer: {
+                                                    items: Array<{
+                                                        musicTwoRowItemRenderer:
+                                                            | NewPlaylistMusicTwoRowItemRenderer
+                                                            | LikedMusicPlaylistMusicTwoRowItemRenderer
+                                                            | EpisodesPlaylistMusicTwoRowItemRenderer
+                                                            | PlaylistMusicTwoRowItemRenderer
+                                                    }>
+                                                    continuations?: [
+                                                        {
+                                                            nextContinuationData: {
+                                                                continuation: string
+                                                            }
+                                                        },
+                                                    ]
+                                                }
+                                            },
+                                        ]
+                                    }
+                                }
+                            }
+                        },
+                    ]
+                }
+            }
+        }
+
+        interface PlaylistContinuationResponse {
+            continuationContents: {
+                gridContinuation: {
+                    items: Array<{
+                        musicTwoRowItemRenderer: NewPlaylistMusicTwoRowItemRenderer | LikedMusicPlaylistMusicTwoRowItemRenderer | EpisodesPlaylistMusicTwoRowItemRenderer | PlaylistMusicTwoRowItemRenderer
+                    }>
+                    continuations?: [
+                        {
+                            nextContinuationData: {
+                                continuation: string
+                            }
+                        },
+                    ]
+                }
+            }
+        }
+
+        type NewPlaylistMusicTwoRowItemRenderer = {
+            navigationEndpoint: {
+                createPlaylistEndpoint: Object
+            }
+        }
+
+        type LikedMusicPlaylistMusicTwoRowItemRenderer = {
+            navigationEndpoint: {
+                browseEndpoint: {
+                    browseId: 'VLLM'
+                }
+            }
+        }
+
+        type EpisodesPlaylistMusicTwoRowItemRenderer = {
+            navigationEndpoint: {
+                browseEndpoint: {
+                    browseId: 'VLSE'
+                }
+            }
+        }
+
+        type PlaylistMusicTwoRowItemRenderer = {
+            thumbnailRenderer: {
+                musicThumbnailRenderer: musicThumbnailRenderer
+            }
+            title: {
+                runs: [
+                    {
+                        text: string
+                    },
+                ]
+            }
+            subtitle: {
+                runs: Array<{
+                    text: string
+                    navigationEndpoint?: {
+                        // If present, this run is the creator of the playlist
+                        browseEndpoint: {
+                            browseId: string
+                        }
+                    }
+                }>
+            }
+            navigationEndpoint: {
+                browseEndpoint: {
+                    browseId: string
+                }
+            }
         }
     }
 

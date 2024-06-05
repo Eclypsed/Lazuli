@@ -19,8 +19,6 @@
         playlistTooltip.style.left = `${x}px`
         playlistTooltip.style.top = `${y}px`
     }
-
-    let expanded = false
 </script>
 
 <div class="h-full overflow-hidden">

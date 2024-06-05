@@ -14,13 +14,13 @@
     import ConnectionProfile from './connectionProfile.svelte'
     import { enhance } from '$app/forms'
     import { PUBLIC_YOUTUBE_API_CLIENT_ID } from '$env/static/public'
-    import { onMount } from 'svelte'
+    import Loader from '$lib/components/util/loader.svelte'
 
     export let data: PageServerData & LayoutData
     let connections: ConnectionInfo[]
-    onMount(async () => {
-        connections = await data.connections
-    })
+    let errorMessage: string
+
+    data.connections.then((userConnections) => ('error' in userConnections ? (errorMessage = userConnections.error) : (connections = userConnections)))
 
     const authenticateJellyfin: SubmitFunction = ({ formData, cancel }) => {
         const { serverUrl, username, password } = Object.fromEntries(formData)
@@ -138,13 +138,21 @@
                 </form>
             </div>
         </section>
-        <div id="connection-profile-grid" class="grid gap-8">
-            {#if connections}
+        {#if connections}
+            <div id="connection-profile-grid" class="grid gap-8">
                 {#each connections as connectionInfo}
                     <ConnectionProfile {connectionInfo} submitFunction={profileActions} />
                 {/each}
-            {/if}
-        </div>
+            </div>
+        {:else if errorMessage}
+            <div class="grid h-40 place-items-center">
+                <span class="text-4xl">{errorMessage}</span>
+            </div>
+        {:else}
+            <div class="relative h-40">
+                <Loader size={5} />
+            </div>
+        {/if}
         {#if newConnectionModal !== null}
             <svelte:component this={newConnectionModal} submitFunction={authenticateJellyfin} on:close={() => (newConnectionModal = null)} />
         {/if}

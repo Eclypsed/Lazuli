@@ -15,7 +15,7 @@
         }).then((response) => response.json() as Promise<{ items: Song[] }>)
 
         const items = itemsResponse.items
-        queueRef.setQueue({ songs: items })
+        queueRef.setQueue(items)
     }
 </script>
 
@@ -41,7 +41,7 @@
                 on:click={() => {
                     switch (mediaItem.type) {
                         case 'song':
-                            queueRef.setQueue({ songs: [mediaItem] })
+                            queueRef.setQueue([mediaItem])
                             break
                         case 'album':
                         case 'playlist':

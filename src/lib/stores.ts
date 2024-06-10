@@ -8,6 +8,8 @@ export const newestAlert: Writable<[AlertType, string]> = writable()
 const youtubeMusicBackground: string = 'https://www.gstatic.com/youtube/media/ytm/images/sbg/wsbg@4000x2250.png' // Default Youtube music background
 export const backgroundImage: Writable<string> = writable(youtubeMusicBackground)
 
+export const itemDisplayState: Writable<'list' | 'grid'> = writable('grid')
+
 function fisherYatesShuffle<T>(items: T[]) {
     for (let currentIndex = items.length - 1; currentIndex >= 0; currentIndex--) {
         let randomIndex = Math.floor(Math.random() * (currentIndex + 1))
@@ -16,10 +18,6 @@ function fisherYatesShuffle<T>(items: T[]) {
     }
     return items
 }
-
-// ? New idea for how to handle mixing. Keep originalSongs and currentSongs but also add playedSongs. Add the previous song to played songs whenever next() is called.
-// ? Whenever a song is mixed, set currentSongs = [...playedSongs, currentSongs[currentPosition], ...fisherYatesShuffle(everything else)]. Reorder method would stay the same.
-// ? IDK it's a thought
 
 class Queue {
     private currentPosition: number // -1 means no song is playing
@@ -34,6 +32,11 @@ class Queue {
         this.currentSongs = []
 
         this.shuffled = false
+    }
+
+    private updateQueue() {
+        writableQueue.set(this)
+        // TODO: Implement Queue Saver
     }
 
     get current() {
@@ -52,7 +55,7 @@ class Queue {
             if (queuePosition >= 0) this.currentPosition = queuePosition
         }
 
-        writableQueue.set(this)
+        this.updateQueue()
     }
 
     get list() {
@@ -68,7 +71,7 @@ class Queue {
         const shuffledSongs = fisherYatesShuffle(this.currentSongs.slice(this.currentPosition + 1))
         this.currentSongs = this.currentSongs.slice(0, this.currentPosition + 1).concat(shuffledSongs)
         this.shuffled = true
-        writableQueue.set(this)
+        this.updateQueue()
     }
 
     /** Restores the queue to its original ordered state, while maintaining whatever song is currently playing */
@@ -77,7 +80,7 @@ class Queue {
         this.currentSongs = [...this.originalSongs]
         this.currentPosition = originalPosition
         this.shuffled = false
-        writableQueue.set(this)
+        this.updateQueue()
     }
 
     /** Starts the next song */
@@ -85,7 +88,7 @@ class Queue {
         if (this.currentSongs.length === 0 || this.currentSongs.length <= this.currentPosition + 1) return
 
         this.currentPosition += 1
-        writableQueue.set(this)
+        this.updateQueue()
     }
 
     /** Plays the previous song */
@@ -93,27 +96,27 @@ class Queue {
         if (this.currentSongs.length === 0 || this.currentPosition <= 0) return
 
         this.currentPosition -= 1
-        writableQueue.set(this)
+        this.updateQueue()
     }
 
     /** Add songs to the end of the queue */
     public enqueue(...songs: Song[]) {
         this.originalSongs.push(...songs)
         this.currentSongs.push(...songs)
-        writableQueue.set(this)
+        this.updateQueue()
     }
 
     /**
      * @param songs An ordered array of Songs
      * @param shuffled Whether or not to shuffle the queue before starting playback. False if not specified
      */
-    public setQueue(params: { songs: Song[]; shuffled?: boolean }) {
-        if (params.songs.length === 0) return // Should not set a queue with no songs, use clear()
-        this.originalSongs = params.songs
-        this.currentSongs = params.shuffled ? fisherYatesShuffle(params.songs) : params.songs
+    public setQueue(songs: Song[], shuffled?: boolean) {
+        if (songs.length === 0) return // Should not set a queue with no songs, use clear()
+        this.originalSongs = songs
+        this.currentSongs = shuffled ? fisherYatesShuffle(songs) : songs
         this.currentPosition = 0
-        this.shuffled = params.shuffled ?? false
-        writableQueue.set(this)
+        this.shuffled = shuffled ?? false
+        this.updateQueue()
     }
 
     /** Clears all items from the queue */
@@ -121,7 +124,7 @@ class Queue {
         this.currentPosition = -1
         this.originalSongs = []
         this.currentSongs = []
-        writableQueue.set(this)
+        this.updateQueue()
     }
 }
 

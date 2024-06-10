@@ -168,7 +168,7 @@ export class YouTubeMusic implements Connection {
         const playerResponse = await fetch('https://www.youtube.com/youtubei/v1/player', {
             headers: {
                 // 'user-agent': 'com.google.android.youtube/17.36.4 (Linux; U; Android 12; GB) gzip', <-- I thought this was necessary but it appears it might not be?
-                authorization: `Bearer ${await this.requestManager.accessToken}`, // * Including the access token is what enables access to premium content
+                authorization: `Bearer ${await this.requestManager.accessToken}`, // * Including the access token is what enables access to premium content for some reason
             },
             method: 'POST',
             body: JSON.stringify({
@@ -935,7 +935,8 @@ function secondsFromISO8601(duration: string): number {
  * - https://yt3.googleusercontent.com
  * - https://yt3.ggpht.com
  * - https://music.youtube.com
- * - https://i.ytimg.com
+ * - https://www.gstatic.com - Static images (e.g. a placeholder artist profile picture)
+ * - https://i.ytimg.com - Video Thumbnails
  *
  * NOTE:
  * https://i.ytimg.com corresponds to videos, which follow the mqdefault...maxres resolutions scale. It is generally bad practice to use these as there is no way to scale them with query params, and there is no way to tell if a maxres.jpg exists or not.
@@ -953,7 +954,7 @@ function extractLargestThumbnailUrl(thumbnails: Array<{ url: string; width: numb
             return bestThumbnailURL.slice(0, bestThumbnailURL.indexOf('='))
         case 'https://music.youtube.com':
             return bestThumbnailURL
-        case 'https://www.gstatic.com': // This url will usually contain static images like a placeholder artist profile picture for example
+        case 'https://www.gstatic.com':
         case 'https://i.ytimg.com':
             return bestThumbnailURL.slice(0, bestThumbnailURL.indexOf('?'))
         default:

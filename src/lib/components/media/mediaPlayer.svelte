@@ -5,6 +5,7 @@
     // import { FastAverageColor } from 'fast-average-color'
     import Slider from '$lib/components/util/slider.svelte'
     import Loader from '$lib/components/util/loader.svelte'
+    import LazyImage from './lazyImage.svelte'
 
     $: currentlyPlaying = $queue.current
 
@@ -43,9 +44,9 @@
     }
 
     onMount(() => {
-        const storedVolume = localStorage.getItem('volume')
-        if (storedVolume) {
-            volume = Number(storedVolume)
+        const storedVolume = Number(localStorage.getItem('volume'))
+        if (storedVolume >= 0 && storedVolume <= maxVolume) {
+            volume = storedVolume
         } else {
             localStorage.setItem('volume', (maxVolume / 2).toString())
             volume = maxVolume / 2
@@ -89,14 +90,12 @@
 </script>
 
 {#if currentlyPlaying}
-    <div transition:slide class="{expanded ? 'h-full w-full' : 'm-4 h-20 w-[calc(100%_-_32px)] rounded-xl'} absolute bottom-0 z-40 overflow-clip bg-neutral-925 transition-all duration-500">
+    <div id="player-wrapper" transition:slide class="{expanded ? 'h-full w-full' : 'm-4 h-20 w-[calc(100%_-_32px)] rounded-xl'} absolute bottom-0 z-40 overflow-clip bg-neutral-925 transition-all duration-500">
         {#if !expanded}
             <main in:fade={{ duration: 75, delay: 500 }} out:fade={{ duration: 75 }} class="relative grid h-20 w-full grid-cols-[minmax(auto,_20rem)_auto_minmax(auto,_20rem)] gap-4">
                 <section class="flex gap-3">
                     <div class="relative h-full w-20 min-w-20">
-                        {#key currentlyPlaying}
-                            <div transition:fade={{ duration: 500 }} class="absolute h-full w-full bg-cover bg-center bg-no-repeat" style="background-image: url(/api/remoteImage?url={currentlyPlaying.thumbnailUrl});" />
-                        {/key}
+                        <LazyImage thumbnailUrl={currentlyPlaying.thumbnailUrl} alt={`${currentlyPlaying.name} jacket`} loadingMethod={'eager'} />
                     </div>
                     <section class="flex flex-col justify-center gap-1">
                         <div class="line-clamp-2 text-sm">{currentlyPlaying.name}</div>
@@ -168,9 +167,9 @@
                 </section>
             </main>
         {:else}
-            <main in:fade={{ delay: 500 }} out:fade={{ duration: 75 }} class="expanded-player relative h-full" style="--currentlyPlayingImage: url(/api/remoteImage?url={currentlyPlaying.thumbnailUrl});">
+            <main id="expanded-player" in:fade={{ delay: 500 }} out:fade={{ duration: 75 }} class="relative h-full" style="--currentlyPlayingImage: url(/api/remoteImage?url={currentlyPlaying.thumbnailUrl});">
                 <img class="absolute -z-10 h-full w-full object-cover object-center blur-xl brightness-[25%]" src="/api/remoteImage?url={currentlyPlaying.thumbnailUrl}" alt="" />
-                <section class="song-queue-wrapper h-full px-24 py-20">
+                <section id="song-queue-wrapper" class="h-full px-24 py-20">
                     <section class="relative">
                         {#key currentlyPlaying}
                             <img transition:fade={{ duration: 300 }} class="absolute h-full max-w-full object-contain py-8" src="/api/remoteImage?url={currentlyPlaying.thumbnailUrl}" alt="" />
@@ -199,7 +198,7 @@
                     </section>
                 </section>
                 <section class="px-8">
-                    <div class="progress-bar-expanded mb-8">
+                    <div id="progress-bar-expanded" class="mb-8">
                         <span bind:this={expandedCurrentTimeTimestamp} class="text-right" />
                         <Slider
                             bind:this={expandedProgressBar}
@@ -215,14 +214,15 @@
                         />
                         <span bind:this={expandedDurationTimestamp} class="text-left" />
                     </div>
-                    <div class="expanded-controls">
+                    <div id="expanded-controls">
                         <div class="flex flex-col gap-2 overflow-hidden">
                             <div bind:clientWidth={slidingTextWrapperWidth} class="relative h-9 w-full">
                                 <strong
                                     bind:this={slidingText}
                                     bind:clientWidth={slidingTextWidth}
                                     on:animationend={() => (scrollDirection *= -1)}
-                                    class="{scrollDistance > 0 ? (scrollDirection > 0 ? 'scrollLeft' : 'scrollRight') : ''} scrollingText absolute whitespace-nowrap text-3xl">{currentlyPlaying.name}</strong
+                                    id="scrollingText"
+                                    class="{scrollDistance > 0 ? (scrollDirection > 0 ? 'scrollLeft' : 'scrollRight') : ''} absolute whitespace-nowrap text-3xl">{currentlyPlaying.name}</strong
                                 >
                             </div>
                             <div class="line-clamp-1 flex flex-nowrap" style="font-size: 0;">
@@ -320,11 +320,14 @@
 {/if}
 
 <style>
-    .expanded-player {
+    #player-wrapper {
+        filter: drop-shadow(0px 20px 20px #000000);
+    }
+    #expanded-player {
         display: grid;
         grid-template-rows: calc(100% - 12rem) 12rem;
     }
-    .song-queue-wrapper {
+    #song-queue-wrapper {
         display: grid;
         grid-template-columns: 3fr 2fr;
         gap: 4rem;
@@ -333,24 +336,24 @@
         display: grid;
         grid-template-columns: 5rem auto min-content;
     }
-    .progress-bar-expanded {
+    #progress-bar-expanded {
         display: grid;
         grid-template-columns: min-content auto min-content;
         align-items: center;
         gap: 1rem;
     }
-    .expanded-controls {
+    #expanded-controls {
         display: grid;
         gap: 1rem;
         grid-template-columns: 1fr min-content 1fr !important;
     }
 
-    .scrollingText {
+    #scrollingText {
         animation-timing-function: linear;
         animation-fill-mode: both;
         animation-delay: 10s;
     }
-    .scrollingText:hover {
+    #scrollingText:hover {
         animation-play-state: paused;
     }
     .scrollLeft {

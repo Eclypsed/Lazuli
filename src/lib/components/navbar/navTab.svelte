@@ -1,39 +1,23 @@
-<script lang="ts" context="module">
-    export interface NavTab {
-        pathname: string
-        name: string
-        icon: string
-    }
-</script>
-
 <script lang="ts">
-    export let disabled = false
-    export let nav: NavTab
-
     import { goto } from '$app/navigation'
 
-    let button: HTMLButtonElement
+    export let icon: string
+    export let label: string
+    export let redirect: string
+
+    export let disabled: boolean
 </script>
 
-<button bind:this={button} class="relative grid aspect-square w-full place-items-center transition-colors" {disabled} on:click={() => goto(nav.pathname)}>
-    <span class="pointer-events-none flex flex-col gap-2 text-xs">
-        <i class="{nav.icon} text-xl" />
-        {nav.name}
+<button {disabled} class="block w-full py-2 text-left" on:click={() => goto(redirect)}>
+    <span class:disabled class="py-1 pl-8 {disabled ? 'text-lazuli-primary' : 'text-neutral-300'}">
+        <i class="{icon} mr-1.5 h-5 w-5" />
+        {label}
     </span>
-    <div class="absolute left-0 top-1/2 h-0 w-[0.2rem] -translate-x-2 -translate-y-1/2 rounded-lg bg-white transition-all" />
 </button>
 
 <style>
-    button:disabled > div {
-        height: 80%;
-    }
-    button:not(:disabled) {
-        color: rgb(163 163, 163);
-    }
-    button:not(:disabled):hover {
-        color: var(--lazuli-primary);
-    }
-    button:not(:disabled):hover > div {
-        height: 40%;
+    span.disabled {
+        border-left: 2px solid var(--lazuli-primary);
+        background: linear-gradient(to right, var(--lazuli-primary) -25%, transparent 25%);
     }
 </style>

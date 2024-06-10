@@ -25,8 +25,8 @@ export class Jellyfin implements Connection {
     }
 
     public async getConnectionInfo() {
-        const userEndpoint = `Users/${this.jellyfinUserId}`
-        const systemEndpoint = 'System/Info'
+        const userEndpoint = `/Users/${this.jellyfinUserId}`
+        const systemEndpoint = '/System/Info'
 
         const getUserData = () =>
             this.services
@@ -42,8 +42,8 @@ export class Jellyfin implements Connection {
 
         const [userData, systemData] = await Promise.all([getUserData(), getSystemData()])
 
-        if (!userData) console.error(`Fetch to ${userEndpoint.toString()} failed`)
-        if (!systemData) console.error(`Fetch to ${systemEndpoint.toString()} failed`)
+        if (!userData) console.error(`Fetch to ${userEndpoint} failed`)
+        if (!systemData) console.error(`Fetch to ${systemEndpoint} failed`)
 
         return {
             id: this.id,
@@ -206,9 +206,11 @@ class JellyfinServices {
         }
     }
 
-    private getBestThumbnail = (item: JellyfinAPI.Song | JellyfinAPI.Album | JellyfinAPI.Artist | JellyfinAPI.Playlist) => {
+    private getBestThumbnail(item: JellyfinAPI.Song | JellyfinAPI.Album | JellyfinAPI.Artist | JellyfinAPI.Playlist, placeholder: string): string
+    private getBestThumbnail(item: JellyfinAPI.Song | JellyfinAPI.Album | JellyfinAPI.Artist | JellyfinAPI.Playlist, placeholder?: string): string | undefined
+    private getBestThumbnail(item: JellyfinAPI.Song | JellyfinAPI.Album | JellyfinAPI.Artist | JellyfinAPI.Playlist, placeholder?: string): string | undefined {
         const imageItemId = item.ImageTags?.Primary ? item.Id : 'AlbumPrimaryImageTag' in item && item.AlbumPrimaryImageTag ? item.AlbumId : undefined
-        return imageItemId ? this.serverUrl(`Items/${imageItemId}/Images/Primary`).toString() : jellyfinLogo
+        return imageItemId ? this.serverUrl(`Items/${imageItemId}/Images/Primary`).toString() : placeholder
     }
 
     public parseSong = (song: JellyfinAPI.Song): Song => ({
@@ -216,8 +218,8 @@ class JellyfinServices {
         id: song.Id,
         name: song.Name,
         type: 'song',
-        duration: Math.floor(song.RunTimeTicks / 10000000),
-        thumbnailUrl: this.getBestThumbnail(song),
+        duration: Math.round(song.RunTimeTicks / 10000000),
+        thumbnailUrl: this.getBestThumbnail(song, jellyfinLogo),
         releaseDate: song.PremiereDate ? new Date(song.PremiereDate).toISOString() : undefined,
         artists: song.ArtistItems?.map((artist) => ({ id: artist.Id, name: artist.Name })),
         album: song.AlbumId && song.Album ? { id: song.AlbumId, name: song.Album } : undefined,
@@ -229,7 +231,7 @@ class JellyfinServices {
         id: album.Id,
         name: album.Name,
         type: 'album',
-        thumbnailUrl: this.getBestThumbnail(album),
+        thumbnailUrl: this.getBestThumbnail(album, jellyfinLogo),
         artists: album.AlbumArtists?.map((artist) => ({ id: artist.Id, name: artist.Name })) ?? 'Various Artists',
         releaseYear: album.ProductionYear?.toString(),
     })
@@ -247,7 +249,7 @@ class JellyfinServices {
         id: playlist.Id,
         name: playlist.Name,
         type: 'playlist',
-        thumbnailUrl: this.getBestThumbnail(playlist),
+        thumbnailUrl: this.getBestThumbnail(playlist, jellyfinLogo),
     })
 }
 
@@ -268,6 +270,7 @@ class JellyfinLibraryManager {
     }
 
     public async artists(): Promise<Artist[]> {
+        // ? This returns just album artists instead of all artists like in finamp, but I might decide that I want to return all artists instead
         return this.services
             .request('/Artists/AlbumArtists?sortBy=SortName&sortOrder=Ascending&recursive=true')
             .then((response) => response.json() as Promise<{ Items: JellyfinAPI.Artist[] }>)

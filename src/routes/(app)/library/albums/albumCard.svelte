@@ -1,6 +1,7 @@
 <script lang="ts">
     import LazyImage from '$lib/components/media/lazyImage.svelte'
     import IconButton from '$lib/components/util/iconButton.svelte'
+    import ArtistList from '$lib/components/media/artistList.svelte'
     import { goto } from '$app/navigation'
     import { queue, newestAlert } from '$lib/stores'
 
@@ -26,7 +27,7 @@
 <div class="p-3">
     <div id="thumbnail-wrapper" class="relative aspect-square w-full overflow-clip rounded-lg">
         <button id="thumbnail" class="h-full w-full" on:click={() => goto(`/details/album?id=${album.id}&connection=${album.connection.id}`)}>
-            <LazyImage thumbnailUrl={album.thumbnailUrl} alt={`${album.name} jacket`} />
+            <LazyImage thumbnailUrl={album.thumbnailUrl} alt={`${album.name} jacket`} objectFit={'cover'} />
         </button>
         <div id="play-button" class="absolute left-1/2 top-1/2 h-1/4 -translate-x-1/2 -translate-y-1/2 opacity-0">
             <IconButton halo={true} on:click={playAlbum}>
@@ -36,17 +37,8 @@
     </div>
     <div class="py-2 text-center text-sm">
         <div class="line-clamp-2">{album.name}</div>
-        <div class="line-clamp-2 flex justify-center text-neutral-400">
-            {#if album.artists === 'Various Artists'}
-                <span>Various Artists</span>
-            {:else}
-                {#each album.artists as artist, index}
-                    <a class="hover:underline focus:underline" href="/details/artist?id={artist.id}&connection={album.connection.id}">{artist.name}</a>
-                    {#if index < album.artists.length - 1}
-                        &#44&#160
-                    {/if}
-                {/each}
-            {/if}
+        <div class="line-clamp-2 text-neutral-400">
+            <ArtistList mediaItem={album} />
         </div>
     </div>
 </div>

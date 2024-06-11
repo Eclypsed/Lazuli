@@ -7,6 +7,8 @@
     @param thumbnailUrl A string of a URL that points to the desired image.
     @param alt Supplementary text in the event the image fails to load.
     @param loadingMethod Optional. Either the string 'lazy' or 'eager', defaults to lazy. The method by which to load the image.
+    @param objectFit One of the following fill, contain, cover, none, scale-down. Specifies the object-fit styling of the image
+    @param objectPosistion Optional. Specifies the object-position styling of the image. Defaults to 'center'
 -->
 
 <script lang="ts">
@@ -15,16 +17,10 @@
     export let thumbnailUrl: string
     export let alt: string
     export let loadingMethod: 'lazy' | 'eager' = 'lazy'
+    export let objectFit: 'fill' | 'contain' | 'cover' | 'none' | 'scale-down'
+    export let objectPosition: string = 'center'
 
     let imageContainer: HTMLDivElement
-
-    function removeOldImage() {
-        if (imageContainer.childElementCount > 1) {
-            const oldImage = imageContainer.firstChild! as HTMLImageElement
-            oldImage.style.opacity = '0'
-            setTimeout(() => imageContainer.removeChild(oldImage), 500)
-        }
-    }
 
     function updateImage(newThumbnailURL: string) {
         if (!imageContainer) return
@@ -41,9 +37,18 @@
 
         newImage.style.width = '100%'
         newImage.style.height = '100%'
-        newImage.style.objectFit = 'cover'
+        newImage.style.objectFit = objectFit
+        newImage.style.objectPosition = objectPosition
         newImage.style.opacity = '0'
         newImage.style.position = 'absolute'
+
+        function removeOldImage() {
+            if (imageContainer.childElementCount > 1) {
+                const oldImage = imageContainer.firstChild! as HTMLImageElement
+                oldImage.style.opacity = '0'
+                setTimeout(() => imageContainer.removeChild(oldImage), 500)
+            }
+        }
 
         newImage.onload = () => {
             removeOldImage()

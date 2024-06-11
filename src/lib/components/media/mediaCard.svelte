@@ -5,8 +5,6 @@
     import { goto } from '$app/navigation'
     import { queue } from '$lib/stores'
 
-    let queueRef = $queue // This nonsense is to prevent an bug that causes svelte to throw an error when setting a property of the queue directly
-
     let image: HTMLImageElement, captionText: HTMLDivElement
 
     async function setQueueItems(mediaItem: Album | Playlist) {
@@ -15,7 +13,7 @@
         }).then((response) => response.json() as Promise<{ items: Song[] }>)
 
         const items = itemsResponse.items
-        queueRef.setQueue(items)
+        $queue.setQueue(items)
     }
 </script>
 
@@ -41,7 +39,7 @@
                 on:click={() => {
                     switch (mediaItem.type) {
                         case 'song':
-                            queueRef.setQueue([mediaItem])
+                            $queue.setQueue([mediaItem])
                             break
                         case 'album':
                         case 'playlist':

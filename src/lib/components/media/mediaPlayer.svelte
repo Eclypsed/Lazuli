@@ -6,6 +6,9 @@
     import Slider from '$lib/components/util/slider.svelte'
     import Loader from '$lib/components/util/loader.svelte'
     import LazyImage from './lazyImage.svelte'
+    import IconButton from '$lib/components/util/iconButton.svelte'
+    import ScrollingText from '$lib/components/util/scrollingText.svelte'
+    import ArtistList from './artistList.svelte'
 
     $: currentlyPlaying = $queue.current
 
@@ -31,16 +34,28 @@
         return hours > 0 ? `${hours}:`.concat(durationString) : durationString
     }
 
-    $: if (currentlyPlaying) updateMediaSession(currentlyPlaying)
-    function updateMediaSession(media: Song) {
-        if ('mediaSession' in navigator) {
-            navigator.mediaSession.metadata = new MediaMetadata({
-                title: media.name,
-                artist: media.artists?.map((artist) => artist.name).join(', ') || media.uploader?.name,
-                album: media.album?.name,
-                artwork: [{ src: `/api/remoteImage?url=${media.thumbnailUrl}`, sizes: '256x256', type: 'image/png' }],
-            })
+    $: updateMediaSession(currentlyPlaying)
+    function updateMediaSession(media: Song | null) {
+        if (!('mediaSession' in navigator)) return
+
+        if (!media) {
+            navigator.mediaSession.metadata = null
+            return
         }
+
+        navigator.mediaSession.metadata = new MediaMetadata({
+            title: media.name,
+            artist: media.artists?.map((artist) => artist.name).join(', ') || media.uploader?.name,
+            album: media.album?.name,
+            artwork: [
+                { src: `/api/remoteImage?url=${media.thumbnailUrl}&maxWidth=96`, sizes: '96x96', type: 'image/png' },
+                { src: `/api/remoteImage?url=${media.thumbnailUrl}&maxWidth=128`, sizes: '128x128', type: 'image/png' },
+                { src: `/api/remoteImage?url=${media.thumbnailUrl}&maxWidth=192`, sizes: '192x192', type: 'image/png' },
+                { src: `/api/remoteImage?url=${media.thumbnailUrl}&maxWidth=256`, sizes: '256x256', type: 'image/png' },
+                { src: `/api/remoteImage?url=${media.thumbnailUrl}&maxWidth=384`, sizes: '384x384', type: 'image/png' },
+                { src: `/api/remoteImage?url=${media.thumbnailUrl}&maxWidth=512`, sizes: '512x512', type: 'image/png' },
+            ],
+        })
     }
 
     onMount(() => {
@@ -80,100 +95,98 @@
     $: if (!seeking && expandedProgressBar) expandedProgressBar.$set({ value: currentTime })
     $: if (!seeking && expandedDurationTimestamp) expandedDurationTimestamp.innerText = formatTime(duration)
 
-    let slidingText: HTMLElement
-    let slidingTextWidth: number, slidingTextWrapperWidth: number
-    let scrollDirection: 1 | -1 = 1
-    $: scrollDistance = slidingTextWidth - slidingTextWrapperWidth
-    $: if (slidingText && scrollDistance > 0) slidingText.style.animationDuration = `${scrollDistance / 50}s`
-
     let audioElement: HTMLAudioElement
 </script>
 
 {#if currentlyPlaying}
     <div id="player-wrapper" transition:slide class="{expanded ? 'h-full w-full' : 'm-4 h-20 w-[calc(100%_-_32px)] rounded-xl'} absolute bottom-0 z-40 overflow-clip bg-neutral-925 transition-all duration-500">
         {#if !expanded}
-            <main in:fade={{ duration: 75, delay: 500 }} out:fade={{ duration: 75 }} class="relative grid h-20 w-full grid-cols-[minmax(auto,_20rem)_auto_minmax(auto,_20rem)] gap-4">
-                <section class="flex gap-3">
+            <main in:fade={{ duration: 75, delay: 500 }} out:fade={{ duration: 75 }} class="flex h-20 w-full gap-10 pr-8">
+                <section class="flex w-80 gap-3">
                     <div class="relative h-full w-20 min-w-20">
-                        <LazyImage thumbnailUrl={currentlyPlaying.thumbnailUrl} alt={`${currentlyPlaying.name} jacket`} loadingMethod={'eager'} />
+                        <LazyImage thumbnailUrl={currentlyPlaying.thumbnailUrl} alt={`${currentlyPlaying.name} jacket`} objectFit={'cover'} />
                     </div>
-                    <section class="flex flex-col justify-center gap-1">
-                        <div class="line-clamp-2 text-sm">{currentlyPlaying.name}</div>
-                        <div class="text-xs">{currentlyPlaying.artists?.map((artist) => artist.name).join(', ') || currentlyPlaying.uploader?.name}</div>
+                    <section class="flex flex-grow flex-col justify-center gap-1">
+                        <div class="h-6">
+                            <ScrollingText>
+                                <div slot="text" class="line-clamp-1 font-medium">{currentlyPlaying.name}</div>
+                            </ScrollingText>
+                        </div>
+                        <div class="line-clamp-1 text-xs font-extralight">
+                            <ArtistList mediaItem={currentlyPlaying} />
+                        </div>
                     </section>
                 </section>
-                <section class="flex min-w-max flex-col items-center justify-center gap-1">
-                    <div class="flex items-center gap-3 text-lg">
-                        <button on:click={() => (shuffled ? $queue.reorder() : $queue.shuffle())} class="aspect-square h-8">
-                            <i class="fa-solid {shuffled ? 'fa-shuffle' : 'fa-right-left'}" />
-                        </button>
-                        <button class="aspect-square h-8" on:click={() => $queue.previous()}>
-                            <i class="fa-solid fa-backward-step" />
-                        </button>
-                        <button on:click={() => (paused = !paused)} class="relative grid aspect-square h-8 place-items-center rounded-full bg-white text-black">
-                            {#if waiting}
-                                <Loader size={1} />
-                            {:else}
-                                <i class="fa-solid {paused ? 'fa-play' : 'fa-pause'}" />
-                            {/if}
-                        </button>
-                        <button class="aspect-square h-8" on:click={() => $queue.next()}>
-                            <i class="fa-solid fa-forward-step" />
-                        </button>
-                        <button on:click={() => (loop = !loop)} class="aspect-square h-8">
-                            <i class="fa-solid fa-repeat {loop ? 'text-lazuli-primary' : 'text-white'}" />
-                        </button>
+                <section class="flex flex-grow items-center gap-1 py-4">
+                    <IconButton on:click={() => $queue.previous()}>
+                        <i slot="icon" class="fa-solid fa-backward-step text-xl" />
+                    </IconButton>
+                    <div class="aspect-square h-full rounded-full border border-neutral-700">
+                        <IconButton on:click={() => (paused = !paused)}>
+                            <div slot="icon">
+                                {#if waiting}
+                                    <Loader size={1.5} />
+                                {:else}
+                                    <i class="fa-solid {paused ? 'fa-play' : 'fa-pause'}" />
+                                {/if}
+                            </div>
+                        </IconButton>
                     </div>
-                    <div class="flex items-center justify-items-center gap-2">
+                    <IconButton on:click={() => $queue.clear()}>
+                        <i slot="icon" class="fa-solid fa-stop text-xl" />
+                    </IconButton>
+                    <IconButton on:click={() => $queue.next()}>
+                        <i slot="icon" class="fa-solid fa-forward-step text-xl" />
+                    </IconButton>
+                    <div class="flex flex-grow items-center justify-items-center gap-3 font-light">
                         <span bind:this={currentTimeTimestamp} class="w-16 text-right" />
-                        <div class="w-72">
-                            <Slider
-                                bind:this={progressBar}
-                                max={duration}
-                                on:seeking={(event) => {
-                                    currentTimeTimestamp.innerText = formatTime(event.detail.value)
-                                    seeking = true
-                                }}
-                                on:seeked={(event) => {
-                                    currentTime = event.detail.value
-                                    seeking = false
-                                }}
-                            />
-                        </div>
+                        <Slider
+                            bind:this={progressBar}
+                            max={duration}
+                            on:seeking={(event) => {
+                                currentTimeTimestamp.innerText = formatTime(event.detail.value)
+                                seeking = true
+                            }}
+                            on:seeked={(event) => {
+                                currentTime = event.detail.value
+                                seeking = false
+                            }}
+                        />
                         <span bind:this={durationTimestamp} class="w-16 text-left" />
                     </div>
                 </section>
-                <section class="flex items-center justify-end gap-2 pr-2 text-lg">
-                    <div id="volume-slider" class="flex h-10 flex-row-reverse items-center gap-2">
-                        <button on:click={() => (volume = volume > 0 ? 0 : Number(localStorage.getItem('volume')))} class="aspect-square h-8">
-                            <i class="fa-solid {volume > maxVolume / 2 ? 'fa-volume-high' : volume > 0 ? 'fa-volume-low' : 'fa-volume-xmark'} w-full text-center" />
-                        </button>
-                        <div id="slider-wrapper" class="w-24 transition-all duration-500">
-                            <Slider
-                                bind:value={volume}
-                                max={maxVolume}
-                                on:seeked={() => {
-                                    if (volume > 0) localStorage.setItem('volume', volume.toString())
-                                }}
-                            />
-                        </div>
+                <section class="flex items-center justify-end gap-2.5 py-6 text-lg">
+                    <div id="volume-slider" class="mx-4 flex h-10 w-44 flex-row-reverse items-center gap-3">
+                        <Slider
+                            bind:value={volume}
+                            max={maxVolume}
+                            on:seeked={() => {
+                                if (volume > 0) localStorage.setItem('volume', volume.toString())
+                            }}
+                        />
+                        <IconButton on:click={() => (volume = volume > 0 ? 0 : Number(localStorage.getItem('volume')))}>
+                            <i slot="icon" class="fa-solid {volume > maxVolume / 2 ? 'fa-volume-high' : volume > 0 ? 'fa-volume-low' : 'fa-volume-xmark'}" />
+                        </IconButton>
                     </div>
-                    <button class="aspect-square h-8" on:click={() => (expanded = true)}>
-                        <i class="fa-solid fa-expand" />
-                    </button>
-                    <button class="aspect-square h-8" on:click={() => $queue.clear()}>
-                        <i class="fa-solid fa-xmark" />
-                    </button>
+                    <IconButton on:click={() => (shuffled ? $queue.reorder() : $queue.shuffle())}>
+                        <i slot="icon" class="fa-solid fa-shuffle {shuffled ? 'text-lazuli-primary' : 'text-white'}" />
+                    </IconButton>
+                    <IconButton on:click={() => (loop = !loop)}>
+                        <i slot="icon" class="fa-solid fa-repeat {loop ? 'text-lazuli-primary' : 'text-white'}" />
+                    </IconButton>
+                    <IconButton on:click={() => (expanded = true)}>
+                        <i slot="icon" class="fa-solid fa-chevron-up" />
+                    </IconButton>
                 </section>
             </main>
         {:else}
-            <main id="expanded-player" in:fade={{ delay: 500 }} out:fade={{ duration: 75 }} class="relative h-full" style="--currentlyPlayingImage: url(/api/remoteImage?url={currentlyPlaying.thumbnailUrl});">
-                <img class="absolute -z-10 h-full w-full object-cover object-center blur-xl brightness-[25%]" src="/api/remoteImage?url={currentlyPlaying.thumbnailUrl}" alt="" />
+            <main id="expanded-player" in:fade={{ delay: 500 }} out:fade={{ duration: 75 }} class="relative h-full">
+                <div class="absolute -z-10 h-full w-full blur-xl brightness-[25%]">
+                    <LazyImage thumbnailUrl={currentlyPlaying.thumbnailUrl} alt={''} objectFit={'cover'} />
+                </div>
                 <section id="song-queue-wrapper" class="h-full px-24 py-20">
                     <section class="relative">
-                        {#key currentlyPlaying}
-                            <img transition:fade={{ duration: 300 }} class="absolute h-full max-w-full object-contain py-8" src="/api/remoteImage?url={currentlyPlaying.thumbnailUrl}" alt="" />
-                        {/key}
+                        <LazyImage thumbnailUrl={currentlyPlaying.thumbnailUrl} alt={`${currentlyPlaying.name} jacket`} objectFit={'contain'} objectPosition={'left'} />
                     </section>
                     <section class="no-scrollbar flex max-h-full flex-col gap-3 overflow-y-scroll">
                         <strong class="ml-2 text-2xl">UP NEXT</strong>
@@ -181,13 +194,15 @@
                             {@const isCurrent = item === currentlyPlaying}
                             <button
                                 on:click={() => {
-                                    if (!isCurrent) $queue.current = item
+                                    if (!isCurrent) $queue.setCurrent(item)
                                 }}
                                 class="queue-item h-20 w-full shrink-0 items-center gap-3 overflow-clip rounded-lg bg-neutral-900 {isCurrent
                                     ? 'pointer-events-none border-[1px] border-neutral-300'
                                     : 'hover:bg-neutral-800'}"
                             >
-                                <div class="h-20 w-20 bg-cover bg-center" style="background-image: url('/api/remoteImage?url={item.thumbnailUrl}');" />
+                                <div class="h-20 w-20">
+                                    <LazyImage thumbnailUrl={item.thumbnailUrl} alt={`${item.name} jacket`} objectFit={'cover'} />
+                                </div>
                                 <div class="justify-items-left text-left">
                                     <div class="line-clamp-1">{item.name}</div>
                                     <div class="mt-[.15rem] line-clamp-1 text-neutral-400">{item.artists?.map((artist) => artist.name).join(', ') || item.uploader?.name}</div>
@@ -198,7 +213,7 @@
                     </section>
                 </section>
                 <section class="px-8">
-                    <div id="progress-bar-expanded" class="mb-8">
+                    <div id="progress-bar-expanded" class="mb-7">
                         <span bind:this={expandedCurrentTimeTimestamp} class="text-right" />
                         <Slider
                             bind:this={expandedProgressBar}
@@ -215,46 +230,30 @@
                         <span bind:this={expandedDurationTimestamp} class="text-left" />
                     </div>
                     <div id="expanded-controls">
-                        <div class="flex flex-col gap-2 overflow-hidden">
-                            <div bind:clientWidth={slidingTextWrapperWidth} class="relative h-9 w-full">
-                                <strong
-                                    bind:this={slidingText}
-                                    bind:clientWidth={slidingTextWidth}
-                                    on:animationend={() => (scrollDirection *= -1)}
-                                    id="scrollingText"
-                                    class="{scrollDistance > 0 ? (scrollDirection > 0 ? 'scrollLeft' : 'scrollRight') : ''} absolute whitespace-nowrap text-3xl">{currentlyPlaying.name}</strong
-                                >
+                        <div class="flex flex-col gap-1.5 overflow-hidden">
+                            <div class="h-9">
+                                <ScrollingText>
+                                    <strong slot="text" class="text-3xl">{currentlyPlaying.name}</strong>
+                                </ScrollingText>
                             </div>
-                            <div class="line-clamp-1 flex flex-nowrap" style="font-size: 0;">
-                                {#if currentlyPlaying.artists && currentlyPlaying.artists.length > 0}
-                                    {#each currentlyPlaying.artists as artist, index}
-                                        <a
-                                            on:click={() => (expanded = false)}
-                                            class="line-clamp-1 flex-shrink-0 text-lg hover:underline focus:underline"
-                                            href="/details/artist?id={artist.id}&connection={currentlyPlaying.connection.id}">{artist.name}</a
-                                        >
-                                        {#if index < currentlyPlaying.artists.length - 1}
-                                            <span class="mr-1 text-lg">,</span>
-                                        {/if}
-                                    {/each}
-                                {:else if currentlyPlaying.uploader}
+                            {#if (currentlyPlaying.artists && currentlyPlaying.artists.length > 0) || currentlyPlaying.uploader}
+                                <div class="line-clamp-1 flex flex-nowrap items-center font-extralight">
+                                    <i class="fa-solid fa-user mr-3 text-sm" />
+                                    <ArtistList mediaItem={currentlyPlaying} />
+                                </div>
+                            {/if}
+                            {#if currentlyPlaying.album}
+                                <div class="flex flex-nowrap items-center font-extralight">
+                                    <i class="fa-solid fa-compact-disc mr-3 text-sm" />
                                     <a
                                         on:click={() => (expanded = false)}
-                                        class="line-clamp-1 flex-shrink-0 text-lg hover:underline focus:underline"
-                                        href="/details/user?id={currentlyPlaying.uploader.id}&connection={currentlyPlaying.connection.id}">{currentlyPlaying.uploader.name}</a
-                                    >
-                                {/if}
-                                {#if currentlyPlaying.album}
-                                    <span class="mx-1.5 text-lg">-</span>
-                                    <a
-                                        on:click={() => (expanded = false)}
-                                        class="line-clamp-1 flex-shrink-0 text-lg hover:underline focus:underline"
+                                        class="line-clamp-1 flex-shrink-0 hover:underline focus:underline"
                                         href="/details/album?id={currentlyPlaying.album.id}&connection={currentlyPlaying.connection.id}">{currentlyPlaying.album.name}</a
                                     >
-                                {/if}
-                            </div>
+                                </div>
+                            {/if}
                         </div>
-                        <div class="flex w-full items-center justify-center gap-2 text-2xl">
+                        <div class="flex h-min w-full items-center justify-center gap-2 text-2xl">
                             <button on:click={() => (shuffled ? $queue.reorder() : $queue.shuffle())} class="aspect-square h-16">
                                 <i class="fa-solid {shuffled ? 'fa-shuffle' : 'fa-right-left'}" />
                             </button>
@@ -275,7 +274,7 @@
                                 <i class="fa-solid fa-repeat {loop ? 'text-lazuli-primary' : 'text-white'}" />
                             </button>
                         </div>
-                        <section class="flex items-center justify-end gap-2 text-xl">
+                        <section class="flex h-min items-center justify-end gap-2 text-xl">
                             <div id="volume-slider" class="flex h-10 flex-row-reverse items-center gap-2">
                                 <button on:click={() => (volume = volume > 0 ? 0 : Number(localStorage.getItem('volume')))} class="aspect-square h-8">
                                     <i class="fa-solid {volume > maxVolume / 2 ? 'fa-volume-high' : volume > 0 ? 'fa-volume-low' : 'fa-volume-xmark'} w-full text-center" />
@@ -346,42 +345,5 @@
         display: grid;
         gap: 1rem;
         grid-template-columns: 1fr min-content 1fr !important;
-    }
-
-    #scrollingText {
-        animation-timing-function: linear;
-        animation-fill-mode: both;
-        animation-delay: 10s;
-    }
-    #scrollingText:hover {
-        animation-play-state: paused;
-    }
-    .scrollLeft {
-        animation-name: scrollLeft;
-    }
-    .scrollRight {
-        animation-name: scrollRight;
-    }
-
-    @keyframes scrollLeft {
-        0% {
-            left: 0%;
-            transform: translateX(0%);
-        }
-        100% {
-            left: 100%;
-            transform: translateX(-100%);
-        }
-    }
-
-    @keyframes scrollRight {
-        0% {
-            left: 100%;
-            transform: translateX(-100%);
-        }
-        100% {
-            left: 0%;
-            transform: translateX(0%);
-        }
     }
 </style>

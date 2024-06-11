@@ -1,5 +1,6 @@
 <script lang="ts">
     import LazyImage from './lazyImage.svelte'
+    import ArtistList from './artistList.svelte'
 
     export let mediaItem: Song | Album | Artist | Playlist
 
@@ -11,7 +12,7 @@
 <div id="list-item" class="h-16 w-full">
     <div class="h-full overflow-clip rounded-md">
         {#if thumbnailUrl}
-            <LazyImage {thumbnailUrl} alt={`${mediaItem.name} thumbnial`} />
+            <LazyImage {thumbnailUrl} alt={`${mediaItem.name} thumbnial`} objectFit={'cover'} />
         {:else}
             <div id="thumbnail-placeholder" class="grid h-full w-full place-items-center bg-lazuli-primary">
                 <i class="fa-solid {mediaItem.type === 'artist' ? 'fa-user' : 'fa-play'} text-2xl" />
@@ -19,22 +20,9 @@
         {/if}
     </div>
     <div class="line-clamp-1">{mediaItem.name}</div>
-    <span class="line-clamp-1 flex text-neutral-400">
-        {#if 'artists' in mediaItem && mediaItem.artists}
-            {#if mediaItem.artists === 'Various Artists'}
-                <span>Various Artists</span>
-            {:else}
-                {#each mediaItem.artists as artist, index}
-                    <a class="hover:underline focus:underline" href="/details/artist?id={artist.id}&connection={mediaItem.connection.id}">{artist.name}</a>
-                    {#if index < mediaItem.artists.length - 1}
-                        &#44&#160
-                    {/if}
-                {/each}
-            {/if}
-        {:else if 'uploader' in mediaItem && mediaItem.uploader}
-            <span>{mediaItem.uploader.name}</span>
-        {:else if 'createdBy' in mediaItem && mediaItem.createdBy}
-            <span>{mediaItem.createdBy.name}</span>
+    <span class="line-clamp-1 text-neutral-400">
+        {#if mediaItem.type !== 'artist'}
+            <ArtistList {mediaItem} />
         {/if}
     </span>
     <div class="justify-self-center text-neutral-400">{date ?? ''}</div>

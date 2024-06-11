@@ -2,7 +2,8 @@
     import { goto } from '$app/navigation'
     import { itemDisplayState } from '$lib/stores'
     import type { LayoutData } from './$types.js'
-    import { fly, fade } from 'svelte/transition'
+    import { fade } from 'svelte/transition'
+    import IconButton from '$lib/components/util/iconButton.svelte'
 
     export let data: LayoutData
 
@@ -17,13 +18,13 @@
             <button disabled={/^\/library\/artists.*$/.test(currentPathname)} class="library-tab h-full px-1" on:click={() => goto('/library/artists')}>Artists</button>
             <button disabled={/^\/library\/collection.*$/.test(currentPathname)} class="library-tab h-full px-1" on:click={() => goto('/library/collection')}>My Collection</button>
         </section>
-        <section class="h-full justify-self-end">
-            <button disabled={$itemDisplayState === 'list'} class="view-toggle aspect-square h-full" on:click={() => ($itemDisplayState = 'list')}>
-                <i class="fa-solid fa-list" />
-            </button>
-            <button disabled={$itemDisplayState === 'grid'} class="view-toggle aspect-square h-full" on:click={() => ($itemDisplayState = 'grid')}>
-                <i class="fa-solid fa-grip" />
-            </button>
+        <section class="flex h-full justify-self-end">
+            <IconButton disabled={$itemDisplayState === 'list'} on:click={() => ($itemDisplayState = 'list')}>
+                <i slot="icon" class="fa-solid fa-list {$itemDisplayState === 'list' ? 'text-lazuli-primary' : 'text-white'}" />
+            </IconButton>
+            <IconButton disabled={$itemDisplayState === 'grid'} on:click={() => ($itemDisplayState = 'grid')}>
+                <i slot="icon" class="fa-solid fa-grip {$itemDisplayState === 'grid' ? 'text-lazuli-primary' : 'text-white'}" />
+            </IconButton>
         </section>
     </nav>
     {#key currentPathname}
@@ -34,9 +35,6 @@
 </main>
 
 <style>
-    button.view-toggle[disabled] {
-        color: var(--lazuli-primary);
-    }
     button.library-tab[disabled] {
         color: var(--lazuli-primary);
         border-top: 2px solid var(--lazuli-primary);

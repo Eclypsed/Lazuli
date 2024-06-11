@@ -46,24 +46,20 @@ class Queue {
         return this.currentSongs[this.currentPosition]
     }
 
-    /** Sets the currently playing song to the song provided as long as it is in the current playlist */
-    set current(newSong: Song | null) {
-        if (newSong === null) {
-            this.currentPosition = -1
-        } else {
-            const queuePosition = this.currentSongs.findIndex((song) => song === newSong)
-            if (queuePosition >= 0) this.currentPosition = queuePosition
-        }
-
-        this.updateQueue()
-    }
-
     get list() {
         return this.currentSongs
     }
 
     get isShuffled() {
         return this.shuffled
+    }
+
+    /** Sets the currently playing song to the song provided as long as it is in the current playlist */
+    public setCurrent(newSong: Song) {
+        const queuePosition = this.currentSongs.findIndex((song) => song === newSong)
+        if (queuePosition < 0) return
+        this.currentPosition = queuePosition
+        this.updateQueue()
     }
 
     /** Shuffles all songs in the queue after the currently playing song */

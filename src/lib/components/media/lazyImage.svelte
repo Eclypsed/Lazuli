@@ -22,11 +22,12 @@
 
     let imageContainer: HTMLDivElement
 
+    // TODO: Implement auto-resizing
     function updateImage(newThumbnailURL: string) {
         if (!imageContainer) return
 
-        const width = imageContainer.clientWidth
-        const height = imageContainer.clientHeight
+        const width = imageContainer.clientWidth * 1.5 // 1.5x is a good compromise between sharpness and performance
+        const height = imageContainer.clientHeight * 1.5
 
         const newImage = new Image(width, height)
         imageContainer.appendChild(newImage)
@@ -57,8 +58,8 @@
         }
 
         newImage.onerror = () => {
-            removeOldImage()
-            newImage.style.opacity = '1'
+            console.error(`Image from url: ${newThumbnailURL} failed to update`)
+            imageContainer.removeChild(newImage)
         }
     }
 

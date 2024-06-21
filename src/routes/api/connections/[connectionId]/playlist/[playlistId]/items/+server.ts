@@ -1,9 +1,9 @@
 import type { RequestHandler } from '@sveltejs/kit'
-import { Connections } from '$lib/server/connections'
+import { buildConnection } from '$lib/server/api-helper'
 
 export const GET: RequestHandler = async ({ params, url }) => {
     const { connectionId, playlistId } = params
-    const connection = Connections.getConnection(connectionId!)
+    const connection = await buildConnection(connectionId!).catch(() => null)
     if (!connection) return new Response('Invalid connection id', { status: 400 })
 
     const startIndexString = url.searchParams.get('startIndex')

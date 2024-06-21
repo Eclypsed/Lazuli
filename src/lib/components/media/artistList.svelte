@@ -12,18 +12,16 @@
     export let linked = true
 </script>
 
-<div class="break-keep">
+<div class="break-words break-keep">
     {#if 'artists' in mediaItem && mediaItem.artists && typeof mediaItem.artists === 'string'}
         {mediaItem.artists}
     {:else if 'artists' in mediaItem && mediaItem.artists && typeof mediaItem.artists !== 'string' && mediaItem.artists.length > 0}
         {#each mediaItem.artists as artist, index}
+            {@const needsComma = index < mediaItem.artists.length - 1}
             {#if linked}
-                <a class="hover:underline focus:underline" href="/details/artist?id={artist.id}&connection={mediaItem.connection.id}">{artist.name}</a>
+                <a class:needsComma class="hover:underline focus:underline" href="/details/artist?id={artist.id}&connection={mediaItem.connection.id}">{artist.name}</a>
             {:else}
-                <span>{artist.name}</span>
-            {/if}
-            {#if index < mediaItem.artists.length - 1}
-                <span style="margin-left: -0.25em; margin-right: 0.25em">&#44;</span>
+                <span class:needsComma class="artist-name">{artist.name}</span>
             {/if}
         {/each}
     {:else if 'uploader' in mediaItem && mediaItem.uploader}
@@ -40,3 +38,10 @@
         {/if}
     {/if}
 </div>
+
+<style>
+    .needsComma::after {
+        content: ',';
+        margin-right: 0.25em;
+    }
+</style>

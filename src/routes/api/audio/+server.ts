@@ -1,12 +1,12 @@
 import type { RequestHandler } from '@sveltejs/kit'
-import { Connections } from '$lib/server/connections'
+import { buildConnection } from '$lib/server/api-helper'
 
 export const GET: RequestHandler = async ({ url, request }) => {
     const connectionId = url.searchParams.get('connection')
     const id = url.searchParams.get('id')
     if (!(connectionId && id)) return new Response('Missing query parameter', { status: 400 })
     // Might want to re-evaluate how specific I make these ^ v error response messages
-    const connection = Connections.getConnection(connectionId)
+    const connection = await buildConnection(connectionId).catch(() => null)
     if (!connection) return new Response('Invalid connection id', { status: 400 })
 
     const audioRequestHeaders = new Headers({ range: request.headers.get('range') ?? 'bytes=0-' })

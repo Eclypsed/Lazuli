@@ -10,6 +10,10 @@
     import ScrollingText from '$lib/components/util/scrollingText.svelte'
     import ArtistList from './artistList.svelte'
 
+    // NEW IDEA: Only have the miniplayer for controls and for the expanded view just make it one large Videoplayer.
+    // That way we can target the player to be the size of YouTube's default player. Then move the Queue view to it's own
+    // dedicated sidebar like in spotify.
+
     $: currentlyPlaying = $queue.current
 
     let expanded = false
@@ -45,15 +49,15 @@
 
         navigator.mediaSession.metadata = new MediaMetadata({
             title: media.name,
-            artist: media.artists?.map((artist) => artist.name).join(', ') || media.uploader?.name,
+            artist: media.artists?.map((artist) => artist.name).join(', ') ?? media.uploader?.name,
             album: media.album?.name,
             artwork: [
-                { src: `/api/remoteImage?url=${media.thumbnailUrl}&maxWidth=96`, sizes: '96x96', type: 'image/png' },
-                { src: `/api/remoteImage?url=${media.thumbnailUrl}&maxWidth=128`, sizes: '128x128', type: 'image/png' },
-                { src: `/api/remoteImage?url=${media.thumbnailUrl}&maxWidth=192`, sizes: '192x192', type: 'image/png' },
-                { src: `/api/remoteImage?url=${media.thumbnailUrl}&maxWidth=256`, sizes: '256x256', type: 'image/png' },
-                { src: `/api/remoteImage?url=${media.thumbnailUrl}&maxWidth=384`, sizes: '384x384', type: 'image/png' },
-                { src: `/api/remoteImage?url=${media.thumbnailUrl}&maxWidth=512`, sizes: '512x512', type: 'image/png' },
+                { src: `/api/remoteImage?url=${media.thumbnailUrl}&maxWidth=96`, sizes: '96x96' },
+                { src: `/api/remoteImage?url=${media.thumbnailUrl}&maxWidth=128`, sizes: '128x128' },
+                { src: `/api/remoteImage?url=${media.thumbnailUrl}&maxWidth=192`, sizes: '192x192' },
+                { src: `/api/remoteImage?url=${media.thumbnailUrl}&maxWidth=256`, sizes: '256x256' },
+                { src: `/api/remoteImage?url=${media.thumbnailUrl}&maxWidth=384`, sizes: '384x384' },
+                { src: `/api/remoteImage?url=${media.thumbnailUrl}&maxWidth=512`, sizes: '512x512' },
             ],
         })
     }
@@ -103,7 +107,7 @@
         {#if !expanded}
             <main in:fade={{ duration: 75, delay: 500 }} out:fade={{ duration: 75 }} class="flex h-20 w-full gap-10 pr-8">
                 <section class="flex w-80 gap-3">
-                    <div class="relative h-full w-20 min-w-20">
+                    <div class="relative h-full w-20 min-w-20 overflow-clip rounded-xl">
                         <LazyImage thumbnailUrl={currentlyPlaying.thumbnailUrl} alt={`${currentlyPlaying.name} jacket`} objectFit={'cover'} />
                     </div>
                     <section class="flex flex-grow flex-col justify-center gap-1">
@@ -121,16 +125,14 @@
                     <IconButton on:click={() => $queue.previous()}>
                         <i slot="icon" class="fa-solid fa-backward-step text-xl" />
                     </IconButton>
-                    <div class="aspect-square h-full rounded-full border border-neutral-700">
-                        <IconButton on:click={() => (paused = !paused)}>
-                            <div slot="icon">
-                                {#if waiting}
-                                    <Loader size={1.5} />
-                                {:else}
-                                    <i class="fa-solid {paused ? 'fa-play' : 'fa-pause'}" />
-                                {/if}
-                            </div>
-                        </IconButton>
+                    <div class="relative aspect-square h-full rounded-full border border-neutral-700">
+                        {#if waiting}
+                            <Loader size={1.5} />
+                        {:else}
+                            <IconButton on:click={() => (paused = !paused)}>
+                                <i slot="icon" class="fa-solid {paused ? 'fa-play' : 'fa-pause'}" />
+                            </IconButton>
+                        {/if}
                     </div>
                     <IconButton on:click={() => $queue.clear()}>
                         <i slot="icon" class="fa-solid fa-stop text-xl" />
@@ -156,7 +158,10 @@
                     </div>
                 </section>
                 <section class="flex items-center justify-end gap-2.5 py-6 text-lg">
-                    <div id="volume-slider" class="mx-4 flex h-10 w-44 flex-row-reverse items-center gap-3">
+                    <div id="volume-slider" class="mx-4 flex h-10 w-44 items-center gap-3">
+                        <IconButton on:click={() => (volume = volume > 0 ? 0 : Number(localStorage.getItem('volume')))}>
+                            <i slot="icon" class="fa-solid {volume > maxVolume / 2 ? 'fa-volume-high' : volume > 0 ? 'fa-volume-low' : 'fa-volume-xmark'}" />
+                        </IconButton>
                         <Slider
                             bind:value={volume}
                             max={maxVolume}
@@ -164,9 +169,6 @@
                                 if (volume > 0) localStorage.setItem('volume', volume.toString())
                             }}
                         />
-                        <IconButton on:click={() => (volume = volume > 0 ? 0 : Number(localStorage.getItem('volume')))}>
-                            <i slot="icon" class="fa-solid {volume > maxVolume / 2 ? 'fa-volume-high' : volume > 0 ? 'fa-volume-low' : 'fa-volume-xmark'}" />
-                        </IconButton>
                     </div>
                     <IconButton on:click={() => (shuffled ? $queue.reorder() : $queue.shuffle())}>
                         <i slot="icon" class="fa-solid fa-shuffle {shuffled ? 'text-lazuli-primary' : 'text-white'}" />
@@ -213,7 +215,7 @@
                     </section>
                 </section>
                 <section class="px-8">
-                    <div id="progress-bar-expanded" class="mb-7">
+                    <div id="progress-bar-expanded" class="mb-6">
                         <span bind:this={expandedCurrentTimeTimestamp} class="text-right" />
                         <Slider
                             bind:this={expandedProgressBar}
@@ -324,7 +326,7 @@
     }
     #expanded-player {
         display: grid;
-        grid-template-rows: calc(100% - 12rem) 12rem;
+        grid-template-rows: calc(100% - 11rem) 11rem;
     }
     #song-queue-wrapper {
         display: grid;

@@ -18,6 +18,13 @@ declare global {
     // Do not store data from other services in the database, only the data necessary to fetch whatever you need.
     // This avoid syncronization issues. E.g. Store userId, and urlOrigin to fetch the user's name and profile picture.
 
+    // Note to self: POST vs PUT vs PATCH
+    // Use POST when a new resource is being created
+    // Use PUT when a resource is being replaced. Semantically, PUT means the entire replacement resource needs to be provided in the request
+    // Use PATCH when a resource is being changed or updated. Semantically, PATCH means only a partial resource needs to be provided in the request (The parts being updated/changed)
+
+    type ConnectionType = 'jellyfin' | 'youtube-music'
+
     type User = {
         id: string
         username: string
@@ -59,57 +66,61 @@ declare global {
         public readonly id: string
 
         /** Retireves general information about the connection */
-        getConnectionInfo: () => Promise<ConnectionInfo>
+        getConnectionInfo(): Promise<ConnectionInfo>
 
         /** Get's the user's recommendations from the corresponding service */
-        getRecommendations: () => Promise<(Song | Album | Artist | Playlist)[]>
+        getRecommendations(): Promise<(Song | Album | Artist | Playlist)[]>
 
         /**
-         * @param searchTerm The string of text to query
-         * @param filter Optional. A string of either 'song', 'album', 'artist', or 'playlist' to filter the kind of media items queried
-         * @returns A promise of an array of media items
+         * @param {string} searchTerm The string of text to query
+         * @param {'song' | 'album' | 'artist' | 'playlist'} filter Optional. A string of either 'song', 'album', 'artist', or 'playlist' to filter the kind of media items queried
+         * @returns {Promise<(Song | Album | Artist | Playlist)[]>} A promise of an array of media items
          */
-        search: <T extends 'song' | 'album' | 'artist' | 'playlist'>(searchTerm: string, filter?: T) => Promise<SearchFilterMap<T>[]>
+        search<T extends 'song' | 'album' | 'artist' | 'playlist'>(searchTerm: string, filter?: T): Promise<SearchFilterMap<T>[]>
 
         /**
-         * @param id The id of the requested song
-         * @param headers The request headers sent by the Lazuli client that need to be relayed to the connection's request to the server (e.g. 'range').
-         * @returns A promise of response object containing the audio stream for the specified byte range
+         * @param {string} id The id of the requested song
+         * @param {Headers} headers The request headers sent by the Lazuli client that need to be relayed to the connection's request to the server (e.g. 'range').
+         * @returns {Promise<Response>} A promise of response object containing the audio stream for the specified byte range
          * 
          * Fetches the audio stream for a song. Will return an response containing the audio stream if the fetch was successfull, otherwise throw an error.
          */
-        getAudioStream: (id: string, headers: Headers) => Promise<Response>
+        getAudioStream(id: string, headers: Headers): Promise<Response>
 
         /**
-         * @param id The id of an album
-         * @returns A promise of the album as an Album object
+         * @param {string} id The id of an album
+         * @returns {Promise<Album>} A promise of the album as an Album object
          */
-        getAlbum: (id: string) => Promise<Album>
+        getAlbum(id: string): Promise<Album>
 
         /**
-         * @param id The id of an album
-         * @returns A promise of the songs in the album as and array of Song objects
+         * @param {string} id The id of an album
+         * @returns {Promise<Song[]>} A promise of the songs in the album as and array of Song objects
          */
-        getAlbumItems: (id: string) => Promise<Song[]>
+        getAlbumItems(id: string): Promise<Song[]>
 
         /**
-         * @param id The id of a playlist
-         * @returns A promise of the playlist of as a Playlist object
+         * @param {string} id The id of a playlist
+         * @returns {Promise<Playlist>} A promise of the playlist of as a Playlist object
          */
-        getPlaylist: (id: string) => Promise<Playlist>
+        getPlaylist(id: string): Promise<Playlist>
 
         /**
-         * @param id The id of a playlist
-         * @param startIndex The index to start at (0 based). All playlist items with a lower index will be dropped from the results
-         * @param limit The maximum number of playlist items to return
-         * @returns A promise of the songs in the playlist as and array of Song objects
+         * @param {string} id The id of a playlist
+         * @param {number} startIndex The index to start at (0 based). All playlist items with a lower index will be dropped from the results
+         * @param {number} limit The maximum number of playlist items to return
+         * @returns {Promise<Song[]>} A promise of the songs in the playlist as and array of Song objects
          */
-        getPlaylistItems: (id: string, options?: { startIndex?: number, limit?: number }) => Promise<Song[]>
+        getPlaylistItems(id: string, options?: { startIndex?: number, limit?: number }): Promise<Song[]>
+
+        public readonly songs?: { // Optional because YouTube Music can't be asked to provide an actually useful API.
+            songs(ids: string[]): Promise<Song[]>
+        }
 
         public readonly library: {
-            albums: () => Promise<Album[]>
-            artists: () => Promise<Artist[]>
-            playlists: () => Promise<Playlist[]>
+            albums(): Promise<Album[]>
+            artists(): Promise<Artist[]>
+            playlists(): Promise<Playlist[]>
         }
     }
 
@@ -123,7 +134,7 @@ declare global {
     type Song = {
         connection: {
             id: string
-            type: 'jellyfin' | 'youtube-music'
+            type: ConnectionType
         }
         id: string
         name: string
@@ -150,7 +161,7 @@ declare global {
     type Album = {
         connection: {
             id: string
-            type: 'jellyfin' | 'youtube-music'
+            type: ConnectionType
         }
         id: string
         name: string
@@ -167,7 +178,7 @@ declare global {
     type Artist = {
         connection: {
             id: string
-            type: 'jellyfin' | 'youtube-music'
+            type: ConnectionType
         }
         id: string
         name: string
@@ -178,7 +189,7 @@ declare global {
     type Playlist = { // Keep Playlist items seperate from the playlist itself. What's really nice is playlist items can just be an ordered array of Songs
         connection: {
             id: string
-            type: 'jellyfin' | 'youtube-music'
+            type: ConnectionType
         }
         id: string
         name: string
@@ -188,6 +199,15 @@ declare global {
             id: string
             name: string
         }
+    }
+
+    type Mix = {
+        id: string
+        name: string
+        thumbnail?: string
+        description?: string
+        trackCount: number
+        duration: number
     }
 
     type HasDefinedProperty<T, K extends keyof T> = T & { [P in K]-?: Exclude<T[P], undefined> };

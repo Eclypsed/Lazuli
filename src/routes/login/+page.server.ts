@@ -15,7 +15,7 @@ export const actions: Actions = {
         const formData = await request.formData()
         const { username, password, redirectLocation } = Object.fromEntries(formData)
 
-        const user = DB.getUsername(username.toString())
+        const user = await DB.users.where('username', username.toString()).first()
         if (!user) return fail(400, { message: 'Invalid Username' })
 
         const passwordValid = await compare(password.toString(), user.passwordHash)
@@ -34,8 +34,20 @@ export const actions: Actions = {
         const { username, password } = Object.fromEntries(formData)
 
         const passwordHash = await hash(password.toString(), 10)
-        const newUser = DB.addUser(username.toString(), passwordHash)
-        if (!newUser) return fail(400, { message: 'Username already in use' })
+        const newUser = await DB.users
+            .insert({ id: DB.uuid(), username: username.toString(), passwordHash }, '*')
+            .then((data) => data[0])
+            .catch((error: InstanceType<typeof DB.sqliteError>) => error)
+
+        if (newUser instanceof DB.sqliteError) {
+            switch (newUser.code) {
+                case 'SQLITE_CONSTRAINT_UNIQUE':
+                    return fail(400, { message: 'Username already in use' })
+                default:
+                    console.log(newUser)
+                    return fail(500, { message: 'Failed to create user. Reason Unknown' })
+            }
+        }
 
         const authToken = jwt.sign({ id: newUser.id, username: newUser.username }, SECRET_JWT_KEY, { expiresIn: '100d' })
 

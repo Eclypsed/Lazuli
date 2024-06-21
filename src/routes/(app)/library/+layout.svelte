@@ -10,7 +10,7 @@
     $: currentPathname = data.url.pathname
 </script>
 
-<main class="py-8">
+<main class="py-4">
     <nav id="nav-options" class="mb-8 flex h-12 justify-between">
         <section class="relative flex h-full gap-4">
             <button disabled={/^\/library$/.test(currentPathname)} class="library-tab h-full px-1" on:click={() => goto('/library')}>History</button>

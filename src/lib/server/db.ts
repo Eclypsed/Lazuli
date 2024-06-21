@@ -1,132 +1,187 @@
-import Database from 'better-sqlite3'
-import type { Database as Sqlite3DB } from 'better-sqlite3'
-import { generateUUID } from '$lib/utils'
+import knex from 'knex'
+import { SqliteError } from 'better-sqlite3'
 
-interface DBConnectionsTableSchema {
-    id: string
-    userId: string
-    type: string
-    service?: string
-    tokens?: string
-}
+const connectionTypes = ['jellyfin', 'youtube-music']
 
-export type ConnectionRow = {
-    id: string
-    userId: string
-} & (
-    | {
-          type: 'jellyfin'
-          service: {
-              userId: string
-              serverUrl: string
-          }
-          tokens: {
-              accessToken: string
-          }
-      }
-    | {
-          type: 'youtube-music'
-          service: {
-              userId: string
-          }
-          tokens: {
-              accessToken: string
-              refreshToken: string
-              expiry: number
-          }
-      }
-)
-
-class Storage {
-    private readonly database: Sqlite3DB
-
-    constructor(database: Sqlite3DB) {
-        this.database = database
-        this.database.pragma('foreign_keys = ON')
-        this.database.exec(`CREATE TABLE IF NOT EXISTS Users(
-            id VARCHAR(36) PRIMARY KEY,
-            username VARCHAR(30) UNIQUE NOT NULL,
-            passwordHash VARCHAR(72) NOT NULL
-        )`)
-        this.database.exec(`CREATE TABLE IF NOT EXISTS Connections(
-            id VARCHAR(36) PRIMARY KEY,
-            userId VARCHAR(36) NOT NULL,
-            type VARCHAR(36) NOT NULL,
-            service TEXT,
-            tokens TEXT,
-            FOREIGN KEY(userId) REFERENCES Users(id)
-        )`)
-        this.database.exec(`CREATE TABLE IF NOT EXISTS Playlists(
-            id VARCHAR(36) PRIMARY KEY,
-            userId VARCHAR(36) NOT NULL,
-            name TEXT NOT NULL,
-            description TEXT,
-            items TEXT,
-            FOREIGN KEY(userId) REFERENCES Users(id)
-        )`)
+export declare namespace DBSchemas {
+    interface Users {
+        id: string
+        username: string
+        passwordHash: string
     }
 
-    public getUser = (id: string): User | undefined => {
-        const user = this.database.prepare(`SELECT * FROM Users WHERE id = ? LIMIT 1`).get(id) as User | undefined
-        return user
+    interface JellyfinConnection {
+        id: string
+        userId: string
+        type: 'jellyfin'
+        serviceUserId: string
+        serverUrl: string
+        accessToken: string
     }
 
-    public getUsername = (username: string): User | undefined => {
-        const user = this.database.prepare(`SELECT * FROM Users WHERE lower(username) = ? LIMIT 1`).get(username.toLowerCase()) as User | undefined
-        return user
+    interface YouTubeMusicConnection {
+        id: string
+        userId: string
+        type: 'youtube-music'
+        serviceUserId: string
+        accessToken: string
+        refreshToken: string
+        expiry: number
     }
 
-    public addUser = (username: string, passwordHash: string): User => {
-        const userId = generateUUID()
-        this.database.prepare(`INSERT INTO Users(id, username, passwordHash) VALUES(?, ?, ?)`).run(userId, username, passwordHash)
-        return this.getUser(userId)!
+    type Connections = JellyfinConnection | YouTubeMusicConnection
+
+    interface Mixes {
+        id: string
+        userId: string
+        name: string
+        thumbnailTag?: string
+        description?: string
+        trackCount: number
+        duration: number
     }
 
-    public deleteUser = (id: string): void => {
-        const commandInfo = this.database.prepare(`DELETE FROM Users WHERE id = ?`).run(id)
-        if (commandInfo.changes === 0) throw new Error(`User with id ${id} does not exist`)
+    interface MixItems {
+        mixId: string
+        connectionId: string
+        connectionType: ConnectionType
+        id: string
+        index: number
     }
 
-    public getConnectionInfo = (id: string): ConnectionRow | undefined => {
-        const result = this.database.prepare(`SELECT * FROM Connections WHERE id = ? LIMIT 1`).get(id) as DBConnectionsTableSchema | undefined
-        if (!result) return undefined
-
-        const { userId, type, service, tokens } = result
-        const parsedService = service ? JSON.parse(service) : undefined
-        const parsedTokens = tokens ? JSON.parse(tokens) : undefined
-        return { id, userId, type: type as ConnectionRow['type'], service: parsedService, tokens: parsedTokens }
-    }
-
-    public getUserConnectionInfo = (userId: string): ConnectionRow[] | undefined => {
-        const user = this.getUser(userId)
-        if (!user) return undefined
-
-        const connectionRows = this.database.prepare(`SELECT * FROM Connections WHERE userId = ?`).all(userId) as DBConnectionsTableSchema[]
-        const connections: ConnectionRow[] = []
-        for (const { id, type, service, tokens } of connectionRows) {
-            const parsedService = service ? JSON.parse(service) : undefined
-            const parsedTokens = tokens ? JSON.parse(tokens) : undefined
-            connections.push({ id, userId, type: type as ConnectionRow['type'], service: parsedService, tokens: parsedTokens })
+    interface Songs {
+        connectionId: string
+        connectionType: ConnectionType
+        id: string
+        name: string
+        duration: number
+        thumbnailUrl: string
+        releaseDate?: string
+        artists?: {
+            id: string
+            name: string
+        }[]
+        album?: {
+            id: string
+            name: string
         }
-        return connections
-    }
-
-    public addConnectionInfo = (connectionInfo: Omit<ConnectionRow, 'id'>): string => {
-        const { userId, type, service, tokens } = connectionInfo
-        const connectionId = generateUUID()
-        this.database.prepare(`INSERT INTO Connections(id, userId, type, service, tokens) VALUES(?, ?, ?, ?, ?)`).run(connectionId, userId, type, JSON.stringify(service), JSON.stringify(tokens))
-        return connectionId
-    }
-
-    public deleteConnectionInfo = (id: string): void => {
-        const commandInfo = this.database.prepare(`DELETE FROM Connections WHERE id = ?`).run(id)
-        if (commandInfo.changes === 0) throw new Error(`Connection with id: ${id} does not exist`)
-    }
-
-    public updateTokens = (id: string, tokens: ConnectionRow['tokens']): void => {
-        const commandInfo = this.database.prepare(`UPDATE Connections SET tokens = ? WHERE id = ?`).run(JSON.stringify(tokens), id)
-        if (commandInfo.changes === 0) throw new Error('Failed to update tokens')
+        uploader?: {
+            id: string
+            name: string
+        }
+        isVideo: boolean
     }
 }
 
-export const DB = new Storage(new Database('./src/lib/server/lazuli.db', { verbose: console.info }))
+class Database {
+    public readonly knex: knex.Knex
+
+    constructor(knex: knex.Knex<'better-sqlite3'>) {
+        this.knex = knex
+    }
+
+    public uuid() {
+        return this.knex.fn.uuid()
+    }
+
+    public get users() {
+        return this.knex<DBSchemas.Users>('Users')
+    }
+
+    public get connections() {
+        return this.knex<DBSchemas.Connections>('Connections')
+    }
+
+    public get mixes() {
+        return this.knex<DBSchemas.Mixes>('Mixes')
+    }
+
+    public get mixItems() {
+        return this.knex<DBSchemas.MixItems>('MixItems')
+    }
+
+    public get songs() {
+        return this.knex<DBSchemas.Songs>('Songs')
+    }
+
+    public get sqliteError() {
+        return SqliteError
+    }
+
+    public static async createUsersTable(db: knex.Knex<'better-sqlite3'>) {
+        const exists = await db.schema.hasTable('Users')
+        if (exists) return
+
+        await db.schema.createTable('Users', (tb) => {
+            tb.uuid('id').primary(), tb.string('username').unique().notNullable().checkLength('<=', 30), tb.string('passwordHash').notNullable().checkLength('=', 60)
+        })
+    }
+
+    public static async createConnectionsTable(db: knex.Knex<'better-sqlite3'>) {
+        const exists = await db.schema.hasTable('Connections')
+        if (exists) return
+
+        await db.schema.createTable('Connections', (tb) => {
+            tb.uuid('id').primary(),
+                tb.uuid('userId').notNullable().references('id').inTable('Users'),
+                tb.enum('type', connectionTypes).notNullable(),
+                tb.string('serviceUserId'),
+                tb.string('serverUrl'),
+                tb.string('accessToken'),
+                tb.string('refreshToken'),
+                tb.integer('expiry')
+        })
+    }
+
+    public static async createMixesTable(db: knex.Knex<'better-sqlite3'>) {
+        const exists = await db.schema.hasTable('Mixes')
+        if (exists) return
+
+        await db.schema.createTable('Mixes', (tb) => {
+            tb.uuid('id').primary(),
+                tb.uuid('userId').notNullable().references('id').inTable('Users'),
+                tb.string('name').notNullable(),
+                tb.uuid('thumbnailTag'),
+                tb.string('description'),
+                tb.integer('trackCount').notNullable(),
+                tb.integer('duration').notNullable()
+        })
+    }
+
+    public static async createMixItemsTable(db: knex.Knex<'better-sqlite3'>) {
+        const exists = await db.schema.hasTable('MixItems')
+        if (exists) return
+
+        await db.schema.createTable('MixItems', (tb) => {
+            tb.uuid('mixId').notNullable().references('id').inTable('Mixes'),
+                tb.uuid('connectionId').notNullable().references('id').inTable('Connections'),
+                tb.enum('connectionType', connectionTypes).notNullable(),
+                tb.string('id').notNullable()
+            tb.integer('index').notNullable()
+        })
+    }
+
+    public static async createSongsTable(db: knex.Knex<'better-sqlite3'>) {
+        const exists = await db.schema.hasTable('Songs')
+        if (exists) return
+
+        await db.schema.createTable('Songs', (tb) => {
+            tb.uuid('connectionId').notNullable().references('id').inTable('Connections'),
+                tb.enum('connectionType', connectionTypes),
+                tb.string('id').notNullable(),
+                tb.string('name').notNullable(),
+                tb.integer('duration').notNullable(),
+                tb.string('thumbnailUrl').notNullable(),
+                tb.datetime('releaseDate', { precision: 3 }),
+                tb.json('artists'),
+                tb.json('album'),
+                tb.json('uploader'),
+                tb.boolean('isVideo').notNullable()
+        })
+    }
+}
+
+const db = knex<'better-sqlite3'>({ client: 'better-sqlite3', connection: { filename: './src/lib/server/lazuli.db' }, useNullAsDefault: false })
+await Promise.all([Database.createUsersTable(db), Database.createConnectionsTable(db), Database.createMixesTable(db), Database.createMixItemsTable(db), Database.createSongsTable(db)])
+
+export const DB = new Database(db)

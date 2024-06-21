@@ -1,10 +1,10 @@
 import { youtube, type youtube_v3 } from 'googleapis/build/src/apis/youtube'
-import { DB } from './db'
 import { PUBLIC_YOUTUBE_API_CLIENT_ID } from '$env/static/public'
 import { YOUTUBE_API_CLIENT_SECRET } from '$env/static/private'
 import type { InnerTube } from './youtube-music-types'
+import { DB } from './db'
 
-const ytDataApi = youtube('v3')
+const ytDataApi = youtube('v3') // TODO: At some point I want to ditch this package and just make the API calls directly. Fewer dependecies
 
 type ytMusicv1ApiRequestParams =
     | {
@@ -55,7 +55,10 @@ export class YouTubeMusic implements Connection {
     }
 
     public async getConnectionInfo() {
-        const access_token = await this.requestManager.accessToken.catch(() => null)
+        const access_token = await this.requestManager.accessToken.catch(() => {
+            console.log('Failed to get yt access token')
+            return null
+        })
 
         let username: string | undefined, profilePicture: string | undefined
         if (access_token) {
@@ -515,6 +518,43 @@ export class YouTubeMusic implements Connection {
             }
         }) as ScrapedMediaItemMap<T[number]>[]
     }
+
+    // ! HOLY FUCK HOLY FUCK THIS IS IT!!!! THIS IS HOW YOU CAN BATCH FETCH FULL DETAILS FOR COMPLETELY UNRELATED SONGS IN ONE API CALL!!!!
+    // ! IT GIVES BACK FUCKING EVERYTHING (almost)! NAME, ALBUM, ARTISTS, UPLOADER, DURATION, THUMBNAIL.
+    // ! The only thing kinda missing is release date, but that could be fetched from the official API. In fact I'll already need to make a call to
+    // ! the offical API to get the thumbnails for the videos any way. And since you can batch call that one, you won't be making any extra queries just
+    // ! to get the release date. HOLY FUCK THIS IS PERFECT! (something is going to go wrong in the future for sure)
+    private async testMethod(videoIds: string[]) {
+        const currentDate = new Date()
+        const year = currentDate.getUTCFullYear().toString()
+        const month = (currentDate.getUTCMonth() + 1).toString().padStart(2, '0') // Months are zero-based, so add 1
+        const day = currentDate.getUTCDate().toString().padStart(2, '0')
+
+        const response = await fetch('https://music.youtube.com/youtubei/v1/music/get_queue', {
+            headers: {
+                'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:88.0) Gecko/20100101 Firefox/88.0',
+                authorization: `Bearer ${await this.requestManager.accessToken}`,
+            },
+            method: 'POST',
+            body: JSON.stringify({
+                context: {
+                    client: {
+                        clientName: 'WEB_REMIX',
+                        clientVersion: `1.${year + month + day}.01.00`,
+                    },
+                },
+                videoIds,
+            }),
+        })
+
+        if (!response.ok) {
+            console.log(response)
+            return
+        }
+
+        const data = await response.json()
+        console.log(JSON.stringify(data))
+    }
 }
 
 function parseTwoRowItemRenderer(rowContent: InnerTube.musicTwoRowItemRenderer): InnerTube.ScrapedSong | InnerTube.ScrapedAlbum | InnerTube.ScrapedArtist | InnerTube.ScrapedPlaylist {
@@ -742,8 +782,8 @@ class YTRequestManager {
         if (this.accessTokenRefreshRequest) return this.accessTokenRefreshRequest
 
         this.accessTokenRefreshRequest = refreshAccessToken()
-            .then(({ accessToken, expiry }) => {
-                DB.updateTokens(this.connectionId, { accessToken, refreshToken: this.refreshToken, expiry })
+            .then(async ({ accessToken, expiry }) => {
+                await DB.connections.where('id', this.connectionId).update('tokens', { accessToken, refreshToken: this.refreshToken, expiry })
                 this.currentAccessToken = accessToken
                 this.expiry = expiry
                 this.accessTokenRefreshRequest = null

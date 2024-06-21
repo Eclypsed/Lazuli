@@ -27,7 +27,11 @@ export const actions: Actions = {
 
         if (authData instanceof JellyfinFetchError) return fail(authData.httpCode, { message: authData.message })
 
-        const newConnectionId = DB.addConnectionInfo({ userId: locals.user.id, type: 'jellyfin', service: { userId: authData.User.Id, serverUrl: serverUrl.toString() }, tokens: { accessToken: authData.AccessToken } })
+        const userId = locals.user.id
+        const serviceUserId = authData.User.Id
+        const accessToken = authData.AccessToken
+
+        const newConnectionId = await DB.connections.insert({ id: DB.uuid(), userId, type: 'jellyfin', serviceUserId, serverUrl: serverUrl.toString(), accessToken }, 'id').then((data) => data[0].id)
 
         const newConnection = await fetch(`/api/connections?id=${newConnectionId}`)
             .then((response) => response.json() as Promise<{ connections: ConnectionInfo[] }>)
@@ -39,18 +43,18 @@ export const actions: Actions = {
         const formData = await request.formData()
         const { code } = Object.fromEntries(formData)
         const client = new google.auth.OAuth2({ clientId: PUBLIC_YOUTUBE_API_CLIENT_ID, clientSecret: YOUTUBE_API_CLIENT_SECRET, redirectUri: 'http://localhost:5173' }) // ! DO NOT SHIP THIS. THE CLIENT SECRET SHOULD NOT BE MADE AVAILABLE TO USERS. MAKE A REQUEST TO THE LAZULI WEBSITE INSTEAD.
-        const { tokens } = await client.getToken(code.toString())
+        const { access_token, refresh_token, expiry_date } = (await client.getToken(code.toString())).tokens
 
         const youtube = google.youtube('v3')
-        const userChannelResponse = await youtube.channels.list({ mine: true, part: ['id', 'snippet'], access_token: tokens.access_token! })
+        const userChannelResponse = await youtube.channels.list({ mine: true, part: ['id', 'snippet'], access_token: access_token! })
         const userChannel = userChannelResponse.data.items![0]
 
-        const newConnectionId = DB.addConnectionInfo({
-            userId: locals.user.id,
-            type: 'youtube-music',
-            service: { userId: userChannel.id! },
-            tokens: { accessToken: tokens.access_token!, refreshToken: tokens.refresh_token!, expiry: tokens.expiry_date! },
-        })
+        const userId = locals.user.id
+        const serviceUserId = userChannel.id!
+
+        const newConnectionId = await DB.connections
+            .insert({ id: DB.uuid(), userId, type: 'youtube-music', serviceUserId, accessToken: access_token!, refreshToken: refresh_token!, expiry: expiry_date! }, 'id')
+            .then((data) => data[0].id)
 
         const newConnection = await fetch(`/api/connections?id=${newConnectionId}`)
             .then((response) => response.json() as Promise<{ connections: ConnectionInfo[] }>)
@@ -62,7 +66,7 @@ export const actions: Actions = {
         const formData = await request.formData()
         const connectionId = formData.get('connectionId')!.toString()
 
-        DB.deleteConnectionInfo(connectionId)
+        await DB.connections.where('id', connectionId).del()
 
         return { deletedConnectionId: connectionId }
     },

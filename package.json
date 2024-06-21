@@ -28,13 +28,14 @@
 	"type": "module",
 	"dependencies": {
 		"@fortawesome/fontawesome-free": "^6.5.1",
-		"@types/better-sqlite3": "^7.6.8",
+		"@types/better-sqlite3": "^7.6.10",
 		"@types/jsonwebtoken": "^9.0.5",
 		"bcrypt-ts": "^5.0.1",
 		"better-sqlite3": "^9.3.0",
 		"fast-average-color": "^9.4.0",
 		"googleapis": "^133.0.0",
 		"jsonwebtoken": "^9.0.2",
-		"musicbrainz-api": "^0.15.0"
+		"knex": "^3.1.0",
+		"zod": "^3.23.8"
 	}
 }

@@ -6,25 +6,6 @@ import { DB } from './db'
 
 const ytDataApi = youtube('v3') // TODO: At some point I want to ditch this package and just make the API calls directly. Fewer dependecies
 
-type ytMusicv1ApiRequestParams =
-    | {
-          type: 'browse'
-          browseId: string
-      }
-    | {
-          type: 'search'
-          searchTerm: string
-          filter?: 'song' | 'album' | 'artist' | 'playlist'
-      }
-    | {
-          type: 'continuation'
-          ctoken: string
-      }
-    | {
-          type: 'queue'
-          videoIds: string[]
-      }
-
 // TODO: Throughout this method, whenever I extract the duration of a video I might want to subtract 1, the actual duration appears to always be one second less than what the duration lists.
 export class YouTubeMusic implements Connection {
     public readonly id: string
@@ -69,27 +50,26 @@ export class YouTubeMusic implements Connection {
         } satisfies ConnectionInfo
     }
 
-    // TODO: Figure out why this still breaks sometimes (Figured out one cause: "Episodes" can appear as videos)
+    // ! Need to completely rework this method - Currently returns empty array
     public async search(searchTerm: string, filter: 'song'): Promise<Song[]>
     public async search(searchTerm: string, filter: 'album'): Promise<Album[]>
     public async search(searchTerm: string, filter: 'artist'): Promise<Artist[]>
     public async search(searchTerm: string, filter: 'playlist'): Promise<Playlist[]>
     public async search(searchTerm: string, filter?: undefined): Promise<(Song | Album | Artist | Playlist)[]>
     public async search(searchTerm: string, filter?: 'song' | 'album' | 'artist' | 'playlist'): Promise<(Song | Album | Artist | Playlist)[]> {
-        return [] // ! Need to completely rework this method
+        const searchFilterParams = {
+            song: 'EgWKAQIIAWoMEA4QChADEAQQCRAF',
+            album: 'EgWKAQIYAWoMEA4QChADEAQQCRAF',
+            artist: 'EgWKAQIgAWoMEA4QChADEAQQCRAF',
+            playlist: 'Eg-KAQwIABAAGAAgACgBMABqChAEEAMQCRAFEAo%3D',
+        } as const
 
-        // const searchResulsts = (await this.requestManager.innerTubeFetch({ type: 'search', searchTerm, filter }).then((response) => response.json())) as InnerTube.SearchResponse
+        return [] // /search && { body: { query: searchTerm, params: searchFilterParams[filter] } }
     }
 
-    // TODO: Figure out why this still breaks sometimes (Figured out one cause: "Episodes" can appear as videos)
+    // ! Need to completely rework this method - Currently returns empty array
     public async getRecommendations() {
-        console.time()
-        await this.getAlbumItems('MPREb_zu9EUJqrg8V').then((songs) => console.log(JSON.stringify(songs)))
-        console.timeEnd()
-
-        return [] // ! Need to completely rework this method
-
-        // const homeResponse = (await this.requestManager.innerTubeFetch({ type: 'browse', browseId: 'FEmusic_home' }).then((response) => response.json())) as InnerTube.HomeResponse
+        return [] // browseId: 'FEmusic_home'
     }
 
     // TODO: Move to innerTubeFetch method
@@ -507,13 +487,6 @@ class YTRequestManager {
     private currentAccessToken: string
     private readonly refreshToken: string
     private expiry: number
-
-    private readonly searchFilterParams = {
-        song: 'EgWKAQIIAWoMEA4QChADEAQQCRAF',
-        album: 'EgWKAQIYAWoMEA4QChADEAQQCRAF',
-        artist: 'EgWKAQIgAWoMEA4QChADEAQQCRAF',
-        playlist: 'Eg-KAQwIABAAGAAgACgBMABqChAEEAMQCRAFEAo%3D',
-    } as const
 
     constructor(connectionId: string, accessToken: string, refreshToken: string, expiry: number) {
         this.connectionId = connectionId

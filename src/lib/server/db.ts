@@ -1,9 +1,8 @@
 import knex from 'knex'
-import { SqliteError } from 'better-sqlite3'
 
 const connectionTypes = ['jellyfin', 'youtube-music']
 
-export declare namespace DBSchemas {
+export declare namespace Schemas {
     interface Users {
         id: string
         username: string
@@ -74,39 +73,37 @@ export declare namespace DBSchemas {
 }
 
 class Database {
-    public readonly knex: knex.Knex
+    public readonly db: knex.Knex
 
-    constructor(knex: knex.Knex<'better-sqlite3'>) {
-        this.knex = knex
+    constructor(db: knex.Knex<'better-sqlite3'>) {
+        this.db = db
     }
 
     public uuid() {
-        return this.knex.fn.uuid()
+        return this.db.fn.uuid()
     }
 
     public get users() {
-        return this.knex<DBSchemas.Users>('Users')
+        return this.db<Schemas.Users>('Users')
     }
 
     public get connections() {
-        return this.knex<DBSchemas.Connections>('Connections')
+        return this.db<Schemas.Connections>('Connections')
     }
 
     public get mixes() {
-        return this.knex<DBSchemas.Mixes>('Mixes')
+        return this.db<Schemas.Mixes>('Mixes')
     }
 
     public get mixItems() {
-        return this.knex<DBSchemas.MixItems>('MixItems')
+        return this.db<Schemas.MixItems>('MixItems')
     }
 
     public get songs() {
-        return this.knex<DBSchemas.Songs>('Songs')
+        return this.db<Schemas.Songs>('Songs')
     }
 
-    public get sqliteError() {
-        return SqliteError
-    }
+    private exists() {}
 
     public static async createUsersTable(db: knex.Knex<'better-sqlite3'>) {
         const exists = await db.schema.hasTable('Users')

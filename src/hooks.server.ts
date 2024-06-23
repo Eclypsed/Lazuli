@@ -15,20 +15,16 @@ function verifyAuthToken(event: RequestEvent) {
     }
 }
 
-const unauthorizedResponse = new Response('Unauthorized.', { status: 401 })
-const userNotFoundResponse = new Response('User not found.', { status: 404 })
-const mixNotFoundResponse = new Response('Mix not found.', { status: 404 })
-
 // * Custom Handle specifically for requests made to the API endpoint. Handles authorization and any other middleware verifications
 const handleAPIRequest: Handle = async ({ event, resolve }) => {
     const authorized = event.request.headers.get('apikey') === SECRET_INTERNAL_API_KEY || event.url.searchParams.get('apikey') === SECRET_INTERNAL_API_KEY || verifyAuthToken(event)
-    if (!authorized) unauthorizedResponse
+    if (!authorized) return new Response('Unauthorized', { status: 401 })
 
     const userId = event.params.userId
-    if (userId && !(await userExists(userId))) return userNotFoundResponse
+    if (userId && !(await userExists(userId))) return new Response(`User ${userId} not found`, { status: 404 })
 
     const mixId = event.params.mixId
-    if (mixId && !(await mixExists(mixId))) return mixNotFoundResponse
+    if (mixId && !(await mixExists(mixId))) return new Response(`Mix ${mixId} not found`, { status: 404 })
 
     return resolve(event)
 }

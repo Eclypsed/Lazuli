@@ -113,10 +113,6 @@ declare global {
          */
         getPlaylistItems(id: string, options?: { startIndex?: number, limit?: number }): Promise<Song[]>
 
-        public readonly songs?: { // Optional because YouTube Music can't be asked to provide an actually useful API.
-            songs(ids: string[]): Promise<Song[]>
-        }
-
         public readonly library: {
             albums(): Promise<Album[]>
             artists(): Promise<Artist[]>
@@ -145,6 +141,7 @@ declare global {
         artists?: { // Should try to order
             id: string
             name: string
+            profilePicture?: string
         }[]
         album?: {
             id: string
@@ -153,6 +150,7 @@ declare global {
         uploader?: {
             id: string
             name: string
+            profilePicture?: string
         }
         isVideo: boolean
     }
@@ -170,6 +168,7 @@ declare global {
         artists: { // Should try to order
             id: string
             name: string
+            profilePicture?: string
         }[] | 'Various Artists'
         releaseYear?: string // ####
     }
@@ -198,6 +197,7 @@ declare global {
         createdBy?: { // Optional, in the case that a playlist is auto-generated or it's the user's playlist in which case this is unnecessary
             id: string
             name: string
+            profilePicture?: string
         }
     }
 

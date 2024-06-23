@@ -3,6 +3,7 @@ import { fail, redirect } from '@sveltejs/kit'
 import { compare, hash } from 'bcrypt-ts'
 import type { PageServerLoad, Actions } from './$types'
 import { DB } from '$lib/server/db'
+import { SqliteError } from 'better-sqlite3'
 import jwt from 'jsonwebtoken'
 
 export const load: PageServerLoad = async ({ url }) => {
@@ -37,9 +38,9 @@ export const actions: Actions = {
         const newUser = await DB.users
             .insert({ id: DB.uuid(), username: username.toString(), passwordHash }, '*')
             .then((data) => data[0])
-            .catch((error: InstanceType<typeof DB.sqliteError>) => error)
+            .catch((error: InstanceType<SqliteError>) => error)
 
-        if (newUser instanceof DB.sqliteError) {
+        if (newUser instanceof SqliteError) {
             switch (newUser.code) {
                 case 'SQLITE_CONSTRAINT_UNIQUE':
                     return fail(400, { message: 'Username already in use' })

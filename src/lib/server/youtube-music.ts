@@ -20,16 +20,10 @@ type ytMusicv1ApiRequestParams =
           type: 'continuation'
           ctoken: string
       }
-
-type ScrapedMediaItemMap<MediaItem> = MediaItem extends InnerTube.ScrapedSong
-    ? Song
-    : MediaItem extends InnerTube.ScrapedAlbum
-      ? Album
-      : MediaItem extends InnerTube.ScrapedArtist
-        ? Artist
-        : MediaItem extends InnerTube.ScrapedPlaylist
-          ? Playlist
-          : never
+    | {
+          type: 'queue'
+          videoIds: string[]
+      }
 
 // TODO: Throughout this method, whenever I extract the duration of a video I might want to subtract 1, the actual duration appears to always be one second less than what the duration lists.
 export class YouTubeMusic implements Connection {
@@ -55,10 +49,7 @@ export class YouTubeMusic implements Connection {
     }
 
     public async getConnectionInfo() {
-        const access_token = await this.requestManager.accessToken.catch(() => {
-            console.log('Failed to get yt access token')
-            return null
-        })
+        const access_token = await this.requestManager.accessToken.catch(() => null)
 
         let username: string | undefined, profilePicture: string | undefined
         if (access_token) {
@@ -68,7 +59,14 @@ export class YouTubeMusic implements Connection {
             profilePicture = userChannel?.snippet?.thumbnails?.default?.url ?? undefined
         }
 
-        return { id: this.id, userId: this.userId, type: 'youtube-music', youtubeUserId: this.youtubeUserId, username, profilePicture } satisfies ConnectionInfo
+        return {
+            id: this.id,
+            userId: this.userId,
+            type: 'youtube-music',
+            youtubeUserId: this.youtubeUserId,
+            username,
+            profilePicture,
+        } satisfies ConnectionInfo
     }
 
     // TODO: Figure out why this still breaks sometimes (Figured out one cause: "Episodes" can appear as videos)
@@ -78,84 +76,25 @@ export class YouTubeMusic implements Connection {
     public async search(searchTerm: string, filter: 'playlist'): Promise<Playlist[]>
     public async search(searchTerm: string, filter?: undefined): Promise<(Song | Album | Artist | Playlist)[]>
     public async search(searchTerm: string, filter?: 'song' | 'album' | 'artist' | 'playlist'): Promise<(Song | Album | Artist | Playlist)[]> {
-        // Figure out how to handle Library and Uploads
-        // Depending on how I want to handle the playlist & library sync feature
+        return [] // ! Need to completely rework this method
 
-        const searchResulsts = (await this.requestManager.ytMusicv1ApiRequest({ type: 'search', searchTerm, filter }).then((response) => response.json())) as InnerTube.SearchResponse
-
-        const contents = searchResulsts.contents.tabbedSearchResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents
-
-        try {
-            const parsedSearchResults = []
-            const goodSections = ['Songs', 'Videos', 'Albums', 'Artists', 'Community playlists']
-            for (const section of contents) {
-                if ('itemSectionRenderer' in section) continue
-
-                if ('musicCardShelfRenderer' in section) {
-                    parsedSearchResults.push(parseMusicCardShelfRenderer(section.musicCardShelfRenderer))
-                    section.musicCardShelfRenderer.contents?.forEach((item) => {
-                        if ('musicResponsiveListItemRenderer' in item) {
-                            try {
-                                // ! TEMPORARY I need to rework all my parsers to be able to handle edge cases
-                                parsedSearchResults.push(parseResponsiveListItemRenderer(item.musicResponsiveListItemRenderer))
-                            } catch {
-                                return
-                            }
-                        }
-                    })
-                    continue
-                }
-
-                const sectionType = section.musicShelfRenderer.title.runs[0].text
-                if (!goodSections.includes(sectionType)) continue
-
-                section.musicShelfRenderer.contents.forEach((item) => {
-                    try {
-                        // ! TEMPORARY I need to rework all my parsers to be able to handle edge cases
-                        parsedSearchResults.push(parseResponsiveListItemRenderer(item.musicResponsiveListItemRenderer))
-                    } catch {
-                        return
-                    }
-                })
-            }
-
-            return this.scrapedToMediaItems(parsedSearchResults)
-        } catch (error) {
-            console.log(error)
-            console.log(JSON.stringify(contents))
-            throw Error('Something fucked up')
-        }
+        // const searchResulsts = (await this.requestManager.innerTubeFetch({ type: 'search', searchTerm, filter }).then((response) => response.json())) as InnerTube.SearchResponse
     }
 
     // TODO: Figure out why this still breaks sometimes (Figured out one cause: "Episodes" can appear as videos)
     public async getRecommendations() {
-        const homeResponse = (await this.requestManager.ytMusicv1ApiRequest({ type: 'browse', browseId: 'FEmusic_home' }).then((response) => response.json())) as InnerTube.HomeResponse
+        console.time()
+        await this.getAlbumItems('MPREb_zu9EUJqrg8V').then((songs) => console.log(JSON.stringify(songs)))
+        console.timeEnd()
 
-        const contents = homeResponse.contents.singleColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents
+        return [] // ! Need to completely rework this method
 
-        try {
-            const scrapedRecommendations: (InnerTube.ScrapedSong | InnerTube.ScrapedAlbum | InnerTube.ScrapedArtist | InnerTube.ScrapedPlaylist)[] = []
-            const goodSections = ['Listen again', 'Forgotten favorites', 'Quick picks', 'From your library', 'Recommended music videos', 'Recommended albums']
-            for (const section of contents) {
-                const sectionType = section.musicCarouselShelfRenderer.header.musicCarouselShelfBasicHeaderRenderer.title.runs[0].text
-                if (!goodSections.includes(sectionType)) continue
-
-                const parsedContent = section.musicCarouselShelfRenderer.contents.map((content) =>
-                    'musicTwoRowItemRenderer' in content ? parseTwoRowItemRenderer(content.musicTwoRowItemRenderer) : parseResponsiveListItemRenderer(content.musicResponsiveListItemRenderer),
-                )
-                scrapedRecommendations.push(...parsedContent)
-            }
-
-            return this.scrapedToMediaItems(scrapedRecommendations)
-        } catch (error) {
-            console.log(error)
-            console.log(JSON.stringify(contents))
-            throw Error('Something fucked up')
-        }
+        // const homeResponse = (await this.requestManager.innerTubeFetch({ type: 'browse', browseId: 'FEmusic_home' }).then((response) => response.json())) as InnerTube.HomeResponse
     }
 
+    // TODO: Move to innerTubeFetch method
     public async getAudioStream(id: string, headers: Headers) {
-        if (!/^[a-zA-Z0-9-_]{11}$/.test(id)) throw TypeError('Invalid youtube video Id')
+        if (!isValidVideoId(id)) throw TypeError('Invalid youtube video Id')
 
         // ? In the future, may want to implement the TVHTML5_SIMPLY_EMBEDDED_PLAYER client method both in order to bypass age-restrictions and just to serve as a fallback
         // ? However this has the downsides of being slower and (I think) requiring the user's cookies if the video is premium exclusive.
@@ -223,25 +162,36 @@ export class YouTubeMusic implements Connection {
      * @param id The browseId of the album
      */
     public async getAlbum(id: string): Promise<Album> {
-        const albumResponse = (await this.requestManager.ytMusicv1ApiRequest({ type: 'browse', browseId: id }).then((response) => response.json())) as InnerTube.Album.AlbumResponse
+        const albumResponse = await this.requestManager
+            .innerTubeFetch('/browse', { body: { browseId: id } })
+            .then((response) => response.json() as Promise<InnerTube.Album.AlbumResponse | InnerTube.Album.ErrorResponse>)
+            .catch(() => null)
 
-        const header = albumResponse.header.musicDetailHeaderRenderer
+        if (!albumResponse) throw Error(`Failed to fetch album ${id} of connection ${this.id}`)
+
+        if ('error' in albumResponse) {
+            if (albumResponse.error.status === 'NOT_FOUND' || albumResponse.error.status === 'INVALID_ARGUMENT') throw TypeError('Invalid youtube album id')
+
+            const errorMessage = `Unknown playlist response error: ${albumResponse.error.message}`
+            console.error(errorMessage)
+            throw Error(errorMessage)
+        }
+
+        const header = albumResponse.contents.twoColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents[0].musicResponsiveHeaderRenderer
 
         const connection = { id: this.id, type: 'youtube-music' } satisfies Album['connection']
         const name = header.title.runs[0].text,
-            thumbnailUrl = extractLargestThumbnailUrl(header.thumbnail.croppedSquareThumbnailRenderer.thumbnail.thumbnails)
+            thumbnailUrl = extractLargestThumbnailUrl(header.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails)
 
-        let artists: Album['artists'] = []
-        for (const run of header.subtitle.runs) {
-            if (run.text === 'Various Artists') {
-                artists = 'Various Artists'
-                break
+        const artistMap = new Map<string, { name: string; profilePicture?: string }>()
+        header.straplineTextOne.runs.forEach((run, index) => {
+            if (run.navigationEndpoint) {
+                const profilePicture = index === 0 && header.straplineThumbnail ? extractLargestThumbnailUrl(header.straplineThumbnail.musicThumbnailRenderer.thumbnail.thumbnails) : undefined
+                artistMap.set(run.navigationEndpoint.browseEndpoint.browseId, { name: run.text, profilePicture })
             }
+        })
 
-            if (run.navigationEndpoint?.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType === 'MUSIC_PAGE_TYPE_ARTIST') {
-                artists.push({ id: run.navigationEndpoint.browseEndpoint.browseId, name: run.text })
-            }
-        }
+        const artists: Album['artists'] = artistMap.size > 0 ? Array.from(artistMap, (artist) => ({ id: artist[0], name: artist[1].name, profilePicture: artist[1].profilePicture })) : 'Various Artists'
 
         const releaseYear = header.subtitle.runs.at(-1)?.text!
 
@@ -252,26 +202,50 @@ export class YouTubeMusic implements Connection {
      * @param id The browseId of the album
      */
     public async getAlbumItems(id: string): Promise<Song[]> {
-        const albumResponse = (await this.requestManager.ytMusicv1ApiRequest({ type: 'browse', browseId: id }).then((response) => response.json())) as InnerTube.Album.AlbumResponse
+        const albumResponse = await this.requestManager
+            .innerTubeFetch('/browse', { body: { browseId: id } })
+            .then((response) => response.json() as Promise<InnerTube.Album.AlbumResponse | InnerTube.Album.ErrorResponse>)
+            .catch(() => null)
 
-        const header = albumResponse.header.musicDetailHeaderRenderer
+        if (!albumResponse) throw Error(`Failed to fetch album ${id} of connection ${this.id}`)
 
-        const contents = albumResponse.contents.singleColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents[0].musicShelfRenderer.contents
-        let continuation = albumResponse.contents.singleColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents[0].musicShelfRenderer.continuations?.[0].nextContinuationData.continuation
+        if ('error' in albumResponse) {
+            if (albumResponse.error.status === 'NOT_FOUND' || albumResponse.error.status === 'INVALID_ARGUMENT') throw TypeError('Invalid youtube album id')
+
+            const errorMessage = `Unknown playlist response error: ${albumResponse.error.message}`
+            console.error(errorMessage)
+            throw Error(errorMessage)
+        }
+
+        const header = albumResponse.contents.twoColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents[0].musicResponsiveHeaderRenderer
+
+        const contents = albumResponse.contents.twoColumnBrowseResultsRenderer.secondaryContents.sectionListRenderer.contents[0].musicShelfRenderer.contents
+        let continuation = albumResponse.contents.twoColumnBrowseResultsRenderer.secondaryContents.sectionListRenderer.continuations?.[0].nextContinuationData.continuation
 
         const connection = { id: this.id, type: 'youtube-music' } satisfies Song['connection']
-        const thumbnailUrl = extractLargestThumbnailUrl(header.thumbnail.croppedSquareThumbnailRenderer.thumbnail.thumbnails)
+        const thumbnailUrl = extractLargestThumbnailUrl(header.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails)
         const album: Song['album'] = { id, name: header.title.runs[0].text }
 
-        const albumArtists = header.subtitle.runs
-            .filter((run) => run.navigationEndpoint?.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType === 'MUSIC_PAGE_TYPE_ARTIST')
-            .map((run) => ({ id: run.navigationEndpoint!.browseEndpoint.browseId, name: run.text }))
+        const artistMap = new Map<string, { name: string; profilePicture?: string }>()
+        header.straplineTextOne.runs.forEach((run, index) => {
+            if (run.navigationEndpoint) {
+                const profilePicture = index === 0 && header.straplineThumbnail ? extractLargestThumbnailUrl(header.straplineThumbnail.musicThumbnailRenderer.thumbnail.thumbnails) : undefined
+                artistMap.set(run.navigationEndpoint.browseEndpoint.browseId, { name: run.text, profilePicture })
+            }
+        })
+
+        const albumArtists = Array.from(artistMap, (artist) => ({ id: artist[0], name: artist[1].name, profilePicture: artist[1].profilePicture }))
 
         while (continuation) {
-            const continuationResponse = (await this.requestManager.ytMusicv1ApiRequest({ type: 'continuation', ctoken: continuation }).then((response) => response.json())) as InnerTube.Album.ContinuationResponse
+            const continuationResponse = await this.requestManager
+                .innerTubeFetch(`/browse?ctoken=${continuation}&continuation=${continuation}`)
+                .then((response) => response.json() as Promise<InnerTube.Album.ContinuationResponse>)
+                .catch(() => null)
 
-            contents.push(...continuationResponse.continuationContents.musicShelfContinuation.contents)
-            continuation = continuationResponse.continuationContents.musicShelfContinuation.continuations?.[0].nextContinuationData.continuation
+            if (!continuationResponse) throw Error(`Failed to fetch album ${id} of connection ${this.id}`)
+
+            contents.push(...continuationResponse.continuationContents.musicShelfRenderer.contents)
+            continuation = continuationResponse.continuationContents.musicShelfRenderer.continuations?.[0].nextContinuationData.continuation
         }
 
         // Just putting this here in the event that for some reason an album has non-playlable items, never seen it happen but couldn't hurt
@@ -294,8 +268,8 @@ export class YouTubeMusic implements Connection {
         const descriptionRelease = videoSchemas.find((video) => video.snippet?.description?.match(/Released on: \d{4}-\d{2}-\d{2}/)?.[0] !== undefined)?.snippet?.description?.match(/Released on: \d{4}-\d{2}-\d{2}/)?.[0]
         const releaseDate = new Date(descriptionRelease ?? header.subtitle.runs.at(-1)?.text!).toISOString()
 
-        const videoChannelMap = new Map<string, string>()
-        videoSchemas.forEach((video) => videoChannelMap.set(video.id!, video.snippet?.channelId!))
+        const videoChannelMap = new Map<string, { id: string; name: string }>()
+        videoSchemas.forEach((video) => videoChannelMap.set(video.id!, { id: video.snippet?.channelId!, name: video.snippet?.channelTitle! }))
 
         return playableItems.map((item) => {
             const [col0, col1] = item.musicResponsiveListItemRenderer.flexColumns
@@ -308,13 +282,21 @@ export class YouTubeMusic implements Connection {
 
             const duration = timestampToSeconds(item.musicResponsiveListItemRenderer.fixedColumns[0].musicResponsiveListItemFixedColumnRenderer.text.runs[0].text)
 
-            const artists =
-                col1.musicResponsiveListItemFlexColumnRenderer.text.runs?.map((run) => ({
-                    id: run.navigationEndpoint?.browseEndpoint.browseId ?? videoChannelMap.get(id)!,
-                    name: run.text,
-                })) ?? albumArtists
+            let artists: Song['artists']
+            if (!col1.musicResponsiveListItemFlexColumnRenderer.text.runs) {
+                artists = albumArtists
+            } else {
+                col1.musicResponsiveListItemFlexColumnRenderer.text.runs.forEach((run) => {
+                    if (run.navigationEndpoint) {
+                        const artist = { id: run.navigationEndpoint.browseEndpoint.browseId, name: run.text }
+                        artists ? artists.push(artist) : (artists = [artist])
+                    }
+                })
+            }
 
-            return { connection, id, name, type: 'song', duration, thumbnailUrl, releaseDate, artists, album, isVideo }
+            const uploader: Song['uploader'] = artists ? undefined : videoChannelMap.get(id)!
+
+            return { connection, id, name, type: 'song', duration, thumbnailUrl, releaseDate, artists, album, uploader, isVideo }
         })
     }
 
@@ -323,8 +305,8 @@ export class YouTubeMusic implements Connection {
      */
     public async getPlaylist(id: string): Promise<Playlist> {
         const playlistResponse = await this.requestManager
-            .ytMusicv1ApiRequest({ type: 'browse', browseId: 'VL'.concat(id) })
-            .then((response) => response.json() as Promise<InnerTube.Playlist.PlaylistResponse | InnerTube.Playlist.PlaylistErrorResponse>)
+            .innerTubeFetch('/browse', { body: { browseId: 'VL'.concat(id) } })
+            .then((response) => response.json() as Promise<InnerTube.Playlist.Response | InnerTube.Playlist.ErrorResponse>)
             .catch(() => null)
 
         if (!playlistResponse) throw Error(`Failed to fetch playlist ${id} of connection ${this.id}`)
@@ -338,19 +320,23 @@ export class YouTubeMusic implements Connection {
         }
 
         const header =
-            'musicEditablePlaylistDetailHeaderRenderer' in playlistResponse.header
-                ? playlistResponse.header.musicEditablePlaylistDetailHeaderRenderer.header.musicDetailHeaderRenderer
-                : playlistResponse.header.musicDetailHeaderRenderer
+            'musicEditablePlaylistDetailHeaderRenderer' in playlistResponse.contents.twoColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents[0]
+                ? playlistResponse.contents.twoColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents[0].musicEditablePlaylistDetailHeaderRenderer.header.musicResponsiveHeaderRenderer
+                : playlistResponse.contents.twoColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents[0].musicResponsiveHeaderRenderer
 
         const connection = { id: this.id, type: 'youtube-music' } satisfies Playlist['connection']
         const name = header.title.runs[0].text
 
-        const thumbnailUrl = extractLargestThumbnailUrl(header.thumbnail.croppedSquareThumbnailRenderer.thumbnail.thumbnails)
+        const thumbnailUrl = extractLargestThumbnailUrl(header.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails)
 
-        let createdBy: Playlist['createdBy']
-        header.subtitle.runs.forEach((run) => {
-            if (run.navigationEndpoint && run.navigationEndpoint.browseEndpoint.browseId !== this.youtubeUserId) createdBy = { id: run.navigationEndpoint.browseEndpoint.browseId, name: run.text }
-        })
+        const createdBy: Playlist['createdBy'] =
+            header.straplineTextOne.runs[0].navigationEndpoint?.browseEndpoint.browseId !== undefined
+                ? {
+                      id: header.straplineTextOne.runs[0].navigationEndpoint.browseEndpoint.browseId,
+                      name: header.straplineTextOne.runs[0].text,
+                      profilePicture: header.straplineThumbnail ? extractLargestThumbnailUrl(header.straplineThumbnail.musicThumbnailRenderer.thumbnail.thumbnails) : undefined,
+                  }
+                : undefined
 
         return { connection, id, name, type: 'playlist', thumbnailUrl, createdBy } satisfies Playlist
     }
@@ -365,8 +351,8 @@ export class YouTubeMusic implements Connection {
             limit = options?.limit
 
         const playlistResponse = await this.requestManager
-            .ytMusicv1ApiRequest({ type: 'browse', browseId: 'VL'.concat(id) })
-            .then((response) => response.json() as Promise<InnerTube.Playlist.PlaylistResponse | InnerTube.Playlist.PlaylistErrorResponse>)
+            .innerTubeFetch('/browse', { body: { browseId: 'VL'.concat(id) } })
+            .then((response) => response.json() as Promise<InnerTube.Playlist.Response | InnerTube.Playlist.ErrorResponse>)
             .catch(() => null)
 
         if (!playlistResponse) throw Error(`Failed to fetch playlist ${id} of connection ${this.id}`)
@@ -379,15 +365,20 @@ export class YouTubeMusic implements Connection {
             throw Error(errorMessage)
         }
 
-        const playableContents = playlistResponse.contents.singleColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents[0].musicPlaylistShelfRenderer.contents.filter(
+        const playableContents = playlistResponse.contents.twoColumnBrowseResultsRenderer.secondaryContents.sectionListRenderer.contents[0].musicPlaylistShelfRenderer.contents.filter(
             (item) => item.musicResponsiveListItemRenderer.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.text.runs[0].navigationEndpoint?.watchEndpoint?.videoId !== undefined,
         )
 
-        let continuation =
-            playlistResponse.contents.singleColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents[0].musicPlaylistShelfRenderer.continuations?.[0].nextContinuationData.continuation
+        let continuation = playlistResponse.contents.twoColumnBrowseResultsRenderer.secondaryContents.sectionListRenderer.contents[0].musicPlaylistShelfRenderer.continuations?.[0].nextContinuationData.continuation
 
         while (continuation && (!limit || playableContents.length < (startIndex ?? 0) + limit)) {
-            const continuationResponse = (await this.requestManager.ytMusicv1ApiRequest({ type: 'continuation', ctoken: continuation }).then((response) => response.json())) as InnerTube.Playlist.ContinuationResponse
+            const continuationResponse = await this.requestManager
+                .innerTubeFetch(`/browse?ctoken=${continuation}&continuation=${continuation}`)
+                .then((response) => response.json() as Promise<InnerTube.Playlist.ContinuationResponse>)
+                .catch(() => null)
+
+            if (!continuationResponse) throw Error(`Failed to fetch playlist ${id} of connection ${this.id}`)
+
             const playableContinuationContents = continuationResponse.continuationContents.musicPlaylistShelfContinuation.contents.filter(
                 (item) => item.musicResponsiveListItemRenderer.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.text.runs[0].navigationEndpoint?.watchEndpoint?.videoId !== undefined,
             )
@@ -451,281 +442,63 @@ export class YouTubeMusic implements Connection {
         })
     }
 
-    private async scrapedToMediaItems<T extends (InnerTube.ScrapedSong | InnerTube.ScrapedAlbum | InnerTube.ScrapedArtist | InnerTube.ScrapedPlaylist)[]>(scrapedItems: T): Promise<ScrapedMediaItemMap<T[number]>[]> {
-        const songIds = new Set<string>(),
-            albumIds = new Set<string>()
+    /**
+     * @param ids An array of youtube video ids.
+     * @throws Error if the fetch failed. TypeError if an invalid videoId was included in the request.
+     */
+    // ? So far don't know if there is a cap for how many you can request a once. My entire 247 song J-core playlist worked in one request no problem.
+    // ? The only thing this method is really missing is release dates, which would be the easiest thing to get from the v3 API, but I'm struggling to
+    // ? justify making those requests just for the release date. Maybe I can justify it if I find other data in the v3 API that would be useful.
+    public async getSongs(ids: string[]): Promise<Song[]> {
+        if (ids.some((id) => !isValidVideoId(id))) throw TypeError('Invalid video id in request')
 
-        scrapedItems.forEach((item) => {
-            switch (item.type) {
-                case 'song':
-                    songIds.add(item.id)
-                    if (item.album?.id && !item.album.name) albumIds.add(item.album.id) // This is here because sometimes it is not possible to get the album name directly from a page, only the id
-                    break
-            }
+        const response = await this.requestManager
+            .innerTubeFetch('/queue', { body: { videoIds: ids } })
+            .then((response) => response.json() as Promise<InnerTube.Queue.Response | InnerTube.Queue.ErrorResponse>)
+            .catch(() => null)
+
+        if (!response) throw Error(`Failed to fetch ${ids.length} songs from connection ${this.id}`)
+
+        if ('error' in response) {
+            if (response.error.status === 'NOT_FOUND') throw TypeError('Invalid video id in request')
+
+            const errorMessage = `Unknown playlist items response error: ${response.error.message}`
+            console.error(errorMessage, response.error.status, response.error.code)
+            throw Error(errorMessage)
+        }
+
+        return response.queueDatas.map((item) => {
+            // ? When the song has both a video and auto-generated version, currently I have it set to choose the 'counterpart' auto-generated version as they usually have more complete data,
+            // ? as well as the benefit of scalable thumbnails. However, In the event the video versions actually do provide something of value, maybe scrape both.
+            const itemData =
+                'playlistPanelVideoRenderer' in item.content ? item.content.playlistPanelVideoRenderer : item.content.playlistPanelVideoWrapperRenderer.counterpart[0].counterpartRenderer.playlistPanelVideoRenderer
+            const connection = { id: this.id, type: 'youtube-music' } satisfies Song['connection']
+            const id = itemData.videoId
+            const name = itemData.title.runs[0].text
+            const duration = timestampToSeconds(itemData.lengthText.runs[0].text)
+            const thumbnailUrl = extractLargestThumbnailUrl(itemData.thumbnail.thumbnails)
+
+            const artists: Song['artists'] = []
+            let album: Song['album']
+            let uploader: Song['uploader']
+            itemData.longBylineText.runs.forEach((run) => {
+                if (!run.navigationEndpoint) return
+
+                const pageType = run.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType
+                const runDetails = { id: run.navigationEndpoint.browseEndpoint.browseId, name: run.text }
+                if (pageType === 'MUSIC_PAGE_TYPE_ALBUM') {
+                    album = runDetails
+                } else if (pageType === 'MUSIC_PAGE_TYPE_ARTIST') {
+                    artists.push(runDetails)
+                } else {
+                    uploader = runDetails
+                }
+            })
+
+            const isVideo = itemData.navigationEndpoint.watchEndpoint.watchEndpointMusicSupportedConfigs.watchEndpointMusicConfig.musicVideoType !== 'MUSIC_VIDEO_TYPE_ATV'
+
+            return { connection, id, name, type: 'song', duration, thumbnailUrl, artists: artists.length > 0 ? artists : undefined, album, uploader, isVideo } satisfies Song
         })
-
-        const songIdArray = Array.from(songIds)
-        const dividedIds: string[][] = []
-        for (let i = 0; i < songIdArray.length; i += 50) dividedIds.push(songIdArray.slice(i, i + 50))
-
-        const access_token = await this.requestManager.accessToken
-
-        const getSongDetails = () =>
-            Promise.all(dividedIds.map((idsChunk) => ytDataApi.videos.list({ part: ['snippet', 'contentDetails'], id: idsChunk, access_token }))).then((responses) =>
-                responses.map((response) => response.data.items!).flat(),
-            )
-        // Oh FFS. Despite nothing documenting it ^this api can only query a maximum of 50 ids at a time. Addtionally, if you exceed that limit, it doesn't even give you the correct error, it says some nonsense about an invalid filter paramerter. FML.
-        const getAlbumDetails = () => Promise.all(Array.from(albumIds).map((id) => this.getAlbum(id)))
-
-        const [songDetails, albumDetails] = await Promise.all([getSongDetails(), getAlbumDetails()])
-        const songDetailsMap = new Map<string, youtube_v3.Schema$Video>(),
-            albumDetailsMap = new Map<string, Album>()
-
-        songDetails.forEach((item) => songDetailsMap.set(item.id!, item))
-        albumDetails.forEach((album) => albumDetailsMap.set(album.id, album))
-
-        const connection = { id: this.id, type: 'youtube-music' } satisfies (Song | Album | Artist | Playlist)['connection']
-
-        return scrapedItems.map((item) => {
-            switch (item.type) {
-                case 'song':
-                    const { id, name, artists, isVideo, uploader } = item
-                    const songDetails = songDetailsMap.get(id)!
-                    const duration = secondsFromISO8601(songDetails.contentDetails?.duration!)
-
-                    const thumbnails = songDetails.snippet?.thumbnails!
-                    const thumbnailUrl = item.thumbnailUrl ?? thumbnails.maxres?.url ?? thumbnails.standard?.url ?? thumbnails.high?.url ?? thumbnails.medium?.url ?? thumbnails.default?.url!
-
-                    const songAlbum = item.album?.id ? albumDetailsMap.get(item.album.id)! : undefined
-                    const album = songAlbum ? { id: songAlbum.id, name: songAlbum.name } : undefined
-
-                    const releaseDate = new Date(songDetails.snippet?.description?.match(/Released on: \d{4}-\d{2}-\d{2}/)?.[0] ?? songDetails.snippet?.publishedAt!).toISOString()
-
-                    return { connection, id, name, type: 'song', duration, thumbnailUrl, releaseDate, artists, album, isVideo, uploader } satisfies Song
-                case 'album':
-                    const releaseYear = albumDetailsMap.get(item.id)?.releaseYear // For in the unlikely event that and album got added by a song
-                    // ? Honestly, I don't think it is worth it to send out a request to the album endpoint for every album just to get the release year.
-                    // ? Maybe it will be justifyable in the future if I decide to add more details to the album type that can only be retrieved from the album endpoint.
-                    // ? I guess as long as it's at most a dozen requests or so each time it's fine. But when I get to things larger queries like a user's library, this could become very bad very fast.
-                    // ? Maybe I should add a "fields" paramter to the album, artist, and playlist types that can include addtional, but not necessary info like release year that can be requested in
-                    // ? the specific methods, but left out for large query methods like this.
-                    return Object.assign(item, { connection, releaseYear }) satisfies Album
-                case 'artist':
-                    return Object.assign(item, { connection }) satisfies Artist
-                case 'playlist':
-                    // * If there are ever problems with playlist thumbanails being incorrect (black bars, etc.) look into using the official api to get playlist thumbnails (getPlaylist() is inefficient)
-                    return Object.assign(item, { connection }) satisfies Playlist
-            }
-        }) as ScrapedMediaItemMap<T[number]>[]
-    }
-
-    // ! HOLY FUCK HOLY FUCK THIS IS IT!!!! THIS IS HOW YOU CAN BATCH FETCH FULL DETAILS FOR COMPLETELY UNRELATED SONGS IN ONE API CALL!!!!
-    // ! IT GIVES BACK FUCKING EVERYTHING (almost)! NAME, ALBUM, ARTISTS, UPLOADER, DURATION, THUMBNAIL.
-    // ! The only thing kinda missing is release date, but that could be fetched from the official API. In fact I'll already need to make a call to
-    // ! the offical API to get the thumbnails for the videos any way. And since you can batch call that one, you won't be making any extra queries just
-    // ! to get the release date. HOLY FUCK THIS IS PERFECT! (something is going to go wrong in the future for sure)
-    private async testMethod(videoIds: string[]) {
-        const currentDate = new Date()
-        const year = currentDate.getUTCFullYear().toString()
-        const month = (currentDate.getUTCMonth() + 1).toString().padStart(2, '0') // Months are zero-based, so add 1
-        const day = currentDate.getUTCDate().toString().padStart(2, '0')
-
-        const response = await fetch('https://music.youtube.com/youtubei/v1/music/get_queue', {
-            headers: {
-                'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:88.0) Gecko/20100101 Firefox/88.0',
-                authorization: `Bearer ${await this.requestManager.accessToken}`,
-            },
-            method: 'POST',
-            body: JSON.stringify({
-                context: {
-                    client: {
-                        clientName: 'WEB_REMIX',
-                        clientVersion: `1.${year + month + day}.01.00`,
-                    },
-                },
-                videoIds,
-            }),
-        })
-
-        if (!response.ok) {
-            console.log(response)
-            return
-        }
-
-        const data = await response.json()
-        console.log(JSON.stringify(data))
-    }
-}
-
-function parseTwoRowItemRenderer(rowContent: InnerTube.musicTwoRowItemRenderer): InnerTube.ScrapedSong | InnerTube.ScrapedAlbum | InnerTube.ScrapedArtist | InnerTube.ScrapedPlaylist {
-    const name = rowContent.title.runs[0].text
-
-    let artists: InnerTube.ScrapedSong['artists'] | InnerTube.ScrapedAlbum['artists'] = [],
-        creator: InnerTube.ScrapedSong['uploader'] | InnerTube.ScrapedPlaylist['createdBy']
-
-    rowContent.subtitle.runs.forEach((run) => {
-        if (run.text === 'Various Artists') return (artists = 'Various Artists')
-        if (!run.navigationEndpoint) return
-
-        const pageType = run.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType,
-            id = run.navigationEndpoint.browseEndpoint.browseId,
-            name = run.text
-
-        switch (pageType) {
-            case 'MUSIC_PAGE_TYPE_ARTIST':
-                if (artists instanceof Array) artists.push({ id, name })
-                break
-            case 'MUSIC_PAGE_TYPE_USER_CHANNEL':
-                creator = { id, name }
-                break
-        }
-    })
-
-    if ('watchEndpoint' in rowContent.navigationEndpoint) {
-        const id = rowContent.navigationEndpoint.watchEndpoint.videoId
-        const isVideo = rowContent.navigationEndpoint.watchEndpoint.watchEndpointMusicSupportedConfigs.watchEndpointMusicConfig.musicVideoType !== 'MUSIC_VIDEO_TYPE_ATV'
-        const thumbnailUrl: InnerTube.ScrapedSong['thumbnailUrl'] = isVideo ? undefined : extractLargestThumbnailUrl(rowContent.thumbnailRenderer.musicThumbnailRenderer.thumbnail.thumbnails)
-
-        let albumId: string | undefined
-        rowContent.menu?.menuRenderer.items.forEach((menuOption) => {
-            if (
-                'menuNavigationItemRenderer' in menuOption &&
-                'browseEndpoint' in menuOption.menuNavigationItemRenderer.navigationEndpoint &&
-                menuOption.menuNavigationItemRenderer.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType === 'MUSIC_PAGE_TYPE_ALBUM'
-            )
-                albumId = menuOption.menuNavigationItemRenderer.navigationEndpoint.browseEndpoint.browseId
-        })
-
-        const album: InnerTube.ScrapedSong['album'] = albumId ? { id: albumId } : undefined
-
-        return { id, name, type: 'song', thumbnailUrl, artists, album, uploader: creator, isVideo } satisfies InnerTube.ScrapedSong
-    }
-
-    const pageType = rowContent.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType
-    const id = rowContent.navigationEndpoint.browseEndpoint.browseId
-    const image = extractLargestThumbnailUrl(rowContent.thumbnailRenderer.musicThumbnailRenderer.thumbnail.thumbnails)
-
-    switch (pageType) {
-        case 'MUSIC_PAGE_TYPE_ALBUM':
-            return { id, name, type: 'album', artists, thumbnailUrl: image } satisfies InnerTube.ScrapedAlbum
-        case 'MUSIC_PAGE_TYPE_ARTIST':
-        case 'MUSIC_PAGE_TYPE_USER_CHANNEL':
-            return { id, name, type: 'artist', profilePicture: image } satisfies InnerTube.ScrapedArtist
-        case 'MUSIC_PAGE_TYPE_PLAYLIST':
-            return { id: id.slice(2), name, type: 'playlist', thumbnailUrl: image, createdBy: creator! } satisfies InnerTube.ScrapedPlaylist
-        default:
-            throw Error('Unexpected twoRowItem type: ' + pageType)
-    }
-}
-
-function parseResponsiveListItemRenderer(listContent: InnerTube.musicResponsiveListItemRenderer): InnerTube.ScrapedSong | InnerTube.ScrapedAlbum | InnerTube.ScrapedArtist | InnerTube.ScrapedPlaylist {
-    const name = listContent.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.text.runs[0].text
-    const column1Runs = listContent.flexColumns[1].musicResponsiveListItemFlexColumnRenderer.text.runs
-
-    let artists: InnerTube.ScrapedSong['artists'] | InnerTube.ScrapedAlbum['artists'] = [],
-        creator: InnerTube.ScrapedSong['uploader'] | InnerTube.ScrapedPlaylist['createdBy']
-
-    column1Runs.forEach((run) => {
-        if (run.text === 'Various Artists') return (artists = 'Various Artists')
-        if (!run.navigationEndpoint) return
-
-        const pageType = run.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType,
-            id = run.navigationEndpoint.browseEndpoint.browseId,
-            name = run.text
-
-        switch (pageType) {
-            case 'MUSIC_PAGE_TYPE_ARTIST':
-                if (artists instanceof Array) artists.push({ id, name })
-                break
-            case 'MUSIC_PAGE_TYPE_USER_CHANNEL':
-                creator = { id, name }
-                break
-        }
-    })
-
-    if (!('navigationEndpoint' in listContent)) {
-        const id = listContent.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.text.runs[0].navigationEndpoint.watchEndpoint?.videoId
-        if (!id) throw TypeError('Encountered a bad responsiveListItemRenderer, potentially and "Episode or something like that"') // ! I need to rework all my parsers to be able to handle these kinds of edge cases
-
-        const isVideo =
-            listContent.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.text.runs[0].navigationEndpoint.watchEndpoint.watchEndpointMusicSupportedConfigs.watchEndpointMusicConfig.musicVideoType !==
-            'MUSIC_VIDEO_TYPE_ATV'
-        const thumbnailUrl = isVideo ? undefined : extractLargestThumbnailUrl(listContent.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails)
-
-        const column2run = listContent.flexColumns[2]?.musicResponsiveListItemFlexColumnRenderer.text.runs?.[0]
-        const album =
-            column2run?.navigationEndpoint?.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType === 'MUSIC_PAGE_TYPE_ALBUM'
-                ? { id: column2run.navigationEndpoint.browseEndpoint.browseId, name: column2run.text }
-                : undefined
-
-        return { id, name, type: 'song', thumbnailUrl, artists, album, uploader: creator, isVideo } satisfies InnerTube.ScrapedSong
-    }
-
-    const id = listContent.navigationEndpoint.browseEndpoint.browseId
-    const pageType = listContent.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType
-    const image = extractLargestThumbnailUrl(listContent.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails)
-
-    switch (pageType) {
-        case 'MUSIC_PAGE_TYPE_ALBUM':
-            return { id, name, type: 'album', thumbnailUrl: image, artists } satisfies InnerTube.ScrapedAlbum
-        case 'MUSIC_PAGE_TYPE_ARTIST':
-        case 'MUSIC_PAGE_TYPE_USER_CHANNEL':
-            return { id, name, type: 'artist', profilePicture: image } satisfies InnerTube.ScrapedArtist
-        case 'MUSIC_PAGE_TYPE_PLAYLIST':
-            return { id: id.slice(2), name, type: 'playlist', thumbnailUrl: image, createdBy: creator! } satisfies InnerTube.ScrapedPlaylist
-        default:
-            throw Error('Unexpected responsiveListItem type: ' + pageType)
-    }
-}
-
-function parseMusicCardShelfRenderer(cardContent: InnerTube.musicCardShelfRenderer): InnerTube.ScrapedSong | InnerTube.ScrapedAlbum | InnerTube.ScrapedArtist | InnerTube.ScrapedPlaylist {
-    const name = cardContent.title.runs[0].text
-
-    let album: Song['album'],
-        artists: InnerTube.ScrapedSong['artists'] | InnerTube.ScrapedAlbum['artists'] = [],
-        creator: Song['uploader'] | Playlist['createdBy']
-
-    for (const run of cardContent.subtitle.runs) {
-        if (!run.navigationEndpoint) continue
-
-        const pageType = run.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType
-        const runData = { id: run.navigationEndpoint.browseEndpoint.browseId, name: run.text }
-        switch (pageType) {
-            case 'MUSIC_PAGE_TYPE_ALBUM':
-                album = runData
-                break
-            case 'MUSIC_PAGE_TYPE_ARTIST':
-                artists.push(runData)
-                break
-            case 'MUSIC_PAGE_TYPE_USER_CHANNEL':
-                creator = runData
-                break
-        }
-    }
-
-    const navigationEndpoint = cardContent.title.runs[0].navigationEndpoint
-    if ('watchEndpoint' in navigationEndpoint) {
-        const id = navigationEndpoint.watchEndpoint.videoId
-        const isVideo = navigationEndpoint.watchEndpoint.watchEndpointMusicSupportedConfigs.watchEndpointMusicConfig.musicVideoType !== 'MUSIC_VIDEO_TYPE_ATV'
-        const thumbnailUrl = isVideo ? undefined : extractLargestThumbnailUrl(cardContent.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails)
-
-        return { id, name, type: 'song', thumbnailUrl, artists, album, uploader: creator, isVideo } satisfies InnerTube.ScrapedSong
-    }
-
-    const pageType = navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType
-    const id = navigationEndpoint.browseEndpoint.browseId
-    const image = extractLargestThumbnailUrl(cardContent.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails)
-
-    switch (pageType) {
-        case 'MUSIC_PAGE_TYPE_ALBUM':
-            return { id, name, type: 'album', thumbnailUrl: image, artists } satisfies InnerTube.ScrapedAlbum
-        case 'MUSIC_PAGE_TYPE_ARTIST':
-        case 'MUSIC_PAGE_TYPE_USER_CHANNEL':
-            return { id, name, type: 'artist', profilePicture: image } satisfies InnerTube.ScrapedArtist
-        case 'MUSIC_PAGE_TYPE_PLAYLIST':
-            return { id: id.slice(2), name, type: 'playlist', thumbnailUrl: image, createdBy: creator! } satisfies InnerTube.ScrapedPlaylist
-        default:
-            throw Error('Unexpected musicCardShelf type: ' + pageType)
     }
 }
 
@@ -783,7 +556,7 @@ class YTRequestManager {
 
         this.accessTokenRefreshRequest = refreshAccessToken()
             .then(async ({ accessToken, expiry }) => {
-                await DB.connections.where('id', this.connectionId).update('tokens', { accessToken, refreshToken: this.refreshToken, expiry })
+                await DB.connections.where('id', this.connectionId).update({ accessToken, expiry })
                 this.currentAccessToken = accessToken
                 this.expiry = expiry
                 this.accessTokenRefreshRequest = null
@@ -797,7 +570,9 @@ class YTRequestManager {
         return this.accessTokenRefreshRequest
     }
 
-    public async ytMusicv1ApiRequest(requestDetails: ytMusicv1ApiRequestParams) {
+    public async innerTubeFetch(relativeRefrence: string, options?: { body?: Record<string, unknown> }) {
+        const url = new URL(relativeRefrence, 'https://music.youtube.com/youtubei/v1/')
+
         const headers = new Headers({
             'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:88.0) Gecko/20100101 Firefox/88.0',
             authorization: `Bearer ${await this.accessToken}`,
@@ -815,32 +590,7 @@ class YTRequestManager {
             },
         }
 
-        let url: string
-        let body: Record<string, any>
-
-        switch (requestDetails.type) {
-            case 'browse':
-                url = 'https://music.youtube.com/youtubei/v1/browse'
-                body = {
-                    browseId: requestDetails.browseId,
-                    context,
-                }
-                break
-            case 'search':
-                url = 'https://music.youtube.com/youtubei/v1/search'
-                body = {
-                    query: requestDetails.searchTerm,
-                    filter: requestDetails.filter ? this.searchFilterParams[requestDetails.filter] : undefined,
-                    context,
-                }
-                break
-            case 'continuation':
-                url = `https://music.youtube.com/youtubei/v1/browse?ctoken=${requestDetails.ctoken}&continuation=${requestDetails.ctoken}`
-                body = {
-                    context,
-                }
-                break
-        }
+        const body = Object.assign({ context }, options?.body)
 
         return fetch(url, { headers, method: 'POST', body: JSON.stringify(body) })
     }
@@ -858,14 +608,14 @@ class YTLibaryManager {
     }
 
     public async albums(): Promise<Album[]> {
-        const albumData = await this.requestManager.ytMusicv1ApiRequest({ type: 'browse', browseId: 'FEmusic_liked_albums' }).then((response) => response.json() as Promise<InnerTube.Library.AlbumResponse>)
+        const albumData = await this.requestManager.innerTubeFetch('/browse', { body: { browseId: 'FEmusic_liked_albums' } }).then((response) => response.json() as Promise<InnerTube.Library.AlbumResponse>)
 
         const { items, continuations } = albumData.contents.singleColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents[0].gridRenderer
         let continuation = continuations?.[0].nextContinuationData.continuation
 
         while (continuation) {
             const continuationData = await this.requestManager
-                .ytMusicv1ApiRequest({ type: 'continuation', ctoken: continuation })
+                .innerTubeFetch(`/browse?ctoken=${continuation}&continuation=${continuation}`)
                 .then((response) => response.json() as Promise<InnerTube.Library.AlbumContinuationResponse>)
 
             items.push(...continuationData.continuationContents.gridContinuation.items)
@@ -892,7 +642,7 @@ class YTLibaryManager {
 
     public async artists(): Promise<Artist[]> {
         const artistsData = await this.requestManager
-            .ytMusicv1ApiRequest({ type: 'browse', browseId: 'FEmusic_library_corpus_track_artists' })
+            .innerTubeFetch('/browse', { body: { browseId: 'FEmusic_library_corpus_track_artists' } })
             .then((response) => response.json() as Promise<InnerTube.Library.ArtistResponse>)
 
         const { contents, continuations } = artistsData.contents.singleColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents[0].musicShelfRenderer
@@ -900,7 +650,7 @@ class YTLibaryManager {
 
         while (continuation) {
             const continuationData = await this.requestManager
-                .ytMusicv1ApiRequest({ type: 'continuation', ctoken: continuation })
+                .innerTubeFetch(`/browse?ctoken=${continuation}&continuation=${continuation}`)
                 .then((response) => response.json() as Promise<InnerTube.Library.ArtistContinuationResponse>)
 
             contents.push(...continuationData.continuationContents.musicShelfContinuation.contents)
@@ -918,14 +668,14 @@ class YTLibaryManager {
     }
 
     public async playlists(): Promise<Playlist[]> {
-        const playlistData = await this.requestManager.ytMusicv1ApiRequest({ type: 'browse', browseId: 'FEmusic_liked_playlists' }).then((response) => response.json() as Promise<InnerTube.Library.PlaylistResponse>)
+        const playlistData = await this.requestManager.innerTubeFetch('/browse', { body: { browseId: 'FEmusic_liked_playlists' } }).then((response) => response.json() as Promise<InnerTube.Library.PlaylistResponse>)
 
         const { items, continuations } = playlistData.contents.singleColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents[0].gridRenderer
         let continuation = continuations?.[0].nextContinuationData.continuation
 
         while (continuation) {
             const continuationData = await this.requestManager
-                .ytMusicv1ApiRequest({ type: 'continuation', ctoken: continuation })
+                .innerTubeFetch(`/browse?ctoken=${continuation}&continuation=${continuation}`)
                 .then((response) => response.json() as Promise<InnerTube.Library.PlaylistContinuationResponse>)
 
             items.push(...continuationData.continuationContents.gridContinuation.items)
@@ -1007,49 +757,15 @@ function extractLargestThumbnailUrl(thumbnails: Array<{ url: string; width: numb
  * @param timestamp A string in the format Hours:Minutes:Seconds (Standard Timestamp format on YouTube)
  * @returns The total duration of that timestamp in seconds
  */
-const timestampToSeconds = (timestamp: string) =>
-    timestamp
+function timestampToSeconds(timestamp: string): number {
+    return timestamp
         .split(':')
         .reverse()
         .reduce((accumulator, current, index) => (accumulator += Number(current) * 60 ** index), 0)
+}
 
-// * This method is designed to parse the cookies returned from a yt response in the Set-Cookie headers.
-// * Keeping it here in case I ever need to implement management of a user's youtube cookies
-function parseAndSetCookies(response: Response) {
-    const setCookieHeaders = response.headers.getSetCookie().map((header) => {
-        const keyValueStrings = header.split('; ')
-        const [name, value] = keyValueStrings[0].split('=')
-        const result: Record<string, string | number | boolean> = { name, value }
-        keyValueStrings.slice(1).forEach((string) => {
-            const [key, value] = string.split('=')
-            switch (key.toLowerCase()) {
-                case 'domain':
-                    result.domain = value
-                    break
-                case 'max-age':
-                    result.expirationDate = Date.now() / 1000 + Number(value)
-                    break
-                case 'expires':
-                    result.expirationDate = result.expirationDate ? new Date(value).getTime() / 1000 : result.expirationDate // Max-Age takes precedence
-                    break
-                case 'path':
-                    result.path = value
-                    break
-                case 'secure':
-                    result.secure = true
-                    break
-                case 'httponly':
-                    result.httpOnly = true
-                    break
-                case 'samesite':
-                    const lowercaseValue = value.toLowerCase()
-                    result.sameSite = lowercaseValue === 'none' ? 'no_restriction' : lowercaseValue
-                    break
-            }
-        })
-        console.log(JSON.stringify(result))
-        return result
-    })
+function isValidVideoId(id: string): boolean {
+    return /^[a-zA-Z0-9-_]{11}$/.test(id)
 }
 
 // ? Helpfull Docummentation:
@@ -1060,3 +776,10 @@ function parseAndSetCookies(response: Response) {
 // ?  - DJ Sharpnel Blue Army full ver: iyL0zueK4CY (Standard video; 144p, 240p)
 // ?  - HELLOHELL: p0qace56glE (Music video type ATV; Premium Exclusive)
 // ?  - The Stampy Channel - Endless Episodes - 🔴 Rebroadcast: S8s3eRBPCX0 (Live stream; 144p, 240p, 360p, 480p, 720p, 1080p)
+
+// * Thoughs about how to handle VIDEO:
+// The isVideo property of Song Objects pertains to whether that specific song entity is a video or auto-generated song.
+// It says nothing about whehter or not that song has a video or auto-generated counterpart. Because in many situations
+// it is not possible to identify if a scraped song even has a video or auto-generated counterpart, I think it is not a good
+// approach to try to store that information in the song object. I need to find a simple way to identify which versions a
+// song has though. Ideally that information is known before the song gets played.

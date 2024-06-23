@@ -1,16 +1,16 @@
-import { DB, type DBSchemas } from './db'
+import { DB, type Schemas } from './db'
 import { Jellyfin } from './jellyfin'
 import { YouTubeMusic } from './youtube-music'
 
 export async function userExists(userId: string): Promise<boolean> {
-    return Boolean(await DB.users.where('id', userId).first(DB.knex.raw('EXISTS(SELECT 1)')))
+    return Boolean(await DB.users.where('id', userId).first(DB.db.raw('EXISTS(SELECT 1)')))
 }
 
 export async function mixExists(mixId: string): Promise<Boolean> {
-    return Boolean(await DB.mixes.where('id', mixId).first(DB.knex.raw('EXISTS(SELECT 1)')))
+    return Boolean(await DB.mixes.where('id', mixId).first(DB.db.raw('EXISTS(SELECT 1)')))
 }
 
-function connectionBuilder(schema: DBSchemas.Connections): Connection {
+function connectionBuilder(schema: Schemas.Connections): Connection {
     const { id, userId, type, serviceUserId, accessToken } = schema
     switch (type) {
         case 'jellyfin':

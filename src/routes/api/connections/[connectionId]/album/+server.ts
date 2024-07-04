@@ -1,9 +1,9 @@
 import type { RequestHandler } from '@sveltejs/kit'
-import { buildConnection } from '$lib/server/api-helper'
+import { ConnectionFactory } from '$lib/server/api-helper'
 
 export const GET: RequestHandler = async ({ params, url }) => {
     const connectionId = params.connectionId!
-    const connection = await buildConnection(connectionId).catch(() => null)
+    const connection = await ConnectionFactory.getConnection(connectionId).catch(() => null)
     if (!connection) return new Response('Invalid connection id', { status: 400 })
 
     const albumId = url.searchParams.get('id')

@@ -3,8 +3,6 @@
     import { goto } from '$app/navigation'
     import type { LayoutData } from '../$types'
     import Services from '$lib/services.json'
-    import JellyfinIcon from '$lib/static/jellyfin-icon.svg'
-    import YouTubeMusicIcon from '$lib/static/youtube-music-icon.svg'
     import JellyfinAuthBox from './jellyfinAuthBox.svelte'
     import { newestAlert } from '$lib/stores.js'
     import type { PageServerData } from './$types.js'
@@ -15,6 +13,7 @@
     import { enhance } from '$app/forms'
     import { PUBLIC_YOUTUBE_API_CLIENT_ID } from '$env/static/public'
     import Loader from '$lib/components/util/loader.svelte'
+    import ServiceLogo from '$lib/components/util/serviceLogo.svelte'
 
     export let data: PageServerData & LayoutData
     let connections: ConnectionInfo[]
@@ -129,11 +128,15 @@
             <h1 class="py-2 text-xl">Add Connection</h1>
             <div class="flex flex-wrap gap-2 pb-4">
                 <button class="add-connection-button h-14 rounded-md" on:click={() => (newConnectionModal = JellyfinAuthBox)}>
-                    <img src={JellyfinIcon} alt="Jellyfin icon" class="aspect-square h-full p-2" />
+                    <div class="aspect-square h-full p-2">
+                        <ServiceLogo type={'jellyfin'} />
+                    </div>
                 </button>
                 <form method="post" action="?/youtubeMusicLogin" use:enhance={authenticateYouTube}>
                     <button class="add-connection-button h-14 rounded-md">
-                        <img src={YouTubeMusicIcon} alt="YouTube Music icon" class="aspect-square h-full p-2" />
+                        <div class="aspect-square h-full p-2">
+                            <ServiceLogo type={'youtube-music'} />
+                        </div>
                     </button>
                 </form>
             </div>

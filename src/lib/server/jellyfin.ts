@@ -1,4 +1,6 @@
 import { PUBLIC_VERSION } from '$env/static/public'
+import type { JellyfinAPI } from './jellyfin-types'
+import ky, { HTTPError, type KyInstance } from 'ky'
 
 const jellyfinLogo = 'https://raw.githubusercontent.com/jellyfin/jellyfin-ux/55616553b692b1a6c7d8e786eeb7d8216e9b50df/branding/SVG/icon-transparent.svg'
 
@@ -6,88 +8,89 @@ export class Jellyfin implements Connection {
     public readonly id: string
     private readonly userId: string
     private readonly jellyfinUserId: string
+    private readonly serverUrl: string
 
-    private readonly services: JellyfinServices
+    private readonly parsers: JellyfinParsers
     private libraryManager?: JellyfinLibraryManager
+
+    private readonly api: KyInstance
 
     constructor(id: string, userId: string, jellyfinUserId: string, serverUrl: string, accessToken: string) {
         this.id = id
         this.userId = userId
         this.jellyfinUserId = jellyfinUserId
+        this.serverUrl = serverUrl
 
-        this.services = new JellyfinServices(this.id, serverUrl, accessToken)
+        this.parsers = new JellyfinParsers(this.id, serverUrl)
+
+        const errorHook = (error: HTTPError) => {
+            console.error(`Request to ${new URL(error.request.url).pathname} failed: ${error.message} ${error.response.status}`)
+            return error
+        }
+
+        this.api = ky.create({
+            prefixUrl: serverUrl,
+            headers: { Authorization: `MediaBrowser Token="${accessToken}"` },
+            hooks: { beforeError: [errorHook] },
+        })
     }
 
     public get library() {
-        if (!this.libraryManager) this.libraryManager = new JellyfinLibraryManager(this.jellyfinUserId, this.services)
+        if (!this.libraryManager) this.libraryManager = new JellyfinLibraryManager(this.jellyfinUserId, this.api, this.parsers)
 
         return this.libraryManager
     }
 
+    // * This method can NOT throw an error
     public async getConnectionInfo() {
-        const userEndpoint = `/Users/${this.jellyfinUserId}`
-        const systemEndpoint = '/System/Info'
-
         const getUserData = () =>
-            this.services
-                .request(userEndpoint)
-                .then((response) => response.json() as Promise<JellyfinAPI.UserResponse>)
+            this.api(`Users/${this.jellyfinUserId}`)
+                .json<JellyfinAPI.UserResponse>()
                 .catch(() => null)
-
         const getSystemData = () =>
-            this.services
-                .request(systemEndpoint)
-                .then((response) => response.json() as Promise<JellyfinAPI.SystemResponse>)
+            this.api('System/Info')
+                .json<JellyfinAPI.SystemResponse>()
                 .catch(() => null)
 
         const [userData, systemData] = await Promise.all([getUserData(), getSystemData()])
-
-        if (!userData) console.error(`Fetch to ${userEndpoint} failed`)
-        if (!systemData) console.error(`Fetch to ${systemEndpoint} failed`)
 
         return {
             id: this.id,
             userId: this.userId,
             type: 'jellyfin',
-            serverUrl: this.services.serverUrl().toString(),
+            serverUrl: this.serverUrl,
             serverName: systemData?.ServerName,
             jellyfinUserId: this.jellyfinUserId,
             username: userData?.Name,
         } satisfies ConnectionInfo
     }
 
-    public async search(searchTerm: string, filter: 'song'): Promise<Song[]>
-    public async search(searchTerm: string, filter: 'album'): Promise<Album[]>
-    public async search(searchTerm: string, filter: 'artist'): Promise<Artist[]>
-    public async search(searchTerm: string, filter: 'playlist'): Promise<Playlist[]>
-    public async search(searchTerm: string, filter?: undefined): Promise<(Song | Album | Artist | Playlist)[]>
-    public async search(searchTerm: string, filter?: 'song' | 'album' | 'artist' | 'playlist'): Promise<(Song | Album | Artist | Playlist)[]> {
+    public async search<T extends keyof MediaItemTypeMap>(searchTerm: string, types: Set<T>): Promise<MediaItemTypeMap[T][]> {
         const filterMap = { song: 'Audio', album: 'MusicAlbum', artist: 'MusicArtist', playlist: 'Playlist' } as const
 
         const searchParams = new URLSearchParams({
             searchTerm,
-            includeItemTypes: filter ? filterMap[filter] : Object.values(filterMap).join(','),
+            includeItemTypes: Array.from(types, (type) => filterMap[type]).join(','),
             recursive: 'true',
         })
 
-        const searchResults = await this.services
-            .request(`Users/${this.jellyfinUserId}/Items?${searchParams.toString()}`)
-            .then((response) => response.json() as Promise<{ Items: (JellyfinAPI.Song | JellyfinAPI.Album | JellyfinAPI.Artist | JellyfinAPI.Playlist)[] }>)
+        const searchResults = await this.api(`Users/${this.jellyfinUserId}/Items?${searchParams.toString()}`).json<{ Items: (JellyfinAPI.Song | JellyfinAPI.Album | JellyfinAPI.Artist | JellyfinAPI.Playlist)[] }>()
 
         return searchResults.Items.map((result) => {
             switch (result.Type) {
                 case 'Audio':
-                    return this.services.parseSong(result)
+                    return this.parsers.parseSong(result)
                 case 'MusicAlbum':
-                    return this.services.parseAlbum(result)
+                    return this.parsers.parseAlbum(result)
                 case 'MusicArtist':
-                    return this.services.parseArtist(result)
+                    return this.parsers.parseArtist(result)
                 case 'Playlist':
-                    return this.services.parsePlaylist(result)
+                    return this.parsers.parsePlaylist(result)
             }
-        })
+        }) as MediaItemTypeMap[T][]
     }
 
+    // Temporary implementation, I'll actually make something better later
     public async getRecommendations(): Promise<(Song | Album | Artist | Playlist)[]> {
         const searchParams = new URLSearchParams({
             SortBy: 'PlayCount',
@@ -97,10 +100,9 @@ export class Jellyfin implements Connection {
             limit: '10',
         })
 
-        return this.services
-            .request(`/Users/${this.jellyfinUserId}/Items?${searchParams.toString()}`)
-            .then((response) => response.json() as Promise<{ Items: JellyfinAPI.Song[] }>)
-            .then((data) => data.Items.map((song) => this.services.parseSong(song)))
+        const mostPlayedResponse = await this.api(`Users/${this.jellyfinUserId}/Items?${searchParams.toString()}`).json<{ Items: JellyfinAPI.Song[] }>()
+
+        return mostPlayedResponse.Items.map(this.parsers.parseSong)
     }
 
     // TODO: Figure out why seeking a jellyfin song takes so much longer than ytmusic (hls?)
@@ -114,14 +116,11 @@ export class Jellyfin implements Connection {
             userId: this.jellyfinUserId,
         })
 
-        return this.services.request(`Audio/${id}/universal?${audoSearchParams.toString()}`, { headers, keepalive: true })
+        return this.api(`Audio/${id}/universal?${audoSearchParams.toString()}`, { headers, keepalive: true })
     }
 
     public async getAlbum(id: string) {
-        return this.services
-            .request(`/Users/${this.jellyfinUserId}/Items/${id}`)
-            .then((response) => response.json() as Promise<JellyfinAPI.Album>)
-            .then(this.services.parseAlbum)
+        return this.api(`Users/${this.jellyfinUserId}/Items/${id}`).json<JellyfinAPI.Album>().then(this.parsers.parseAlbum)
     }
 
     public async getAlbumItems(id: string) {
@@ -130,17 +129,13 @@ export class Jellyfin implements Connection {
             sortBy: 'ParentIndexNumber,IndexNumber,SortName',
         })
 
-        return this.services
-            .request(`/Users/${this.jellyfinUserId}/Items?${searchParams.toString()}`)
-            .then((response) => response.json() as Promise<{ Items: JellyfinAPI.Song[] }>)
-            .then((data) => data.Items.map(this.services.parseSong))
+        return this.api(`Users/${this.jellyfinUserId}/Items?${searchParams.toString()}`)
+            .json<{ Items: JellyfinAPI.Song[] }>()
+            .then((response) => response.Items.map(this.parsers.parseSong))
     }
 
     public async getPlaylist(id: string) {
-        return this.services
-            .request(`/Users/${this.jellyfinUserId}/Items/${id}`)
-            .then((response) => response.json() as Promise<JellyfinAPI.Playlist>)
-            .then(this.services.parsePlaylist)
+        return this.api(`Users/${this.jellyfinUserId}/Items/${id}`).json<JellyfinAPI.Playlist>().then(this.parsers.parsePlaylist)
     }
 
     public async getPlaylistItems(id: string, options?: { startIndex?: number; limit?: number }) {
@@ -152,65 +147,41 @@ export class Jellyfin implements Connection {
         if (options?.startIndex) searchParams.append('startIndex', options.startIndex.toString())
         if (options?.limit) searchParams.append('limit', options.limit.toString())
 
-        return this.services
-            .request(`/Users/${this.jellyfinUserId}/Items?${searchParams.toString()}`)
-            .then((response) => response.json() as Promise<{ Items: JellyfinAPI.Song[] }>)
-            .then((data) => data.Items.map(this.services.parseSong))
+        return this.api(`Users/${this.jellyfinUserId}/Items?${searchParams.toString()}`)
+            .json<{ Items: JellyfinAPI.Song[] }>()
+            .then((response) => response.Items.map(this.parsers.parseSong))
     }
 
     public static async authenticateByName(username: string, password: string, serverUrl: URL, deviceId: string): Promise<JellyfinAPI.AuthenticationResponse> {
-        const authUrl = new URL('/Users/AuthenticateByName', serverUrl.origin).toString()
-        return fetch(authUrl, {
-            method: 'POST',
-            body: JSON.stringify({
-                Username: username,
-                Pw: password,
-            }),
-            headers: {
-                'Content-Type': 'application/json; charset=utf-8',
-                'X-Emby-Authorization': `MediaBrowser Client="Lazuli", Device="Chrome", DeviceId="${deviceId}", Version="${PUBLIC_VERSION}"`,
-            },
-        })
-            .catch(() => {
-                throw new JellyfinFetchError('Could not reach Jellyfin Server', 400, authUrl)
+        return ky
+            .post(new URL('Users/AuthenticateByName', serverUrl.origin), {
+                headers: {
+                    'Content-Type': 'application/json; charset=utf-8',
+                    'X-Emby-Authorization': `MediaBrowser Client="Lazuli", Device="Chrome", DeviceId="${deviceId}", Version="${PUBLIC_VERSION}"`,
+                },
+                json: {
+                    Username: username,
+                    Pw: password,
+                },
             })
-            .then((response) => {
-                if (!response.ok) throw new JellyfinFetchError('Failed to Authenticate', 401, authUrl)
-                return response.json() as Promise<JellyfinAPI.AuthenticationResponse>
-            })
+            .json<JellyfinAPI.AuthenticationResponse>()
     }
 }
 
-class JellyfinServices {
+class JellyfinParsers {
     private readonly connectionId: string
+    private readonly serverUrl: string
 
-    public readonly serverUrl: (endpoint?: string) => URL
-    public readonly request: (endpoint: string, options?: RequestInit) => Promise<Response>
-
-    constructor(connectionId: string, serverUrl: string, accessToken: string) {
+    constructor(connectionId: string, serverUrl: string) {
         this.connectionId = connectionId
-
-        this.serverUrl = (endpoint?: string) => new URL(endpoint ?? '', serverUrl)
-
-        this.request = async (endpoint: string, options?: RequestInit) => {
-            const headers = new Headers(options?.headers)
-            headers.set('Authorization', `MediaBrowser Token="${accessToken}"`)
-            delete options?.headers
-            return fetch(this.serverUrl(endpoint), { headers, ...options }).then((response) => {
-                if (!response.ok) {
-                    if (response.status >= 500) throw Error(`Jellyfin Server of connection ${this.connectionId} experienced and internal server error`)
-                    throw TypeError(`Client side error in request to jellyfin server of connection ${this.connectionId}`)
-                }
-                return response
-            })
-        }
+        this.serverUrl = serverUrl
     }
 
     private getBestThumbnail(item: JellyfinAPI.Song | JellyfinAPI.Album | JellyfinAPI.Artist | JellyfinAPI.Playlist, placeholder: string): string
     private getBestThumbnail(item: JellyfinAPI.Song | JellyfinAPI.Album | JellyfinAPI.Artist | JellyfinAPI.Playlist, placeholder?: string): string | undefined
     private getBestThumbnail(item: JellyfinAPI.Song | JellyfinAPI.Album | JellyfinAPI.Artist | JellyfinAPI.Playlist, placeholder?: string): string | undefined {
         const imageItemId = item.ImageTags?.Primary ? item.Id : 'AlbumPrimaryImageTag' in item && item.AlbumPrimaryImageTag ? item.AlbumId : undefined
-        return imageItemId ? this.serverUrl(`Items/${imageItemId}/Images/Primary`).toString() : placeholder
+        return imageItemId ? new URL(`Items/${imageItemId}/Images/Primary`, this.serverUrl).toString() : placeholder
     }
 
     public parseSong = (song: JellyfinAPI.Song): Song => ({
@@ -255,122 +226,31 @@ class JellyfinServices {
 
 class JellyfinLibraryManager {
     private readonly jellyfinUserId: string
-    private readonly services: JellyfinServices
+    private readonly api: KyInstance
+    private readonly parsers: JellyfinParsers
 
-    constructor(jellyfinUserId: string, services: JellyfinServices) {
+    constructor(jellyfinUserId: string, api: KyInstance, parsers: JellyfinParsers) {
         this.jellyfinUserId = jellyfinUserId
-        this.services = services
+        this.api = api
+        this.parsers = parsers
     }
 
     public async albums(): Promise<Album[]> {
-        return this.services
-            .request(`/Users/${this.jellyfinUserId}/Items?sortBy=SortName&sortOrder=Ascending&includeItemTypes=MusicAlbum&recursive=true`)
-            .then((response) => response.json() as Promise<{ Items: JellyfinAPI.Album[] }>)
-            .then((data) => data.Items.map(this.services.parseAlbum))
+        return this.api(`Users/${this.jellyfinUserId}/Items?sortBy=SortName&sortOrder=Ascending&includeItemTypes=MusicAlbum&recursive=true`)
+            .json<{ Items: JellyfinAPI.Album[] }>()
+            .then((response) => response.Items.map(this.parsers.parseAlbum))
     }
 
     public async artists(): Promise<Artist[]> {
         // ? This returns just album artists instead of all artists like in finamp, but I might decide that I want to return all artists instead
-        return this.services
-            .request('/Artists/AlbumArtists?sortBy=SortName&sortOrder=Ascending&recursive=true')
-            .then((response) => response.json() as Promise<{ Items: JellyfinAPI.Artist[] }>)
-            .then((data) => data.Items.map(this.services.parseArtist))
+        return this.api('Artists/AlbumArtists?sortBy=SortName&sortOrder=Ascending&recursive=true')
+            .json<{ Items: JellyfinAPI.Artist[] }>()
+            .then((response) => response.Items.map(this.parsers.parseArtist))
     }
 
     public async playlists(): Promise<Playlist[]> {
-        return this.services
-            .request(`/Users/${this.jellyfinUserId}/Items?sortBy=SortName&sortOrder=Ascending&includeItemTypes=Playlist&recursive=true`)
-            .then((response) => response.json() as Promise<{ Items: JellyfinAPI.Playlist[] }>)
-            .then((data) => data.Items.map(this.services.parsePlaylist))
-    }
-}
-
-export class JellyfinFetchError extends Error {
-    public httpCode: number
-    public url: string
-
-    constructor(message: string, httpCode: number, url: string) {
-        super(message)
-        this.httpCode = httpCode
-        this.url = url
-    }
-}
-
-declare namespace JellyfinAPI {
-    type Song = {
-        Name: string
-        Id: string
-        Type: 'Audio'
-        RunTimeTicks: number
-        PremiereDate?: string
-        ProductionYear?: number
-        ArtistItems?: {
-            Name: string
-            Id: string
-        }[]
-        Album?: string
-        AlbumId?: string
-        AlbumPrimaryImageTag?: string
-        AlbumArtists?: {
-            Name: string
-            Id: string
-        }[]
-        ImageTags?: {
-            Primary?: string
-        }
-    }
-
-    type Album = {
-        Name: string
-        Id: string
-        Type: 'MusicAlbum'
-        RunTimeTicks: number
-        PremiereDate?: string
-        ProductionYear?: number
-        ArtistItems?: {
-            Name: string
-            Id: string
-        }[]
-        AlbumArtists?: {
-            Name: string
-            Id: string
-        }[]
-        ImageTags?: {
-            Primary?: string
-        }
-    }
-
-    type Artist = {
-        Name: string
-        Id: string
-        Type: 'MusicArtist'
-        ImageTags?: {
-            Primary?: string
-        }
-    }
-
-    type Playlist = {
-        Name: string
-        Id: string
-        Type: 'Playlist'
-        RunTimeTicks: number
-        ChildCount: number
-        ImageTags?: {
-            Primary?: string
-        }
-    }
-
-    interface UserResponse {
-        Name: string
-        Id: string
-    }
-
-    interface AuthenticationResponse {
-        User: JellyfinAPI.UserResponse
-        AccessToken: string
-    }
-
-    interface SystemResponse {
-        ServerName: string
+        return this.api(`Users/${this.jellyfinUserId}/Items?sortBy=SortName&sortOrder=Ascending&includeItemTypes=Playlist&recursive=true`)
+            .json<{ Items: JellyfinAPI.Playlist[] }>()
+            .then((response) => response.Items.map(this.parsers.parsePlaylist))
     }
 }

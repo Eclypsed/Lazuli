@@ -58,16 +58,15 @@
         cursor: pointer;
         opacity: 0;
     }
-    #slider-track:hover > #slider-trail {
-        background-color: var(--slider-color);
-    }
+    #slider-track:hover > #slider-trail,
     #slider-track:focus > #slider-trail {
         background-color: var(--slider-color);
     }
-    #slider-track:hover > #slider-thumb {
-        opacity: 1;
-    }
+    #slider-track:hover > #slider-thumb,
     #slider-track:focus > #slider-thumb {
         opacity: 1;
+    }
+    #slider-track:not(:hover):not(:focus) > #slider-trail {
+        transition: right 50ms linear;
     }
 </style>

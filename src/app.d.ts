@@ -54,14 +54,6 @@ declare global {
         playlist: Playlist
     }
 
-    type SearchFilterMap<Filter> =
-        Filter extends 'song' ? Song :
-        Filter extends 'album' ? Album :
-        Filter extends 'artist' ? Artist :
-        Filter extends 'playlist' ? Playlist :
-        Filter extends undefined ? Song | Album | Artist | Playlist :
-        never
-
     interface Connection {
         public readonly id: string
 
@@ -73,15 +65,16 @@ declare global {
 
         /**
          * @param {string} searchTerm The string of text to query
-         * @param {'song' | 'album' | 'artist' | 'playlist'} filter Optional. A string of either 'song', 'album', 'artist', or 'playlist' to filter the kind of media items queried
+         * @param {Set<'song' | 'album' | 'artist' | 'playlist'>} types A set containing any of 'song', 'album', 'artist', or 'playlist'. Specifies what media types to query
          * @returns {Promise<(Song | Album | Artist | Playlist)[]>} A promise of an array of media items
          */
-        search<T extends 'song' | 'album' | 'artist' | 'playlist'>(searchTerm: string, filter?: T): Promise<SearchFilterMap<T>[]>
+        search<T extends keyof MediaItemTypeMap>(searchTerm: string, types: Set<T>): Promise<MediaItemTypeMap[T][]>
 
         /**
          * @param {string} id The id of the requested song
          * @param {Headers} headers The request headers sent by the Lazuli client that need to be relayed to the connection's request to the server (e.g. 'range').
          * @returns {Promise<Response>} A promise of response object containing the audio stream for the specified byte range
+         * @throws {TypeError | Error} TypeError if the id passed was invalid. Error if the connection failed to fetch the audio stream
          * 
          * Fetches the audio stream for a song. Will return an response containing the audio stream if the fetch was successfull, otherwise throw an error.
          */

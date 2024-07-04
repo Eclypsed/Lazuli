@@ -2,9 +2,9 @@
     import LazyImage from '$lib/components/media/lazyImage.svelte'
     import IconButton from '$lib/components/util/iconButton.svelte'
     import ArtistList from '$lib/components/media/artistList.svelte'
-    import Services from '$lib/services.json'
     import { goto } from '$app/navigation'
     import { queue, newestAlert } from '$lib/stores'
+    import ServiceLogo from '$lib/components/util/serviceLogo.svelte'
 
     export let album: Album
 
@@ -33,7 +33,9 @@
                 <i slot="icon" class="fa-solid fa-play text-2xl" />
             </IconButton>
         </div>
-        <img id="connection-type-icon" class="absolute left-2 top-2 h-9 w-9 opacity-0 transition-opacity" src={Services[album.connection.type].icon} alt={Services[album.connection.type].displayName} />
+        <div id="connection-type-icon" class="absolute left-2 top-2 h-9 w-9 opacity-0 transition-opacity">
+            <ServiceLogo type={album.connection.type} />
+        </div>
     </div>
     <div class="py-2 text-center text-sm">
         <div class="line-clamp-2">{album.name}</div>

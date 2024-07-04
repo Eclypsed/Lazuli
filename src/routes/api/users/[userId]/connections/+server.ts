@@ -1,8 +1,8 @@
 import type { RequestHandler } from '@sveltejs/kit'
-import { buildUserConnections } from '$lib/server/api-helper'
+import { ConnectionFactory } from '$lib/server/api-helper'
 
 export const GET: RequestHandler = async ({ params }) => {
-    const userConnections = await buildUserConnections(params.userId!).catch(() => null)
+    const userConnections = await ConnectionFactory.getUserConnections(params.userId!).catch(() => null)
     if (!userConnections) return new Response('Invalid user id', { status: 400 })
 
     const getConnectionInfo = (connection: Connection) =>

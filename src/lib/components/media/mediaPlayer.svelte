@@ -1,7 +1,8 @@
 <script lang="ts">
     import { onMount } from 'svelte'
-    import { fade, slide } from 'svelte/transition'
+    import { fade, slide, fly } from 'svelte/transition'
     import { queue } from '$lib/stores'
+    import Services from '$lib/services.json'
     // import { FastAverageColor } from 'fast-average-color'
     import Slider from '$lib/components/util/slider.svelte'
     import Loader from '$lib/components/util/loader.svelte'
@@ -9,6 +10,7 @@
     import IconButton from '$lib/components/util/iconButton.svelte'
     import ScrollingText from '$lib/components/util/scrollingText.svelte'
     import ArtistList from './artistList.svelte'
+    import ServiceLogo from '$lib/components/util/serviceLogo.svelte'
 
     // NEW IDEA: Only have the miniplayer for controls and for the expanded view just make it one large Videoplayer.
     // That way we can target the player to be the size of YouTube's default player. Then move the Queue view to it's own
@@ -34,8 +36,7 @@
         seconds = seconds - hours * 3600
         const minutes = Math.floor(seconds / 60)
         seconds = seconds - minutes * 60
-        const durationString = `${minutes}:${seconds.toString().padStart(2, '0')}`
-        return hours > 0 ? `${hours}:`.concat(durationString) : durationString
+        return hours > 0 ? `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}` : `${minutes}:${seconds.toString().padStart(2, '0')}`
     }
 
     $: updateMediaSession(currentlyPlaying)
@@ -103,10 +104,15 @@
 </script>
 
 {#if currentlyPlaying}
-    <div id="player-wrapper" transition:slide class="{expanded ? 'h-full w-full' : 'm-4 h-20 w-[calc(100%_-_32px)] rounded-xl'} absolute bottom-0 z-40 overflow-clip bg-neutral-925 transition-all duration-500">
+    <div
+        id="player-wrapper"
+        transition:slide
+        class="{expanded ? 'h-full w-full' : 'm-3 h-20 w-[calc(100%_-_24px)] rounded-xl'} absolute bottom-0 z-40 overflow-clip bg-neutral-925 transition-all ease-in-out"
+        style="transition-duration: 400ms;"
+    >
         {#if !expanded}
-            <main in:fade={{ duration: 75, delay: 500 }} out:fade={{ duration: 75 }} class="flex h-20 w-full gap-10 pr-8">
-                <section class="flex w-80 gap-3">
+            <main in:fade={{ duration: 75, delay: 500 }} out:fade={{ duration: 75 }} class="flex h-20 w-full gap-10">
+                <section class="flex w-96 min-w-64 gap-3">
                     <div class="relative h-full w-20 min-w-20 overflow-clip rounded-xl">
                         <LazyImage thumbnailUrl={currentlyPlaying.thumbnailUrl} alt={`${currentlyPlaying.name} jacket`} objectFit={'cover'} />
                     </div>
@@ -140,7 +146,7 @@
                     <IconButton on:click={() => $queue.next()}>
                         <i slot="icon" class="fa-solid fa-forward-step text-xl" />
                     </IconButton>
-                    <div class="flex flex-grow items-center justify-items-center gap-3 font-light">
+                    <div class="flex min-w-56 flex-grow items-center justify-items-center gap-3 font-light">
                         <span bind:this={currentTimeTimestamp} class="w-16 text-right" />
                         <Slider
                             bind:this={progressBar}
@@ -157,8 +163,8 @@
                         <span bind:this={durationTimestamp} class="w-16 text-left" />
                     </div>
                 </section>
-                <section class="flex items-center justify-end gap-2.5 py-6 text-lg">
-                    <div id="volume-slider" class="mx-4 flex h-10 w-44 items-center gap-3">
+                <section class="flex items-center justify-end gap-2.5 py-6 pr-8 text-lg">
+                    <div class="mx-4 flex h-10 w-40 items-center gap-3">
                         <IconButton on:click={() => (volume = volume > 0 ? 0 : Number(localStorage.getItem('volume')))}>
                             <i slot="icon" class="fa-solid {volume > maxVolume / 2 ? 'fa-volume-high' : volume > 0 ? 'fa-volume-low' : 'fa-volume-xmark'}" />
                         </IconButton>
@@ -183,40 +189,41 @@
             </main>
         {:else}
             <main id="expanded-player" in:fade={{ delay: 500 }} out:fade={{ duration: 75 }} class="relative h-full">
-                <div class="absolute -z-10 h-full w-full blur-xl brightness-[25%]">
+                <div class="absolute -z-10 h-full w-full blur-2xl brightness-[25%]">
                     <LazyImage thumbnailUrl={currentlyPlaying.thumbnailUrl} alt={''} objectFit={'cover'} />
                 </div>
-                <section id="song-queue-wrapper" class="h-full px-24 py-20">
-                    <section class="relative">
-                        <LazyImage thumbnailUrl={currentlyPlaying.thumbnailUrl} alt={`${currentlyPlaying.name} jacket`} objectFit={'contain'} objectPosition={'left'} />
-                    </section>
-                    <section class="no-scrollbar flex max-h-full flex-col gap-3 overflow-y-scroll">
-                        <strong class="ml-2 text-2xl">UP NEXT</strong>
-                        {#each $queue.list as item}
-                            {@const isCurrent = item === currentlyPlaying}
-                            <button
-                                on:click={() => {
-                                    if (!isCurrent) $queue.setCurrent(item)
-                                }}
-                                class="queue-item h-20 w-full shrink-0 items-center gap-3 overflow-clip rounded-lg bg-neutral-900 {isCurrent
-                                    ? 'pointer-events-none border-[1px] border-neutral-300'
-                                    : 'hover:bg-neutral-800'}"
-                            >
-                                <div class="h-20 w-20">
-                                    <LazyImage thumbnailUrl={item.thumbnailUrl} alt={`${item.name} jacket`} objectFit={'cover'} />
+                <section class="relative grid h-full grid-rows-[1fr_4fr] gap-4 px-24 py-16">
+                    <div class="grid grid-cols-[2fr_1fr]">
+                        <div class="flex h-14 flex-row items-center gap-5">
+                            <ServiceLogo type={currentlyPlaying.connection.type} />
+                            <div>
+                                <h1 class="text-neutral-400">STREAMING FROM</h1>
+                                <strong class="text-2xl text-neutral-300">{Services[currentlyPlaying.connection.type].displayName}</strong>
+                            </div>
+                        </div>
+                        <section>
+                            {#if $queue.upNext}
+                                {@const next = $queue.upNext}
+                                <strong transition:fade class="ml-2 text-2xl">UP NEXT</strong>
+                                <div transition:fly={{ x: 300 }} class="mt-3 flex h-20 w-full items-center gap-3 rounded-lg border border-neutral-300 bg-neutral-900 pr-3">
+                                    <div class="aspect-square h-full">
+                                        <LazyImage thumbnailUrl={next.thumbnailUrl} alt={`${next.name} jacket`} objectFit={'cover'} />
+                                    </div>
+                                    <div>
+                                        <div class="mb-0.5 line-clamp-1 font-medium">{next.name}</div>
+                                        <div class="line-clamp-1 text-sm font-light text-neutral-300">
+                                            <ArtistList mediaItem={next} linked={false} />
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="justify-items-left text-left">
-                                    <div class="line-clamp-1">{item.name}</div>
-                                    <div class="mt-[.15rem] line-clamp-1 text-neutral-400">{item.artists?.map((artist) => artist.name).join(', ') || item.uploader?.name}</div>
-                                </div>
-                                <span class="mr-4 text-right">{formatTime(item.duration)}</span>
-                            </button>
-                        {/each}
-                    </section>
+                            {/if}
+                        </section>
+                    </div>
+                    <LazyImage thumbnailUrl={currentlyPlaying.thumbnailUrl} alt={`${currentlyPlaying.name} jacket`} objectFit={'contain'} objectPosition={'left'} />
                 </section>
-                <section class="px-8">
-                    <div id="progress-bar-expanded" class="mb-6">
-                        <span bind:this={expandedCurrentTimeTimestamp} class="text-right" />
+                <section class="self-center px-16">
+                    <div class="mb-7 flex min-w-56 flex-grow items-center justify-items-center gap-3 font-light">
+                        <span bind:this={expandedCurrentTimeTimestamp} />
                         <Slider
                             bind:this={expandedProgressBar}
                             max={duration}
@@ -229,74 +236,71 @@
                                 seeking = false
                             }}
                         />
-                        <span bind:this={expandedDurationTimestamp} class="text-left" />
+                        <span bind:this={expandedDurationTimestamp} />
                     </div>
                     <div id="expanded-controls">
-                        <div class="flex flex-col gap-1.5 overflow-hidden">
-                            <div class="h-9">
+                        <div class="flex min-w-56 flex-col gap-1.5 overflow-hidden">
+                            <div class="h-10">
                                 <ScrollingText>
-                                    <strong slot="text" class="text-3xl">{currentlyPlaying.name}</strong>
+                                    <strong slot="text" class="text-4xl">{currentlyPlaying.name}</strong>
                                 </ScrollingText>
                             </div>
-                            {#if (currentlyPlaying.artists && currentlyPlaying.artists.length > 0) || currentlyPlaying.uploader}
-                                <div class="line-clamp-1 flex flex-nowrap items-center font-extralight">
-                                    <i class="fa-solid fa-user mr-3 text-sm" />
+                            <div class="flex gap-3 text-lg font-medium text-neutral-300">
+                                {#if (currentlyPlaying.artists && currentlyPlaying.artists.length > 0) || currentlyPlaying.uploader}
                                     <ArtistList mediaItem={currentlyPlaying} />
-                                </div>
-                            {/if}
-                            {#if currentlyPlaying.album}
-                                <div class="flex flex-nowrap items-center font-extralight">
-                                    <i class="fa-solid fa-compact-disc mr-3 text-sm" />
+                                {/if}
+                                {#if currentlyPlaying.album}
+                                    <strong>&bullet;</strong>
                                     <a
                                         on:click={() => (expanded = false)}
-                                        class="line-clamp-1 flex-shrink-0 hover:underline focus:underline"
+                                        class="line-clamp-1 hover:underline focus:underline"
                                         href="/details/album?id={currentlyPlaying.album.id}&connection={currentlyPlaying.connection.id}">{currentlyPlaying.album.name}</a
                                     >
-                                </div>
-                            {/if}
-                        </div>
-                        <div class="flex h-min w-full items-center justify-center gap-2 text-2xl">
-                            <button on:click={() => (shuffled ? $queue.reorder() : $queue.shuffle())} class="aspect-square h-16">
-                                <i class="fa-solid {shuffled ? 'fa-shuffle' : 'fa-right-left'}" />
-                            </button>
-                            <button class="aspect-square h-16" on:click={() => $queue.previous()}>
-                                <i class="fa-solid fa-backward-step" />
-                            </button>
-                            <button on:click={() => (paused = !paused)} class="relative grid aspect-square h-16 place-items-center rounded-full bg-white text-black">
-                                {#if waiting}
-                                    <Loader size={2.5} />
-                                {:else}
-                                    <i class="fa-solid {paused ? 'fa-play' : 'fa-pause'}" />
                                 {/if}
-                            </button>
-                            <button class="aspect-square h-16" on:click={() => $queue.next()}>
-                                <i class="fa-solid fa-forward-step" />
-                            </button>
-                            <button on:click={() => (loop = !loop)} class="aspect-square h-16">
-                                <i class="fa-solid fa-repeat {loop ? 'text-lazuli-primary' : 'text-white'}" />
-                            </button>
+                            </div>
+                        </div>
+                        <div class="flex h-16 w-full items-center justify-center gap-2 text-2xl">
+                            <IconButton on:click={() => (shuffled ? $queue.reorder() : $queue.shuffle())}>
+                                <i slot="icon" class="fa-solid fa-shuffle {shuffled ? 'text-lazuli-primary' : 'text-white'}" />
+                            </IconButton>
+                            <IconButton on:click={() => $queue.previous()}>
+                                <i slot="icon" class="fa-solid fa-backward-step text-xl" />
+                            </IconButton>
+                            <div class="relative aspect-square h-full rounded-full bg-white text-black">
+                                {#if waiting}
+                                    <Loader size={1.5} />
+                                {:else}
+                                    <IconButton on:click={() => (paused = !paused)}>
+                                        <i slot="icon" class="fa-solid {paused ? 'fa-play' : 'fa-pause'}" />
+                                    </IconButton>
+                                {/if}
+                            </div>
+                            <IconButton on:click={() => $queue.clear()}>
+                                <i slot="icon" class="fa-solid fa-stop" />
+                            </IconButton>
+                            <IconButton on:click={() => $queue.next()}>
+                                <i slot="icon" class="fa-solid fa-forward-step" />
+                            </IconButton>
+                            <IconButton on:click={() => (loop = !loop)}>
+                                <i slot="icon" class="fa-solid fa-repeat {loop ? 'text-lazuli-primary' : 'text-white'}" />
+                            </IconButton>
                         </div>
                         <section class="flex h-min items-center justify-end gap-2 text-xl">
-                            <div id="volume-slider" class="flex h-10 flex-row-reverse items-center gap-2">
-                                <button on:click={() => (volume = volume > 0 ? 0 : Number(localStorage.getItem('volume')))} class="aspect-square h-8">
-                                    <i class="fa-solid {volume > maxVolume / 2 ? 'fa-volume-high' : volume > 0 ? 'fa-volume-low' : 'fa-volume-xmark'} w-full text-center" />
-                                </button>
-                                <div id="slider-wrapper" class="w-24 transition-all duration-500">
-                                    <Slider
-                                        bind:value={volume}
-                                        max={maxVolume}
-                                        on:seeked={() => {
-                                            if (volume > 0) localStorage.setItem('volume', volume.toString())
-                                        }}
-                                    />
-                                </div>
+                            <div class="mx-4 flex h-10 w-40 items-center gap-3">
+                                <IconButton on:click={() => (volume = volume > 0 ? 0 : Number(localStorage.getItem('volume')))}>
+                                    <i slot="icon" class="fa-solid {volume > maxVolume / 2 ? 'fa-volume-high' : volume > 0 ? 'fa-volume-low' : 'fa-volume-xmark'}" />
+                                </IconButton>
+                                <Slider
+                                    bind:value={volume}
+                                    max={maxVolume}
+                                    on:seeked={() => {
+                                        if (volume > 0) localStorage.setItem('volume', volume.toString())
+                                    }}
+                                />
                             </div>
-                            <button class="aspect-square h-8" on:click={() => (expanded = false)}>
-                                <i class="fa-solid fa-compress" />
-                            </button>
-                            <button class="aspect-square h-8" on:click={() => $queue.clear()}>
-                                <i class="fa-solid fa-xmark" />
-                            </button>
+                            <IconButton on:click={() => (expanded = false)}>
+                                <i slot="icon" class="fa-solid fa-chevron-down" />
+                            </IconButton>
                         </section>
                     </div>
                 </section>
@@ -314,7 +318,7 @@
             on:waiting={() => (waiting = true)}
             on:ended={() => $queue.next()}
             on:error={() => setTimeout(() => audioElement.load(), 5000)}
-            src="/api/audio?connection={currentlyPlaying.connection.id}&id={currentlyPlaying.id}"
+            src="/api/v1/audio?connection={currentlyPlaying.connection.id}&id={currentlyPlaying.id}"
             {loop}
         />
     </div>
@@ -326,26 +330,12 @@
     }
     #expanded-player {
         display: grid;
-        grid-template-rows: calc(100% - 11rem) 11rem;
-    }
-    #song-queue-wrapper {
-        display: grid;
-        grid-template-columns: 3fr 2fr;
-        gap: 4rem;
-    }
-    .queue-item {
-        display: grid;
-        grid-template-columns: 5rem auto min-content;
-    }
-    #progress-bar-expanded {
-        display: grid;
-        grid-template-columns: min-content auto min-content;
-        align-items: center;
-        gap: 1rem;
+        grid-template-rows: 4fr 1fr;
     }
     #expanded-controls {
         display: grid;
-        gap: 1rem;
+        gap: 3rem;
+        align-items: center;
         grid-template-columns: 1fr min-content 1fr !important;
     }
 </style>

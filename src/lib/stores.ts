@@ -46,6 +46,12 @@ class Queue {
         return this.currentSongs[this.currentPosition]
     }
 
+    get upNext() {
+        if (this.currentSongs.length === 0 && this.currentPosition >= this.currentSongs.length) return null
+
+        return this.currentSongs[this.currentPosition + 1]
+    }
+
     get list() {
         return this.currentSongs
     }

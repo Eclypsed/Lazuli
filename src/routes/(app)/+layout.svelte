@@ -85,4 +85,7 @@
     #sidebar {
         grid-area: 2 / 1 / 3 / 2;
     }
+    #content-wrapper {
+        grid-area: 2 / 2 / 3 / 4;
+    }
 </style>

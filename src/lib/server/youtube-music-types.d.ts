@@ -22,6 +22,44 @@
 // NEW NOTE: hq720 is the same as maxresdefault. If an hq720 image is returned we don't need to query the v3 api
 
 export namespace InnerTube {
+    interface ErrorResponse {
+        error: {
+            code: number
+            message: string
+            status: string // 'NOT_FOUND' - Id does not exist | 'INVALID_ARGUMENT' - Invalid Id, potenially for unavailable videos | 'INTERNAL' - YouTube had a stroke
+        }
+    }
+
+    // For response made to the browse endpoint with the user's id
+    namespace User {
+        interface Response {
+            contents: unknown // Whole lot of cool stuff in here that I may want to use at some point
+            header: {
+                musicVisualHeaderRenderer: {
+                    title: {
+                        runs: [
+                            {
+                                text: string // Username
+                            },
+                        ]
+                    }
+                    thumbnail: unknown // Contains banner art
+                    foregroundThumbnail: {
+                        musicThumbnailRenderer: {
+                            thumbnail: {
+                                thumbnails: Array<{
+                                    url: string
+                                    width: number
+                                    height: number
+                                }>
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     namespace Library {
         interface AlbumResponse {
             contents: {
@@ -379,14 +417,6 @@ export namespace InnerTube {
             }
         }
 
-        interface ErrorResponse {
-            error: {
-                code: number
-                message: string
-                status: string
-            }
-        }
-
         type MusicResponsiveHeaderRenderer = {
             thumbnail: {
                 musicThumbnailRenderer: {
@@ -473,7 +503,8 @@ export namespace InnerTube {
                             runs: [
                                 {
                                     text: string // Song Name
-                                    navigationEndpoint: {
+                                    navigationEndpoint?: {
+                                        // This will be missing if the song is not playable
                                         watchEndpoint: {
                                             videoId: string
                                             watchEndpointMusicSupportedConfigs: {
@@ -660,14 +691,6 @@ export namespace InnerTube {
             }
         }
 
-        interface ErrorResponse {
-            error: {
-                code: number
-                message: string
-                status: string
-            }
-        }
-
         type MusicResponsiveListItemRenderer = {
             flexColumns: [
                 {
@@ -746,7 +769,7 @@ export namespace InnerTube {
         interface PlayerErrorResponse {
             playabilityStatus: {
                 status: 'ERROR'
-                reason: string
+                reason: string // 'This video is unavailable' - Could be invalid video id / private / blocked
             }
         }
 
@@ -766,32 +789,24 @@ export namespace InnerTube {
             queueDatas: Array<{
                 content:
                     | {
-                          playlistPanelVideoRenderer: PlaylistPanelVideoRenderer // This occurs when the playlist item does not have a video or auto-generated counterpart
+                          playlistPanelVideoRenderer: PlaylistPanelVideoRenderer | BlockedPlaylistPanelVideoRenderer // This occurs when the playlist item does not have a video or auto-generated counterpart
                       }
                     | {
                           playlistPanelVideoWrapperRenderer: {
                               // This occurs when the playlist has a video or auto-generated counterpart
                               primaryRenderer: {
-                                  playlistPanelVideoRenderer: PlaylistPanelVideoRenderer
+                                  playlistPanelVideoRenderer: PlaylistPanelVideoRenderer | BlockedPlaylistPanelVideoRenderer
                               }
                               counterpart: [
                                   {
                                       counterpartRenderer: {
-                                          playlistPanelVideoRenderer: PlaylistPanelVideoRenderer
+                                          playlistPanelVideoRenderer: PlaylistPanelVideoRenderer | BlockedPlaylistPanelVideoRenderer
                                       }
                                   },
                               ]
                           }
                       }
             }>
-        }
-
-        interface ErrorResponse {
-            error: {
-                code: number
-                message: string
-                status: string
-            }
         }
 
         type PlaylistPanelVideoRenderer = {
@@ -842,15 +857,850 @@ export namespace InnerTube {
                 }
             }
         }
+
+        type BlockedPlaylistPanelVideoRenderer = {
+            thumbnail: {
+                thumbnails: [
+                    {
+                        url: string
+                    },
+                ]
+            }
+            navigationEndpoint: {
+                watchEndpoint: {
+                    videoId: string
+                    watchEndpointMusicSupportedConfigs: {
+                        watchEndpointMusicConfig: {
+                            musicVideoType: 'MUSIC_VIDEO_TYPE_ATV' | 'MUSIC_VIDEO_TYPE_OMV' | 'MUSIC_VIDEO_TYPE_UGC' | 'MUSIC_VIDEO_TYPE_OFFICIAL_SOURCE_MUSIC'
+                        }
+                    }
+                }
+            }
+            unplayableText: {
+                runs: [
+                    {
+                        text: string
+                    },
+                ]
+            }
+            videoId: string
+        }
     }
 
-    // TODO: Need to fix this & it's corresponding method & add appropriate namespace
-    interface SearchResponse {
-        contents: unknown
+    namespace Search {
+        interface Response {
+            contents: {
+                tabbedSearchResultsRenderer: {
+                    tabs: [
+                        {
+                            tabRenderer: {
+                                content: {
+                                    sectionListRenderer: {
+                                        contents: Array<
+                                            | {
+                                                  itemSectionRenderer: unknown
+                                              }
+                                            | {
+                                                  musicCardShelfRenderer: SongMusicCardShelfRenderer | VideoMusicCardShelfRenderer | AlbumMusicCardShelfRenderer | ArtistMusicCardShelfRenderer // I have not seen any other types of cards
+                                              }
+                                            | {
+                                                  musicShelfRenderer:
+                                                      | SongsMusicShelfRenderer
+                                                      | VideosMusicShelfRenderer
+                                                      | AlbumsMusicShelfRenderer
+                                                      | CommunityPlaylistsMusicShelfRenderer
+                                                      | ArtistsMusicShelfRenderer
+                                                      | PodcastsMusicShelfRenderer
+                                                      | EpisodesMusicShelfRenderer
+                                                      | ProfilesMusicShelfRenderer
+                                              }
+                                        >
+                                    }
+                                }
+                            }
+                        },
+                        // There is a library tab when no filter is specified, but I don't plan on utilizing it anyway
+                    ]
+                }
+            }
+        }
+
+        type SongMusicResponsiveListItemRenderer = {
+            thumbnail: {
+                musicThumbnailRenderer: {
+                    thumbnail: {
+                        thumbnails: Array<{
+                            url: string
+                            width: number
+                            height: number
+                        }>
+                    }
+                }
+            }
+            flexColumns: [
+                {
+                    musicResponsiveListItemFlexColumnRenderer: {
+                        text: {
+                            runs: [
+                                {
+                                    text: string // Duration will be in one of these
+                                    navigationEndpoint: {
+                                        watchEndpoint: {
+                                            videoId: string
+                                            watchEndpointMusicSupportedConfigs: {
+                                                watchEndpointMusicConfig: {
+                                                    musicVideoType: 'MUSIC_VIDEO_TYPE_ATV'
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                            ]
+                        }
+                    }
+                },
+                {
+                    musicResponsiveListItemFlexColumnRenderer: {
+                        text: {
+                            runs: Array<{
+                                text: string
+                                navigationEndpoint?: {
+                                    browseEndpoint: {
+                                        browseId: string
+                                        browseEndpointContextSupportedConfigs: {
+                                            browseEndpointContextMusicConfig: {
+                                                pageType: 'MUSIC_PAGE_TYPE_ALBUM' | 'MUSIC_PAGE_TYPE_ARTIST'
+                                            }
+                                        }
+                                    }
+                                }
+                            }>
+                        }
+                    }
+                },
+                // There is a third musicResponsiveListItemFlexColumnRenderer but it only contains view count
+            ]
+        }
+
+        type VideoMusicResponsiveListItemRenderer = {
+            thumbnail: {
+                musicThumbnailRenderer: {
+                    thumbnail: {
+                        thumbnails: Array<{
+                            url: string
+                            width: number
+                            height: number
+                        }>
+                    }
+                }
+            }
+            flexColumns: [
+                {
+                    musicResponsiveListItemFlexColumnRenderer: {
+                        text: {
+                            runs: [
+                                {
+                                    text: string
+                                    navigationEndpoint?: {
+                                        watchEndpoint: {
+                                            videoId: string
+                                            watchEndpointMusicSupportedConfigs: {
+                                                watchEndpointMusicConfig: {
+                                                    musicVideoType: 'MUSIC_VIDEO_TYPE_OMV' | 'MUSIC_VIDEO_TYPE_UGC' | 'MUSIC_VIDEO_TYPE_OFFICIAL_SOURCE_MUSIC'
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                            ]
+                        }
+                    }
+                },
+                {
+                    musicResponsiveListItemFlexColumnRenderer: {
+                        text: {
+                            runs: Array<{
+                                text: string // Duration will be in one of these
+                                navigationEndpoint?: {
+                                    browseEndpoint: {
+                                        browseId: string
+                                        browseEndpointContextSupportedConfigs: {
+                                            browseEndpointContextMusicConfig: {
+                                                pageType: 'MUSIC_PAGE_TYPE_ARTIST' | 'MUSIC_PAGE_TYPE_USER_CHANNEL'
+                                            }
+                                        }
+                                    }
+                                }
+                            }>
+                        }
+                    }
+                },
+            ]
+        }
+
+        type AlbumMusicResponsiveListItemRenderer = {
+            thumbnail: {
+                musicThumbnailRenderer: {
+                    thumbnail: {
+                        thumbnails: Array<{
+                            url: string
+                            width: number
+                            height: number
+                        }>
+                    }
+                }
+            }
+            flexColumns: [
+                {
+                    musicResponsiveListItemFlexColumnRenderer: {
+                        text: {
+                            runs: [
+                                {
+                                    text: string
+                                },
+                            ]
+                        }
+                    }
+                },
+                {
+                    musicResponsiveListItemFlexColumnRenderer: {
+                        text: {
+                            runs: Array<{
+                                text: string // Release year will be in one of these
+                                navigationEndpoint?: {
+                                    browseEndpoint: {
+                                        browseId: string
+                                        browseEndpointContextSupportedConfigs: {
+                                            browseEndpointContextMusicConfig: {
+                                                pageType: 'MUSIC_PAGE_TYPE_ARTIST'
+                                            }
+                                        }
+                                    }
+                                }
+                            }>
+                        }
+                    }
+                },
+            ]
+            navigationEndpoint: {
+                browseEndpoint: {
+                    browseId: string
+                    browseEndpointContextSupportedConfigs: {
+                        browseEndpointContextMusicConfig: {
+                            pageType: 'MUSIC_PAGE_TYPE_ALBUM'
+                        }
+                    }
+                }
+            }
+        }
+
+        type CommunityPlaylistMusicResponsiveListItemRenderer = {
+            thumbnail: {
+                musicThumbnailRenderer: {
+                    thumbnail: {
+                        thumbnails: Array<{
+                            url: string
+                            width: number
+                            height: number
+                        }>
+                    }
+                }
+            }
+            flexColumns: [
+                {
+                    musicResponsiveListItemFlexColumnRenderer: {
+                        text: {
+                            runs: [
+                                {
+                                    text: string
+                                },
+                            ]
+                        }
+                    }
+                },
+                {
+                    musicResponsiveListItemFlexColumnRenderer: {
+                        text: {
+                            runs: Array<{
+                                text: string
+                                navigationEndpoint?: {
+                                    browseEndpoint: {
+                                        browseId: string
+                                        browseEndpointContextSupportedConfigs: {
+                                            browseEndpointContextMusicConfig: {
+                                                pageType: 'MUSIC_PAGE_TYPE_USER_CHANNEL'
+                                            }
+                                        }
+                                    }
+                                }
+                            }>
+                        }
+                    }
+                },
+            ]
+            navigationEndpoint: {
+                browseEndpoint: {
+                    browseId: string
+                    browseEndpointContextSupportedConfigs: {
+                        browseEndpointContextMusicConfig: {
+                            pageType: 'MUSIC_PAGE_TYPE_PLAYLIST'
+                        }
+                    }
+                }
+            }
+        }
+
+        type ArtistMusicResponsiveListItemRenderer = {
+            thumbnail: {
+                musicThumbnailRenderer: {
+                    thumbnail: {
+                        thumbnails: Array<{
+                            url: string
+                            width: number
+                            height: number
+                        }>
+                    }
+                }
+            }
+            flexColumns: [
+                {
+                    musicResponsiveListItemFlexColumnRenderer: {
+                        text: {
+                            runs: [
+                                {
+                                    text: string
+                                },
+                            ]
+                        }
+                    }
+                },
+                {
+                    musicResponsiveListItemFlexColumnRenderer: {
+                        text: {
+                            runs: Array<{
+                                // Nothing Useful in here
+                                text: string
+                            }>
+                        }
+                    }
+                },
+            ]
+            navigationEndpoint: {
+                browseEndpoint: {
+                    browseId: string
+                    browseEndpointContextSupportedConfigs: {
+                        browseEndpointContextMusicConfig: {
+                            pageType: 'MUSIC_PAGE_TYPE_ARTIST'
+                        }
+                    }
+                }
+            }
+        }
+
+        type EpisodeMusicResponsiveListItemRenderer = {
+            thumbnail: {
+                musicThumbnailRenderer: {
+                    thumbnail: {
+                        thumbnails: Array<{
+                            url: string
+                            width: number
+                            height: number
+                        }>
+                    }
+                }
+            }
+            flexColumns: [
+                {
+                    musicResponsiveListItemFlexColumnRenderer: {
+                        text: {
+                            runs: [
+                                {
+                                    text: string
+                                    navigationEndpoint: {
+                                        browseEndpoint: {
+                                            browseId: string // This is the id to get to the episode's page
+                                            browseEndpointContextSupportedConfigs: {
+                                                browseEndpointContextMusicConfig: {
+                                                    pageType: 'MUSIC_PAGE_TYPE_NON_MUSIC_AUDIO_TRACK_PAGE'
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                            ]
+                        }
+                    }
+                },
+                {
+                    musicResponsiveListItemFlexColumnRenderer: {
+                        text: {
+                            runs: Array<{
+                                text: string
+                                navigationEndpoint?: {
+                                    browseEndpoint: {
+                                        browseId: string
+                                        browseEndpointContextSupportedConfigs: {
+                                            browseEndpointContextMusicConfig: {
+                                                pageType: 'MUSIC_PAGE_TYPE_PODCAST_SHOW_DETAIL_PAGE'
+                                            }
+                                        }
+                                    }
+                                }
+                            }>
+                        }
+                    }
+                },
+            ]
+            playlistItemData: {
+                videoId: string // This is the id to actually play the video
+            }
+        }
+
+        type SongMusicCardShelfRenderer = {
+            thumbnail: {
+                musicThumbnailRenderer: {
+                    thumbnail: {
+                        thumbnails: Array<{
+                            url: string
+                            width: number
+                            height: number
+                        }>
+                    }
+                }
+            }
+            title: {
+                runs: [
+                    {
+                        text: string
+                        navigationEndpoint: {
+                            watchEndpoint: {
+                                videoId: string
+                                watchEndpointMusicSupportedConfigs: {
+                                    watchEndpointMusicConfig: {
+                                        musicVideoType: 'MUSIC_VIDEO_TYPE_ATV'
+                                    }
+                                }
+                            }
+                        }
+                    },
+                ]
+            }
+            subtitle: {
+                runs: Array<{
+                    text: string // The duration string will also be in here
+                    navigationEndpoint?: {
+                        browseEndpoint: {
+                            browseId: string
+                            browseEndpointContextSupportedConfigs: {
+                                browseEndpointContextMusicConfig: {
+                                    pageType: 'MUSIC_PAGE_TYPE_ALBUM' | 'MUSIC_PAGE_TYPE_ARTIST'
+                                }
+                            }
+                        }
+                    }
+                }>
+            }
+            contents?: Array<
+                | {
+                      messageRenderer: unknown
+                  }
+                | {
+                      musicResponsiveListItemRenderer: SongMusicResponsiveListItemRenderer | VideoMusicResponsiveListItemRenderer // I'm not sure if any other types can appear in these
+                  }
+            >
+        }
+
+        type VideoMusicCardShelfRenderer = {
+            thumbnail: {
+                musicThumbnailRenderer: {
+                    thumbnail: {
+                        thumbnails: Array<{
+                            url: string
+                            width: number
+                            height: number
+                        }>
+                    }
+                }
+            }
+            title: {
+                runs: [
+                    {
+                        text: string
+                        navigationEndpoint: {
+                            watchEndpoint: {
+                                videoId: string
+                                watchEndpointMusicSupportedConfigs: {
+                                    watchEndpointMusicConfig: {
+                                        musicVideoType: 'MUSIC_VIDEO_TYPE_OMV' | 'MUSIC_VIDEO_TYPE_UGC' | 'MUSIC_VIDEO_TYPE_OFFICIAL_SOURCE_MUSIC'
+                                    }
+                                }
+                            }
+                        }
+                    },
+                ]
+            }
+            subtitle: {
+                runs: Array<{
+                    text: string // The duration string will also be in here
+                    navigationEndpoint?: {
+                        browseEndpoint: {
+                            browseId: string
+                            browseEndpointContextSupportedConfigs: {
+                                browseEndpointContextMusicConfig: {
+                                    pageType: 'MUSIC_PAGE_TYPE_ARTIST' | 'MUSIC_PAGE_TYPE_USER_CHANNEL'
+                                }
+                            }
+                        }
+                    }
+                }>
+            }
+        }
+
+        type AlbumMusicCardShelfRenderer = {
+            thumbnail: {
+                musicThumbnailRenderer: {
+                    thumbnail: {
+                        thumbnails: Array<{
+                            url: string
+                            width: number
+                            height: number
+                        }>
+                    }
+                }
+            }
+            title: {
+                runs: [
+                    {
+                        text: string
+                        navigationEndpoint: {
+                            browseEndpoint: {
+                                browseId: string
+                                browseEndpointContextSupportedConfigs: {
+                                    browseEndpointContextMusicConfig: {
+                                        pageType: 'MUSIC_PAGE_TYPE_ALBUM'
+                                    }
+                                }
+                            }
+                        }
+                    },
+                ]
+            }
+            subtitle: {
+                runs: Array<{
+                    text: string // "Various Artists" may take place of any run with a navigation endpoint
+                    navigationEndpoint?: {
+                        browseEndpoint: {
+                            browseId: string
+                            browseEndpointContextSupportedConfigs: {
+                                browseEndpointContextMusicConfig: {
+                                    pageType: 'MUSIC_PAGE_TYPE_ARTIST'
+                                }
+                            }
+                        }
+                    }
+                }>
+            }
+        }
+
+        type ArtistMusicCardShelfRenderer = {
+            thumbnail: {
+                musicThumbnailRenderer: {
+                    thumbnail: {
+                        thumbnails: Array<{
+                            url: string
+                            width: number
+                            height: number
+                        }>
+                    }
+                }
+            }
+            title: {
+                runs: [
+                    {
+                        text: string
+                        navigationEndpoint: {
+                            browseEndpoint: {
+                                browseId: string
+                                browseEndpointContextSupportedConfigs: {
+                                    browseEndpointContextMusicConfig: {
+                                        pageType: 'MUSIC_PAGE_TYPE_ARTIST'
+                                    }
+                                }
+                            }
+                        }
+                    },
+                ]
+            }
+            // Nothing in the subtitle is useful
+            contents: Array<{
+                // I have yet to run into a scenario where an artist card did not have contents
+                musicResponsiveListItemRenderer: SongMusicResponsiveListItemRenderer
+            }>
+        }
+
+        type SongsMusicShelfRenderer = {
+            title: {
+                runs: [
+                    {
+                        text: 'Songs'
+                    },
+                ]
+            }
+            contents: Array<{
+                musicResponsiveListItemRenderer: SongMusicResponsiveListItemRenderer
+            }>
+        }
+
+        type VideosMusicShelfRenderer = {
+            title: {
+                runs: [
+                    {
+                        text: 'Videos'
+                    },
+                ]
+            }
+            contents: Array<{
+                // For some reason episodes can sometimes show up video sections. Because why have any sort of consistency in your app? FML
+                musicResponsiveListItemRenderer: VideoMusicResponsiveListItemRenderer | EpisodeMusicResponsiveListItemRenderer
+            }>
+        }
+
+        type AlbumsMusicShelfRenderer = {
+            title: {
+                runs: [
+                    {
+                        text: 'Albums'
+                    },
+                ]
+            }
+            contents: Array<{
+                musicResponsiveListItemRenderer: AlbumMusicResponsiveListItemRenderer
+            }>
+        }
+
+        type CommunityPlaylistsMusicShelfRenderer = {
+            title: {
+                runs: [
+                    {
+                        text: 'Community playlists'
+                    },
+                ]
+            }
+            contents: Array<{
+                musicResponsiveListItemRenderer: CommunityPlaylistsMusicResponsiveListItemRenderer
+            }>
+        }
+
+        type ArtistsMusicShelfRenderer = {
+            title: {
+                runs: [
+                    {
+                        text: 'Artists'
+                    },
+                ]
+            }
+            contents: Array<{
+                musicResponsiveListItemRenderer: ArtistMusicResponsiveListItemRenderer
+            }>
+        }
+
+        type PodcastsMusicShelfRenderer = {
+            title: {
+                runs: [
+                    {
+                        text: 'Podcasts'
+                    },
+                ]
+            }
+            contents: Array<{
+                musicResponsiveListItemRenderer: {
+                    thumbnail: {
+                        musicThumbnailRenderer: {
+                            thumbnail: {
+                                thumbnails: Array<{
+                                    url: string
+                                    width: number
+                                    height: number
+                                }>
+                            }
+                        }
+                    }
+                    flexColumns: [
+                        {
+                            musicResponsiveListItemFlexColumnRenderer: {
+                                text: {
+                                    runs: [
+                                        {
+                                            text: string
+                                        },
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            musicResponsiveListItemFlexColumnRenderer: {
+                                text: {
+                                    runs: Array<{
+                                        text: string
+                                        navigationEndpoint?: {
+                                            browseEndpoint: {
+                                                browseId: string
+                                                browseEndpointContextSupportedConfigs: {
+                                                    browseEndpointContextMusicConfig: {
+                                                        pageType: 'MUSIC_PAGE_TYPE_USER_CHANNEL'
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }>
+                                }
+                            }
+                        },
+                    ]
+                    navigationEndpoint: {
+                        browseEndpoint: {
+                            browseId: string
+                            browseEndpointContextSupportedConfigs: {
+                                browseEndpointContextMusicConfig: {
+                                    pageType: 'MUSIC_PAGE_TYPE_PODCAST_SHOW_DETAIL_PAGE'
+                                }
+                            }
+                        }
+                    }
+                }
+            }>
+        }
+
+        type EpisodesMusicShelfRenderer = {
+            title: {
+                runs: [
+                    {
+                        text: 'Episodes'
+                    },
+                ]
+            }
+            contents: Array<{
+                musicResponsiveListItemRenderer: EpisodeMusicResponsiveListItemRenderer
+            }>
+        }
+
+        type ProfilesMusicShelfRenderer = {
+            title: {
+                runs: [
+                    {
+                        text: 'Profiles'
+                    },
+                ]
+            }
+            contents: Array<{
+                musicResponsiveListItemRenderer: {
+                    thumbnail: {
+                        musicThumbnailRenderer: {
+                            thumbnail: {
+                                thumbnails: Array<{
+                                    url: string
+                                    width: number
+                                    height: number
+                                }>
+                            }
+                        }
+                    }
+                    flexColumns: [
+                        {
+                            musicResponsiveListItemFlexColumnRenderer: {
+                                text: {
+                                    runs: [
+                                        {
+                                            text: string
+                                        },
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            musicResponsiveListItemFlexColumnRenderer: {
+                                text: {
+                                    runs: Array<{
+                                        text: string
+                                    }>
+                                }
+                            }
+                        },
+                    ]
+                    navigationEndpoint: {
+                        browseEndpoint: {
+                            browseId: string
+                            browseEndpointContextSupportedConfigs: {
+                                browseEndpointContextMusicConfig: {
+                                    pageType: 'MUSIC_PAGE_TYPE_USER_CHANNEL'
+                                }
+                            }
+                        }
+                    }
+                }
+            }>
+        }
     }
 
     // TODO: Need to fix this & it's corresponding method & add appropriate namespace
     interface HomeResponse {
         contents: unknown
+    }
+}
+
+export namespace YouTubeDataApi {
+    namespace PlaylistItems {
+        type Response<P extends 'snippet' | 'contentDetails' | 'status'> = {
+            nextPageToken?: string
+            prevPageToken?: string
+            items: Array<Item<P>>
+            pageInfo: {
+                totalResults: number
+                resultsPerPage: number
+            }
+        }
+
+        type Item<P extends 'snippet' | 'contentDetails' | 'status'> = {
+            id: string
+        } & {
+            [K in P]: K extends 'snippet' ? Snippet : K extends 'contentDetails' ? ContentDetails : K extends 'status' ? Status : never
+        }
+
+        type Snippet = {
+            publishedAt: string
+            channelId: string
+            title: string
+            description: string
+            thumbnails: {
+                default: Thumbnail
+                medium: Thumbnail
+                high: Thumbnail
+                standard?: Thumbnail
+                maxres?: Thumbnail
+            }
+            channelTitle: string
+            playlistId: string
+            position: number
+            resourceId: {
+                videoId: string
+            }
+            videoOwnerChannelTitle?: string
+            videoOwnerChannelId?: string
+        }
+
+        type ContentDetails = {
+            videoId: string
+            videoPublishedAt: string
+        }
+
+        type Status = {
+            privacyStatus: string
+        }
+
+        type Thumbnail = {
+            url: string
+            width: number
+            height: number
+        }
     }
 }

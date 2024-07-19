@@ -4,7 +4,7 @@
     object. Formatting of the text such as font size, weight, and line clamps can be specified in a wrapper element.
 
     @param mediaItem Either a Song, Album, or Playlist object.
-    @param linked Boolean. If true artists will be linked with anchor tags. Defaults to true.
+    @param linked Boolean. If true, artists will be linked with anchor tags. Defaults to true.
 -->
 
 <script lang="ts">

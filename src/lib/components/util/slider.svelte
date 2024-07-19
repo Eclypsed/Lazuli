@@ -3,8 +3,10 @@
 
     export let value = 0
     export let max = 100
+    export let thickness: 'thick' | 'thin' = 'thick'
 
-    const dispatch = createEventDispatcher()
+    const seekingDispatch = createEventDispatcher<{ seeking: { value: number } }>()
+    const seekedDispatch = createEventDispatcher<{ seeked: { value: number } }>()
 
     let sliderThumb: HTMLSpanElement, sliderTrail: HTMLSpanElement
 
@@ -26,7 +28,7 @@
 
 <div
     id="slider-track"
-    class="relative isolate h-1 w-full rounded bg-neutral-600"
+    class="relative isolate {thickness === 'thick' ? 'h-1' : 'h-0.5'} w-full rounded bg-neutral-800"
     style="--slider-color: var(--lazuli-primary)"
     role="slider"
     tabindex="0"
@@ -36,10 +38,10 @@
     on:keydown={(event) => handleKeyPress(event.key)}
 >
     <input
-        on:input={(event) => dispatch('seeking', { value: event.currentTarget.value })}
-        on:change={(event) => dispatch('seeked', { value: event.currentTarget.value })}
+        on:input={(event) => seekingDispatch('seeking', { value: Number(event.currentTarget.value) })}
+        on:change={(event) => seekedDispatch('seeked', { value: Number(event.currentTarget.value) })}
         type="range"
-        class="absolute z-10 h-1 w-full"
+        class="absolute z-10 {thickness === 'thick' ? 'h-1' : 'h-0.5'} w-full"
         step="any"
         min="0"
         {max}
@@ -48,8 +50,8 @@
         aria-hidden="true"
         aria-disabled="true"
     />
-    <span bind:this={sliderTrail} id="slider-trail" class="absolute left-0 h-1 rounded-full bg-white transition-colors" />
-    <span bind:this={sliderThumb} id="slider-thumb" class="absolute top-1/2 aspect-square h-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white opacity-0 transition-opacity duration-300" />
+    <span bind:this={sliderTrail} id="slider-trail" class="absolute left-0 {thickness === 'thick' ? 'h-1' : 'h-0.5'} rounded-full bg-white transition-colors" />
+    <span bind:this={sliderThumb} id="slider-thumb" class="absolute top-1/2 aspect-square {thickness === 'thick' ? 'h-3.5' : 'h-2.5'} -translate-x-1/2 -translate-y-1/2 rounded-full bg-white opacity-0" />
 </div>
 
 <style>

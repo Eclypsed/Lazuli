@@ -1,13 +1,11 @@
 <script lang="ts">
     import { goto } from '$app/navigation'
     import { itemDisplayState } from '$lib/stores'
-    import type { LayoutData } from './$types.js'
     import { fade } from 'svelte/transition'
     import IconButton from '$lib/components/util/iconButton.svelte'
+    import { page } from '$app/stores'
 
-    export let data: LayoutData
-
-    $: currentPathname = data.url.pathname
+    $: currentPathname = $page.url.pathname
 </script>
 
 <main class="py-4">

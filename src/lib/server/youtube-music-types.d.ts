@@ -1642,9 +1642,587 @@ export namespace InnerTube {
         }
     }
 
-    // TODO: Need to fix this & it's corresponding method & add appropriate namespace
-    interface HomeResponse {
-        contents: unknown
+    namespace Home {
+        interface Response {
+            contents: {
+                singleColumnBrowseResultsRenderer: {
+                    tabs: [
+                        {
+                            tabRenderer: {
+                                content: {
+                                    sectionListRenderer: {
+                                        contents: Array<{
+                                            musicCarouselShelfRenderer: MusicCarouselShelfRenderer
+                                        }>
+                                        continuations?: [
+                                            {
+                                                nextContinuationData: {
+                                                    continuation: string
+                                                }
+                                            },
+                                        ]
+                                    }
+                                }
+                            }
+                        },
+                    ]
+                }
+            }
+        }
+
+        interface ContinuationResponse {
+            continuationContents: {
+                sectionListContinuation: {
+                    contents: Array<{
+                        musicCarouselShelfRenderer: MusicCarouselShelfRenderer
+                    }>
+                    continuations?: [
+                        {
+                            nextContinuationData: {
+                                continuation: string
+                            }
+                        },
+                    ]
+                }
+            }
+        }
+
+        interface MusicCarouselShelfRenderer {
+            header: {
+                musicCarouselShelfBasicHeaderRenderer: {
+                    title: {
+                        runs: [
+                            {
+                                text: string // Can be just about anything but some consistent ones are: Listen again, New releases, From your library, etc.
+                            },
+                        ]
+                    }
+                }
+            }
+            contents:
+                | Array<{
+                      musicTwoRowItemRenderer:
+                          | SongMusicTwoRowItemRenderer
+                          | VideoMusicTwoRowItemRenderer
+                          | AlbumMusicTwoRowItemRenderer
+                          | ArtistMusicTwoRowItemRenderer
+                          | PlaylistMusicTwoRowItemRenderer
+                          | ShowMusicTwoRowItemRenderer
+                  }>
+                | Array<{
+                      musicResponsiveListItemRenderer: SongMusicResponsiveListItemRenderer | VideoMusicResponsiveListItemRenderer
+                  }>
+                | Array<{
+                      musicMultiRowListItemRenderer: MusicMultiRowListItemRenderer
+                  }>
+        }
+
+        interface SongMusicTwoRowItemRenderer {
+            thumbnailRenderer: {
+                musicThumbnailRenderer: {
+                    thumbnail: {
+                        thumbnails: Array<{
+                            url: string
+                            width: number
+                            height: number
+                        }>
+                    }
+                }
+            }
+            title: {
+                runs: [
+                    {
+                        text: string // Item Name
+                    },
+                ]
+            }
+            subtitle: {
+                runs: Array<{
+                    text: string
+                    navigationEndpoint?: {
+                        browseEndpoint: {
+                            browseId: string
+                            browseEndpointContextSupportedConfigs: {
+                                browseEndpointContextMusicConfig: {
+                                    pageType: 'MUSIC_PAGE_TYPE_ARTIST'
+                                }
+                            }
+                        }
+                    }
+                }>
+            }
+            navigationEndpoint: {
+                watchEndpoint: {
+                    videoId: string
+                    playlistId: string
+                    watchEndpointMusicSupportedConfigs: {
+                        watchEndpointMusicConfig: {
+                            musicVideoType: 'MUSIC_VIDEO_TYPE_ATV'
+                        }
+                    }
+                }
+            }
+        }
+
+        interface VideoMusicTwoRowItemRenderer {
+            thumbnailRenderer: {
+                musicThumbnailRenderer: {
+                    thumbnail: {
+                        thumbnails: Array<{
+                            url: string
+                            width: number
+                            height: number
+                        }>
+                    }
+                }
+            }
+            title: {
+                runs: [
+                    {
+                        text: string // Item Name
+                    },
+                ]
+            }
+            subtitle: {
+                runs: Array<{
+                    text: string
+                    navigationEndpoint?: {
+                        browseEndpoint: {
+                            browseId: string
+                            browseEndpointContextSupportedConfigs: {
+                                browseEndpointContextMusicConfig: {
+                                    pageType: 'MUSIC_PAGE_TYPE_ARTIST' | 'MUSIC_PAGE_TYPE_USER_CHANNEL'
+                                }
+                            }
+                        }
+                    }
+                }>
+            }
+            navigationEndpoint: {
+                watchEndpoint: {
+                    videoId: string
+                    playlistId: string
+                    watchEndpointMusicSupportedConfigs: {
+                        watchEndpointMusicConfig: {
+                            musicVideoType: 'MUSIC_VIDEO_TYPE_OMV' | 'MUSIC_VIDEO_TYPE_UGC' | 'MUSIC_VIDEO_TYPE_OFFICIAL_SOURCE_MUSIC'
+                        }
+                    }
+                }
+            }
+        }
+
+        interface AlbumMusicTwoRowItemRenderer {
+            thumbnailRenderer: {
+                musicThumbnailRenderer: {
+                    thumbnail: {
+                        thumbnails: Array<{
+                            url: string
+                            width: number
+                            height: number
+                        }>
+                    }
+                }
+            }
+            title: {
+                runs: [
+                    {
+                        text: string // Item Name
+                        navigationEndpoint: {
+                            browseEndpoint: {
+                                browseId: string
+                                browseEndpointContextSupportedConfigs: {
+                                    browseEndpointContextMusicConfig: {
+                                        pageType: 'MUSIC_PAGE_TYPE_ALBUM'
+                                    }
+                                }
+                            }
+                        }
+                    },
+                ]
+            }
+            subtitle: {
+                runs: Array<{
+                    text: string
+                    navigationEndpoint?: {
+                        browseEndpoint: {
+                            browseId: string
+                            browseEndpointContextSupportedConfigs: {
+                                browseEndpointContextMusicConfig: {
+                                    pageType: 'MUSIC_PAGE_TYPE_ARTIST'
+                                }
+                            }
+                        }
+                    }
+                }>
+            }
+            navigationEndpoint: {
+                browseEndpoint: {
+                    browseId: string
+                    browseEndpointContextSupportedConfigs: {
+                        browseEndpointContextMusicConfig: {
+                            pageType: 'MUSIC_PAGE_TYPE_ALBUM'
+                        }
+                    }
+                }
+            }
+        }
+
+        interface ArtistMusicTwoRowItemRenderer {
+            thumbnailRenderer: {
+                musicThumbnailRenderer: {
+                    thumbnail: {
+                        thumbnails: Array<{
+                            url: string
+                            width: number
+                            height: number
+                        }>
+                    }
+                }
+            }
+            title: {
+                runs: [
+                    {
+                        text: string // Artist name
+                        navigationEndpoint: {
+                            browseEndpoint: {
+                                browseId: string
+                                browseEndpointContextSupportedConfigs: {
+                                    browseEndpointContextMusicConfig: {
+                                        pageType: 'MUSIC_PAGE_TYPE_ARTIST'
+                                    }
+                                }
+                            }
+                        }
+                    },
+                ]
+            }
+            subtitle: {
+                runs: [
+                    {
+                        text: string // Number of subscribers
+                    },
+                ]
+            }
+            navigationEndpoint: {
+                browseEndpoint: {
+                    browseId: string
+                    browseEndpointContextSupportedConfigs: {
+                        browseEndpointContextMusicConfig: {
+                            pageType: 'MUSIC_PAGE_TYPE_ARTIST'
+                        }
+                    }
+                }
+            }
+        }
+
+        interface PlaylistMusicTwoRowItemRenderer {
+            thumbnailRenderer: {
+                musicThumbnailRenderer: {
+                    thumbnail: {
+                        thumbnails: Array<{
+                            url: string
+                            width: number
+                            height: number
+                        }>
+                    }
+                }
+            }
+            title: {
+                runs: [
+                    {
+                        text: string
+                        navigationEndpoint: {
+                            browseEndpoint: {
+                                browseId: string
+                                browseEndpointContextSupportedConfigs: {
+                                    browseEndpointContextMusicConfig: {
+                                        pageType: 'MUSIC_PAGE_TYPE_PLAYLIST'
+                                    }
+                                }
+                            }
+                        }
+                    },
+                ]
+            }
+            subtitle: {
+                runs: Array<{
+                    text: string
+                    navigationEndpoint?: {
+                        browseEndpoint: {
+                            browseId: string
+                            browseEndpointContextSupportedConfigs: {
+                                browseEndpointContextMusicConfig: {
+                                    pageType: 'MUSIC_PAGE_TYPE_USER_CHANNEL'
+                                }
+                            }
+                        }
+                    }
+                }>
+            }
+            navigationEndpoint: {
+                browseEndpoint: {
+                    browseId: string
+                    browseEndpointContextSupportedConfigs: {
+                        browseEndpointContextMusicConfig: {
+                            pageType: 'MUSIC_PAGE_TYPE_PLAYLIST'
+                        }
+                    }
+                }
+            }
+        }
+
+        interface ShowMusicTwoRowItemRenderer {
+            thumbnailRenderer: {
+                musicThumbnailRenderer: {
+                    thumbnail: {
+                        thumbnails: Array<{
+                            url: string
+                            width: number
+                            height: number
+                        }>
+                    }
+                }
+            }
+            title: {
+                runs: [
+                    {
+                        text: string
+                        navigationEndpoint: {
+                            browseEndpoint: {
+                                browseId: string
+                                browseEndpointContextSupportedConfigs: {
+                                    browseEndpointContextMusicConfig: {
+                                        pageType: 'MUSIC_PAGE_TYPE_PODCAST_SHOW_DETAIL_PAGE'
+                                    }
+                                }
+                            }
+                        }
+                    },
+                ]
+            }
+            subtitle: {
+                runs: [
+                    {
+                        text: string
+                        navigationEndpoint: {
+                            browseEndpoint: {
+                                browseId: string
+                                browseEndpointContextSupportedConfigs: {
+                                    browseEndpointContextMusicConfig: {
+                                        pageType: 'MUSIC_PAGE_TYPE_USER_CHANNEL'
+                                    }
+                                }
+                            }
+                        }
+                    },
+                ]
+            }
+            navigationEndpoint: {
+                browseEndpoint: {
+                    browseId: string
+                    browseEndpointContextSupportedConfigs: {
+                        browseEndpointContextMusicConfig: {
+                            pageType: 'MUSIC_PAGE_TYPE_PODCAST_SHOW_DETAIL_PAGE'
+                        }
+                    }
+                }
+            }
+        }
+
+        interface SongMusicResponsiveListItemRenderer {
+            thumbnail: {
+                musicThumbnailRenderer: {
+                    thumbnail: {
+                        thumbnails: Array<{
+                            url: string
+                            width: number
+                            height: number
+                        }>
+                    }
+                }
+            }
+            flexColumns: [
+                {
+                    musicResponsiveListItemFlexColumnRenderer: {
+                        text: {
+                            runs: [
+                                {
+                                    text: string
+                                    navigationEndpoint: {
+                                        watchEndpoint: {
+                                            videoId: string
+                                            playlistId: string
+                                            watchEndpointMusicSupportedConfigs: {
+                                                watchEndpointMusicConfig: {
+                                                    musicVideoType: 'MUSIC_VIDEO_TYPE_ATV'
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                            ]
+                        }
+                    }
+                },
+                {
+                    musicResponsiveListItemFlexColumnRenderer: {
+                        text: {
+                            runs: Array<{
+                                text: string
+                                navigationEndpoint?: {
+                                    browseEndpoint: {
+                                        browseId: string
+                                        browseEndpointContextSupportedConfigs: {
+                                            browseEndpointContextMusicConfig: {
+                                                pageType: 'MUSIC_PAGE_TYPE_ARTIST'
+                                            }
+                                        }
+                                    }
+                                }
+                            }>
+                        }
+                    }
+                },
+                {
+                    musicResponsiveListItemFlexColumnRenderer: {
+                        text: {
+                            runs: [
+                                {
+                                    text: string
+                                    navigationEndpoint: {
+                                        browseEndpoint: {
+                                            browseId: string
+                                            browseEndpointContextSupportedConfigs: {
+                                                browseEndpointContextMusicConfig: {
+                                                    pageType: 'MUSIC_PAGE_TYPE_ALBUM'
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                            ]
+                        }
+                    }
+                },
+            ]
+        }
+
+        interface VideoMusicResponsiveListItemRenderer {
+            thumbnail: {
+                musicThumbnailRenderer: {
+                    thumbnail: {
+                        thumbnails: Array<{
+                            url: string
+                            width: number
+                            height: number
+                        }>
+                    }
+                }
+            }
+            flexColumns: [
+                {
+                    musicResponsiveListItemFlexColumnRenderer: {
+                        text: {
+                            runs: [
+                                {
+                                    text: string
+                                    navigationEndpoint: {
+                                        watchEndpoint: {
+                                            videoId: string
+                                            playlistId: string
+                                            watchEndpointMusicSupportedConfigs: {
+                                                watchEndpointMusicConfig: {
+                                                    musicVideoType: 'MUSIC_VIDEO_TYPE_OMV' | 'MUSIC_VIDEO_TYPE_UGC' | 'MUSIC_VIDEO_TYPE_OFFICIAL_SOURCE_MUSIC'
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                            ]
+                        }
+                    }
+                },
+                {
+                    musicResponsiveListItemFlexColumnRenderer: {
+                        text: {
+                            runs: Array<{
+                                text: string
+                                navigationEndpoint?: {
+                                    browseEndpoint: {
+                                        browseId: string
+                                        browseEndpointContextSupportedConfigs: {
+                                            browseEndpointContextMusicConfig: {
+                                                pageType: 'MUSIC_PAGE_TYPE_USER_CHANNEL'
+                                            }
+                                        }
+                                    }
+                                }
+                            }>
+                        }
+                    }
+                },
+            ]
+        }
+
+        interface MusicMultiRowListItemRenderer {
+            thumbnail: {
+                musicThumbnailRenderer: {
+                    thumbnail: {
+                        thumbnails: Array<{
+                            url: string
+                            width: number
+                            height: number
+                        }>
+                    }
+                }
+            }
+            title: {
+                runs: [
+                    {
+                        text: string
+                        navigationEndpoint: {
+                            browseEndpoint: {
+                                browseId: string
+                                browseEndpointContextSupportedConfigs: {
+                                    browseEndpointContextMusicConfig: {
+                                        pageType: 'MUSIC_PAGE_TYPE_NON_MUSIC_AUDIO_TRACK_PAGE'
+                                    }
+                                }
+                            }
+                        }
+                    },
+                ]
+            }
+            secondTitle: {
+                runs: [
+                    {
+                        text: string
+                        navigationEndpoint: {
+                            browseEndpoint: {
+                                browseId: string
+                                browseEndpointContextSupportedConfigs: {
+                                    browseEndpointContextMusicConfig: {
+                                        pageType: 'MUSIC_PAGE_TYPE_PODCAST_SHOW_DETAIL_PAGE'
+                                    }
+                                }
+                            }
+                        }
+                    },
+                ]
+            }
+            subtitle: {
+                runs: Array<{
+                    text: string
+                }>
+            }
+            description: {
+                runs: [
+                    {
+                        text: string
+                    },
+                ]
+            }
+        }
     }
 }
 

@@ -34,7 +34,7 @@
 </script>
 
 {#if show}
-    <div in:fly={{ x: 500 }} out:slide={{ axis: 'y' }} class="py-1">
+    <div in:fly={{ x: 500 }} out:slide={{ axis: 'y' }} class="m-2">
         <div class="flex gap-1 overflow-hidden rounded-md">
             <div class="flex w-full items-center p-4 {bgColors[alertType]}">
                 {alertMessage}

@@ -2,15 +2,14 @@
     import '../app.css'
     import '@fortawesome/fontawesome-free/css/all.min.css'
     import AlertBox from '$lib/components/util/alertBox.svelte'
-    import { newestAlert, backgroundImage, pageWidth } from '$lib/stores'
+    import { newestAlert, backgroundImage } from '$lib/stores'
     import { fade } from 'svelte/transition'
 
     let alertBox: AlertBox
     $: if ($newestAlert && alertBox) alertBox.addAlert(...$newestAlert)
 </script>
 
-<svelte:window bind:innerWidth={$pageWidth} />
-<div class="no-scrollbar relative h-screen font-notoSans text-white">
+<div class="no-scrollbar relative h-screen overflow-x-clip font-notoSans text-white">
     <div class="fixed isolate -z-10 h-full w-screen bg-black">
         <div id="background-gradient" class="absolute z-10 h-1/2 w-full bg-cover" />
         {#key $backgroundImage}

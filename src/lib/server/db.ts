@@ -103,8 +103,6 @@ class Database {
         return this.db<Schemas.Songs>('Songs')
     }
 
-    private exists() {}
-
     public static async createUsersTable(db: knex.Knex<'better-sqlite3'>) {
         const exists = await db.schema.hasTable('Users')
         if (exists) return

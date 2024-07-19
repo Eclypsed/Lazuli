@@ -105,10 +105,10 @@ export class Jellyfin implements Connection {
         return mostPlayedResponse.Items.map(this.parsers.parseSong)
     }
 
-    // TODO: Figure out why seeking a jellyfin song takes so much longer than ytmusic (hls?)
+    // ! OK apparently some just don't work at all sometimes?
     public async getAudioStream(id: string, headers: Headers) {
         const audoSearchParams = new URLSearchParams({
-            MaxStreamingBitrate: '2000000',
+            MaxStreamingBitrate: '140000000',
             Container: 'opus,webm|opus,mp3,aac,m4a|aac,m4b|aac,flac,webma,webm|webma,wav,ogg',
             TranscodingContainer: 'ts',
             TranscodingProtocol: 'hls',

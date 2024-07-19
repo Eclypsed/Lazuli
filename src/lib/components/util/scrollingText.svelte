@@ -1,8 +1,7 @@
 <!--
     @component
     A component that can be injected with a text to display it in a single line that clips if overflowing and intermittently scrolls
-    from one end to the other. The scrolling text area is set to take up the maximum width and height that it can. Constrain the available
-    scrolling area with a wrapper element.
+    from one end to the other.
 
     ```tsx
     <slot name="text" /> // An HTML element to wrap and style the text you want to scroll (e.g. div, spans, strongs)
@@ -25,6 +24,10 @@
         id="scrollingText"
         class="{scrollDistance > 0 ? (scrollDirection > 0 ? 'scrollLeft' : 'scrollRight') : ''} absolute whitespace-nowrap"
     >
+        <slot name="text" />
+    </span>
+    <!-- This is so the wrapper can calculate how big it should be based on the text -->
+    <span class="pointer-events-none line-clamp-1 opacity-0">
         <slot name="text" />
     </span>
 </div>

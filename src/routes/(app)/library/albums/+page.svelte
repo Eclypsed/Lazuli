@@ -2,7 +2,7 @@
     import type { PageServerData } from './$types'
     import { itemDisplayState } from '$lib/stores'
     import Loader from '$lib/components/util/loader.svelte'
-    import AlbumCard from './albumCard.svelte'
+    import AlbumCard from '$lib/components/media/albumCard.svelte'
     import ListItem from '$lib/components/media/listItem.svelte'
 
     export let data: PageServerData

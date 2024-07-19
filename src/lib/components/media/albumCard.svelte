@@ -23,7 +23,7 @@
     }
 </script>
 
-<div class="overflow-hidden p-3">
+<div class="overflow-hidden">
     <div id="thumbnail-wrapper" class="relative aspect-square w-full overflow-clip rounded">
         <button id="thumbnail" class="h-full w-full" on:click={() => goto(`/details/album?id=${album.id}&connection=${album.connection.id}`)}>
             <LazyImage thumbnailUrl={album.thumbnailUrl} alt={`${album.name} jacket`} objectFit={'cover'} />

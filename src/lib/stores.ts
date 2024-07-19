@@ -47,7 +47,7 @@ class Queue {
     }
 
     get upNext() {
-        if (this.currentSongs.length === 0 && this.currentPosition >= this.currentSongs.length) return null
+        if (this.currentSongs.length === 0 || this.currentPosition >= this.currentSongs.length) return null
 
         return this.currentSongs[this.currentPosition + 1]
     }
@@ -83,6 +83,11 @@ class Queue {
         this.currentPosition = originalPosition
         this.shuffled = false
         this.updateQueue()
+    }
+
+    /** Re-orders the queue if shuffled, shuffles if not */
+    public toggleShuffle() {
+        this.shuffled ? this.reorder() : this.shuffle()
     }
 
     /** Starts the next song */

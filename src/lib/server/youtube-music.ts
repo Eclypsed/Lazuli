@@ -9,19 +9,19 @@ export class YouTubeMusic implements Connection {
     private readonly userId: string
     private readonly youtubeUserId: string
 
-    private readonly api: APIManager
-    private libraryManager?: LibaryManager
+    private readonly api: API
+    private libraryManager?: YouTubeMusicLibrary
 
     constructor(id: string, userId: string, youtubeUserId: string, accessToken: string, refreshToken: string, expiry: number) {
         this.id = id
         this.userId = userId
         this.youtubeUserId = youtubeUserId
 
-        this.api = new APIManager(id, accessToken, refreshToken, expiry)
+        this.api = new API(id, accessToken, refreshToken, expiry)
     }
 
     public get library() {
-        if (!this.libraryManager) this.libraryManager = new LibaryManager(this.id, this.youtubeUserId, this.api)
+        if (!this.libraryManager) this.libraryManager = new YouTubeMusicLibrary(this.api)
 
         return this.libraryManager
     }
@@ -222,7 +222,7 @@ export class YouTubeMusic implements Connection {
 
         const parseCommunityPlaylistResponsiveListItemRenderer = (item: InnerTube.Search.CommunityPlaylistMusicResponsiveListItemRenderer): Playlist => {
             const connection = { id: this.id, type: 'youtube-music' } satisfies Playlist['connection']
-            const id = item.navigationEndpoint.browseEndpoint.browseId
+            const id = item.navigationEndpoint.browseEndpoint.browseId.slice(2)
             const name = item.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.text.runs[0].text
             const thumbnailUrl = extractLargestThumbnailUrl(item.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails)
 
@@ -298,11 +298,119 @@ export class YouTubeMusic implements Connection {
         return extractedItems.filter((item): item is MediaItemTypeMap[T] => types.has(item.type as T))
     }
 
-    // ! Need to completely rework this method - Currently returns empty array
-    public async getRecommendations() {
-        // const response = await this.api.v1.WEB_REMIX('browse', { json: { browseId: 'FEmusic_home' } }).json()
-        // console.log(JSON.stringify(response))
-        return []
+    public async getRecommendations(): Promise<(Song | Album | Artist | Playlist)[]> {
+        const parseAlbumMusicTwoRowItemRenderer = (item: InnerTube.Home.AlbumMusicTwoRowItemRenderer): Album => {
+            const connection = { id: this.id, type: 'youtube-music' } satisfies Album['connection']
+            const id = item.navigationEndpoint.browseEndpoint.browseId
+            const name = item.title.runs[0].text
+            const thumbnailUrl = extractLargestThumbnailUrl(item.thumbnailRenderer.musicThumbnailRenderer.thumbnail.thumbnails)
+
+            let artists: Album['artists'] = 'Various Artists'
+            item.subtitle.runs.forEach((run) => {
+                if (!run.navigationEndpoint) return
+
+                const artistData = { id: run.navigationEndpoint.browseEndpoint.browseId, name: run.text }
+                typeof artists === 'string' ? (artists = [artistData]) : artists.push(artistData)
+            })
+
+            return { connection, id, name, type: 'album', thumbnailUrl, artists }
+        }
+
+        const parseArtistMusicTwoRowItemRenderer = (item: InnerTube.Home.ArtistMusicTwoRowItemRenderer): Artist => {
+            const connection = { id: this.id, type: 'youtube-music' } satisfies Artist['connection']
+            const id = item.navigationEndpoint.browseEndpoint.browseId
+            const name = item.title.runs[0].text
+            const profilePicture = extractLargestThumbnailUrl(item.thumbnailRenderer.musicThumbnailRenderer.thumbnail.thumbnails)
+
+            return { connection, id, name, type: 'artist', profilePicture }
+        }
+
+        const parsePlaylistMusicTwoRowItemRenderer = (item: InnerTube.Home.PlaylistMusicTwoRowItemRenderer): Playlist => {
+            const connection = { id: this.id, type: 'youtube-music' } satisfies Artist['connection']
+            const id = item.navigationEndpoint.browseEndpoint.browseId.slice(2)
+            const name = item.title.runs[0].text
+            const thumbnailUrl = extractLargestThumbnailUrl(item.thumbnailRenderer.musicThumbnailRenderer.thumbnail.thumbnails)
+
+            let createdBy: Playlist['createdBy']
+            item.subtitle.runs.forEach((run) => {
+                if (!run.navigationEndpoint) return
+
+                createdBy = { id: run.navigationEndpoint.browseEndpoint.browseId, name: run.text }
+            })
+
+            return { connection, id, name, type: 'playlist', thumbnailUrl, createdBy }
+        }
+
+        // Returns the ids of songs in place of Song objects becasue full details need to be fetched with getSongs()
+        const parseMusicCarouselShelfRenderer = (carousel: InnerTube.Home.MusicCarouselShelfRenderer): (string | Album | Artist | Playlist)[] => {
+            const results: (string | Album | Artist | Playlist)[] = []
+            for (const item of carousel.contents) {
+                if ('musicMultiRowListItemRenderer' in item) continue
+
+                if ('musicResponsiveListItemRenderer' in item) {
+                    results.push(item.musicResponsiveListItemRenderer.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.text.runs[0].navigationEndpoint.watchEndpoint.videoId)
+                    continue
+                }
+
+                const pageType =
+                    'watchEndpoint' in item.musicTwoRowItemRenderer.navigationEndpoint
+                        ? item.musicTwoRowItemRenderer.navigationEndpoint.watchEndpoint.watchEndpointMusicSupportedConfigs.watchEndpointMusicConfig.musicVideoType
+                        : item.musicTwoRowItemRenderer.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType
+
+                switch (pageType) {
+                    case 'MUSIC_VIDEO_TYPE_ATV':
+                    case 'MUSIC_VIDEO_TYPE_OMV':
+                    case 'MUSIC_VIDEO_TYPE_UGC':
+                    case 'MUSIC_VIDEO_TYPE_OFFICIAL_SOURCE_MUSIC':
+                        const songItem = item.musicTwoRowItemRenderer as InnerTube.Home.SongMusicTwoRowItemRenderer | InnerTube.Home.VideoMusicTwoRowItemRenderer
+                        results.push(songItem.navigationEndpoint.watchEndpoint.videoId)
+                        break
+                    case 'MUSIC_PAGE_TYPE_ALBUM':
+                        const albumItem = item.musicTwoRowItemRenderer as InnerTube.Home.AlbumMusicTwoRowItemRenderer
+                        results.push(parseAlbumMusicTwoRowItemRenderer(albumItem))
+                        break
+                    case 'MUSIC_PAGE_TYPE_ARTIST':
+                        const artistItem = item.musicTwoRowItemRenderer as InnerTube.Home.ArtistMusicTwoRowItemRenderer
+                        results.push(parseArtistMusicTwoRowItemRenderer(artistItem))
+                        break
+                    case 'MUSIC_PAGE_TYPE_PLAYLIST':
+                        const playlistItem = item.musicTwoRowItemRenderer as InnerTube.Home.PlaylistMusicTwoRowItemRenderer
+                        results.push(parsePlaylistMusicTwoRowItemRenderer(playlistItem))
+                        break
+                }
+            }
+
+            return results
+        }
+
+        const response = await this.api.v1.WEB_REMIX('browse', { json: { browseId: 'FEmusic_home' } }).json<InnerTube.Home.Response>()
+
+        const MAX_RECOMMENDATIONS = 20 // Temporary Implementation
+        const goodSections = ['Listen again', 'Recommended albums', 'From your library', 'Recommended music videos', 'Forgotten favorites', 'Quick picks', 'Long listening']
+
+        const contents = response.contents.singleColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents
+            .filter((section) => goodSections.includes(section.musicCarouselShelfRenderer.header.musicCarouselShelfBasicHeaderRenderer.title.runs[0].text))
+            .map((section) => parseMusicCarouselShelfRenderer(section.musicCarouselShelfRenderer))
+            .flat()
+
+        let continuation = response.contents.singleColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.continuations?.[0].nextContinuationData.continuation
+
+        while (continuation && contents.length < MAX_RECOMMENDATIONS) {
+            const continuationResponse = await this.api.v1.WEB_REMIX(`browse?ctoken=${continuation}&continuation=${continuation}`).json<InnerTube.Home.ContinuationResponse>()
+
+            const continuationContents = continuationResponse.continuationContents.sectionListContinuation.contents
+                .filter((section) => goodSections.includes(section.musicCarouselShelfRenderer.header.musicCarouselShelfBasicHeaderRenderer.title.runs[0].text))
+                .map((section) => parseMusicCarouselShelfRenderer(section.musicCarouselShelfRenderer))
+                .flat()
+
+            contents.push(...continuationContents)
+            continuation = continuationResponse.continuationContents.sectionListContinuation.continuations?.[0].nextContinuationData.continuation
+        }
+
+        let songsIndex = 0
+        const songs = await this.getSongs(contents.filter((item) => typeof item === 'string'))
+
+        return Array.from(contents, (item) => (typeof item === 'string' ? songs[songsIndex++] : item))
     }
 
     public async getAudioStream(id: string, headers: Headers) {
@@ -396,10 +504,9 @@ export class YouTubeMusic implements Connection {
     public async getPlaylist(id: string): Promise<Playlist> {
         const playlistResponse = await this.api.v1.WEB_REMIX('browse', { json: { browseId: 'VL'.concat(id) } }).json<InnerTube.Playlist.Response>()
 
+        const sectionContent = playlistResponse.contents.twoColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents[0]
         const header =
-            'musicEditablePlaylistDetailHeaderRenderer' in playlistResponse.contents.twoColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents[0]
-                ? playlistResponse.contents.twoColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents[0].musicEditablePlaylistDetailHeaderRenderer.header.musicResponsiveHeaderRenderer
-                : playlistResponse.contents.twoColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents[0].musicResponsiveHeaderRenderer
+            'musicEditablePlaylistDetailHeaderRenderer' in sectionContent ? sectionContent.musicEditablePlaylistDetailHeaderRenderer.header.musicResponsiveHeaderRenderer : sectionContent.musicResponsiveHeaderRenderer
 
         const connection = { id: this.id, type: 'youtube-music' } satisfies Playlist['connection']
         const name = header.title.runs[0].text
@@ -509,8 +616,107 @@ export class YouTubeMusic implements Connection {
     }
 }
 
-class APIManager {
-    private readonly connectionId: string
+class YouTubeMusicLibrary {
+    private readonly api: API
+
+    constructor(api: API) {
+        this.api = api
+    }
+
+    public async albums(): Promise<Album[]> {
+        const albumData = await this.api.v1.WEB_REMIX('browse', { json: { browseId: 'FEmusic_liked_albums' } }).json<InnerTube.Library.AlbumResponse>()
+
+        const { items, continuations } = albumData.contents.singleColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents[0].gridRenderer
+        let continuation = continuations?.[0].nextContinuationData.continuation
+
+        while (continuation) {
+            const continuationData = await this.api.v1.WEB_REMIX(`browse?ctoken=${continuation}&continuation=${continuation}`).json<InnerTube.Library.AlbumContinuationResponse>()
+
+            items.push(...continuationData.continuationContents.gridContinuation.items)
+            continuation = continuationData.continuationContents.gridContinuation.continuations?.[0].nextContinuationData.continuation
+        }
+
+        const connection = { id: this.api.connectionId, type: 'youtube-music' } satisfies Album['connection']
+        return items.map((item) => {
+            const id = item.musicTwoRowItemRenderer.navigationEndpoint.browseEndpoint.browseId
+            const name = item.musicTwoRowItemRenderer.title.runs[0].text
+            const thumbnailUrl = extractLargestThumbnailUrl(item.musicTwoRowItemRenderer.thumbnailRenderer.musicThumbnailRenderer.thumbnail.thumbnails)
+
+            let artists: Album['artists'] = []
+            item.musicTwoRowItemRenderer.subtitle.runs.forEach((run) => {
+                if (run.text === 'Various Artists') return (artists = 'Various Artists')
+                if (run.navigationEndpoint && artists instanceof Array) artists.push({ id: run.navigationEndpoint.browseEndpoint.browseId, name: run.text })
+            })
+
+            const releaseYear = item.musicTwoRowItemRenderer.subtitle.runs.at(-1)?.text!
+
+            return { connection, id, name, type: 'album', thumbnailUrl, artists, releaseYear } satisfies Album
+        })
+    }
+
+    public async artists(): Promise<Artist[]> {
+        const artistsData = await this.api.v1.WEB_REMIX('browse', { json: { browseId: 'FEmusic_library_corpus_track_artists' } }).json<InnerTube.Library.ArtistResponse>()
+
+        const { contents, continuations } = artistsData.contents.singleColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents[0].musicShelfRenderer
+        let continuation = continuations?.[0].nextContinuationData.continuation
+
+        while (continuation) {
+            const continuationData = await this.api.v1.WEB_REMIX(`browse?ctoken=${continuation}&continuation=${continuation}`).json<InnerTube.Library.ArtistContinuationResponse>()
+
+            contents.push(...continuationData.continuationContents.musicShelfContinuation.contents)
+            continuation = continuationData.continuationContents.musicShelfContinuation.continuations?.[0].nextContinuationData.continuation
+        }
+
+        const connection = { id: this.api.connectionId, type: 'youtube-music' } satisfies Album['connection']
+        return contents.map((item) => {
+            const id = item.musicResponsiveListItemRenderer.navigationEndpoint.browseEndpoint.browseId
+            const name = item.musicResponsiveListItemRenderer.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.text.runs[0].text
+            const profilePicture = extractLargestThumbnailUrl(item.musicResponsiveListItemRenderer.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails)
+
+            return { connection, id, name, type: 'artist', profilePicture } satisfies Artist
+        })
+    }
+
+    public async playlists(): Promise<Playlist[]> {
+        const playlistData = await this.api.v1.WEB_REMIX('browse', { json: { browseId: 'FEmusic_liked_playlists' } }).json<InnerTube.Library.PlaylistResponse>()
+
+        const { items, continuations } = playlistData.contents.singleColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents[0].gridRenderer
+        let continuation = continuations?.[0].nextContinuationData.continuation
+
+        while (continuation) {
+            const continuationData = await this.api.v1.WEB_REMIX(`browse?ctoken=${continuation}&continuation=${continuation}`).json<InnerTube.Library.PlaylistContinuationResponse>()
+
+            items.push(...continuationData.continuationContents.gridContinuation.items)
+            continuation = continuationData.continuationContents.gridContinuation.continuations?.[0].nextContinuationData.continuation
+        }
+
+        const playlists = items.filter(
+            (item): item is { musicTwoRowItemRenderer: InnerTube.Library.PlaylistMusicTwoRowItemRenderer } =>
+                'browseEndpoint' in item.musicTwoRowItemRenderer.navigationEndpoint &&
+                item.musicTwoRowItemRenderer.navigationEndpoint.browseEndpoint.browseId !== 'VLLM' &&
+                item.musicTwoRowItemRenderer.navigationEndpoint.browseEndpoint.browseId !== 'VLSE',
+        )
+
+        const connection = { id: this.api.connectionId, type: 'youtube-music' } satisfies Album['connection']
+        return playlists.map((item) => {
+            const id = item.musicTwoRowItemRenderer.navigationEndpoint.browseEndpoint.browseId.slice(2)
+            const name = item.musicTwoRowItemRenderer.title.runs[0].text
+            const thumbnailUrl = extractLargestThumbnailUrl(item.musicTwoRowItemRenderer.thumbnailRenderer.musicThumbnailRenderer.thumbnail.thumbnails)
+
+            let createdBy: Playlist['createdBy']
+            item.musicTwoRowItemRenderer.subtitle.runs.forEach((run) => {
+                if (!run.navigationEndpoint) return
+
+                createdBy = { id: run.navigationEndpoint.browseEndpoint.browseId, name: run.text }
+            })
+
+            return { connection, id, name, type: 'playlist', thumbnailUrl, createdBy } satisfies Playlist
+        })
+    }
+}
+
+class API {
+    public readonly connectionId: string
     private currentAccessToken: string
     private readonly refreshToken: string
     private expiry: number
@@ -610,107 +816,6 @@ class APIManager {
     }
 }
 
-class LibaryManager {
-    private readonly connectionId: string
-    private readonly api: APIManager
-    private readonly youtubeUserId: string
-
-    constructor(connectionId: string, youtubeUserId: string, apiManager: APIManager) {
-        this.connectionId = connectionId
-        this.api = apiManager
-        this.youtubeUserId = youtubeUserId
-    }
-
-    public async albums(): Promise<Album[]> {
-        const albumData = await this.api.v1.WEB_REMIX('browse', { json: { browseId: 'FEmusic_liked_albums' } }).json<InnerTube.Library.AlbumResponse>()
-
-        const { items, continuations } = albumData.contents.singleColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents[0].gridRenderer
-        let continuation = continuations?.[0].nextContinuationData.continuation
-
-        while (continuation) {
-            const continuationData = await this.api.v1.WEB_REMIX(`browse?ctoken=${continuation}&continuation=${continuation}`).json<InnerTube.Library.AlbumContinuationResponse>()
-
-            items.push(...continuationData.continuationContents.gridContinuation.items)
-            continuation = continuationData.continuationContents.gridContinuation.continuations?.[0].nextContinuationData.continuation
-        }
-
-        const connection = { id: this.connectionId, type: 'youtube-music' } satisfies Album['connection']
-        return items.map((item) => {
-            const id = item.musicTwoRowItemRenderer.navigationEndpoint.browseEndpoint.browseId
-            const name = item.musicTwoRowItemRenderer.title.runs[0].text
-            const thumbnailUrl = extractLargestThumbnailUrl(item.musicTwoRowItemRenderer.thumbnailRenderer.musicThumbnailRenderer.thumbnail.thumbnails)
-
-            let artists: Album['artists'] = []
-            item.musicTwoRowItemRenderer.subtitle.runs.forEach((run) => {
-                if (run.text === 'Various Artists') return (artists = 'Various Artists')
-                if (run.navigationEndpoint && artists instanceof Array) artists.push({ id: run.navigationEndpoint.browseEndpoint.browseId, name: run.text })
-            })
-
-            const releaseYear = item.musicTwoRowItemRenderer.subtitle.runs.at(-1)?.text!
-
-            return { connection, id, name, type: 'album', thumbnailUrl, artists, releaseYear } satisfies Album
-        })
-    }
-
-    public async artists(): Promise<Artist[]> {
-        const artistsData = await this.api.v1.WEB_REMIX('browse', { json: { browseId: 'FEmusic_library_corpus_track_artists' } }).json<InnerTube.Library.ArtistResponse>()
-
-        const { contents, continuations } = artistsData.contents.singleColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents[0].musicShelfRenderer
-        let continuation = continuations?.[0].nextContinuationData.continuation
-
-        while (continuation) {
-            const continuationData = await this.api.v1.WEB_REMIX(`browse?ctoken=${continuation}&continuation=${continuation}`).json<InnerTube.Library.ArtistContinuationResponse>()
-
-            contents.push(...continuationData.continuationContents.musicShelfContinuation.contents)
-            continuation = continuationData.continuationContents.musicShelfContinuation.continuations?.[0].nextContinuationData.continuation
-        }
-
-        const connection = { id: this.connectionId, type: 'youtube-music' } satisfies Album['connection']
-        return contents.map((item) => {
-            const id = item.musicResponsiveListItemRenderer.navigationEndpoint.browseEndpoint.browseId
-            const name = item.musicResponsiveListItemRenderer.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.text.runs[0].text
-            const profilePicture = extractLargestThumbnailUrl(item.musicResponsiveListItemRenderer.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails)
-
-            return { connection, id, name, type: 'artist', profilePicture } satisfies Artist
-        })
-    }
-
-    public async playlists(): Promise<Playlist[]> {
-        const playlistData = await this.api.v1.WEB_REMIX('browse', { json: { browseId: 'FEmusic_liked_playlists' } }).json<InnerTube.Library.PlaylistResponse>()
-
-        const { items, continuations } = playlistData.contents.singleColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents[0].gridRenderer
-        let continuation = continuations?.[0].nextContinuationData.continuation
-
-        while (continuation) {
-            const continuationData = await this.api.v1.WEB_REMIX(`browse?ctoken=${continuation}&continuation=${continuation}`).json<InnerTube.Library.PlaylistContinuationResponse>()
-
-            items.push(...continuationData.continuationContents.gridContinuation.items)
-            continuation = continuationData.continuationContents.gridContinuation.continuations?.[0].nextContinuationData.continuation
-        }
-
-        const playlists = items.filter(
-            (item): item is { musicTwoRowItemRenderer: InnerTube.Library.PlaylistMusicTwoRowItemRenderer } =>
-                'browseEndpoint' in item.musicTwoRowItemRenderer.navigationEndpoint &&
-                item.musicTwoRowItemRenderer.navigationEndpoint.browseEndpoint.browseId !== 'VLLM' &&
-                item.musicTwoRowItemRenderer.navigationEndpoint.browseEndpoint.browseId !== 'VLSE',
-        )
-
-        const connection = { id: this.connectionId, type: 'youtube-music' } satisfies Album['connection']
-        return playlists.map((item) => {
-            const id = item.musicTwoRowItemRenderer.navigationEndpoint.browseEndpoint.browseId.slice(2)
-            const name = item.musicTwoRowItemRenderer.title.runs[0].text
-            const thumbnailUrl = extractLargestThumbnailUrl(item.musicTwoRowItemRenderer.thumbnailRenderer.musicThumbnailRenderer.thumbnail.thumbnails)
-
-            let createdBy: Playlist['createdBy']
-            item.musicTwoRowItemRenderer.subtitle.runs.forEach((run) => {
-                if (run.navigationEndpoint && run.navigationEndpoint.browseEndpoint.browseId !== this.youtubeUserId) createdBy = { id: run.navigationEndpoint.browseEndpoint.browseId, name: run.text }
-            })
-
-            return { connection, id, name, type: 'playlist', thumbnailUrl, createdBy } satisfies Playlist
-        })
-    }
-}
-
 /**
  * @param duration Timestamp in standard ISO8601 format PnDTnHnMnS
  * @returns The duration of the timestamp in seconds
@@ -741,7 +846,7 @@ function secondsFromISO8601(duration: string): number {
  */
 function extractLargestThumbnailUrl(thumbnails: Array<{ url: string; width: number; height: number }>): string {
     const bestThumbnailURL = thumbnails.reduce((prev, current) => (prev.width * prev.height > current.width * current.height ? prev : current)).url
-    if (!URL.canParse(bestThumbnailURL)) throw new Error('Invalid thumbnail url')
+    if (!URL.canParse(bestThumbnailURL)) throw Error('Invalid thumbnail url')
 
     switch (new URL(bestThumbnailURL).origin) {
         case 'https://lh3.googleusercontent.com':
@@ -752,10 +857,11 @@ function extractLargestThumbnailUrl(thumbnails: Array<{ url: string; width: numb
             return bestThumbnailURL
         case 'https://www.gstatic.com':
         case 'https://i.ytimg.com':
-            return bestThumbnailURL.slice(0, bestThumbnailURL.indexOf('?'))
+            const queryParamStartIndex = bestThumbnailURL.indexOf('?')
+            return queryParamStartIndex > 0 ? bestThumbnailURL.slice(0, queryParamStartIndex) : bestThumbnailURL
         default:
             console.error('Tried to clean invalid url: ' + bestThumbnailURL)
-            throw new Error('Invalid thumbnail url origin')
+            throw Error('Invalid thumbnail url origin')
     }
 }
 

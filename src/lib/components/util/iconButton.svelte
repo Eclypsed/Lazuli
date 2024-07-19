@@ -1,6 +1,7 @@
 <script lang="ts">
     export let disabled = false
     export let halo = false
+    export let color = 'var(--lazuli-primary)'
 
     import { createEventDispatcher } from 'svelte'
 
@@ -11,6 +12,7 @@
     class:disabled
     class:halo
     class="relative grid aspect-square h-full place-items-center transition-transform duration-75 active:scale-90"
+    style="--button-color: {color}"
     on:click|preventDefault|stopPropagation={() => dispatch('click')}
     {disabled}
 >
@@ -25,7 +27,7 @@
         content: '';
         width: 0;
         height: 0;
-        background-color: color-mix(in srgb, var(--lazuli-primary) 20%, transparent);
+        background-color: color-mix(in srgb, var(--button-color) 20%, transparent);
         border-radius: 100%;
         transition-property: width height;
         transition-duration: 200ms;
@@ -39,6 +41,6 @@
         transition: color 200ms;
     }
     button:not(.disabled):hover :global(> :first-child) {
-        color: var(--lazuli-primary);
+        color: var(--button-color);
     }
 </style>

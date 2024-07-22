@@ -570,6 +570,7 @@ export class YouTubeMusic implements Connection {
      */
     public async getSongs(ids: Iterable<string>): Promise<Song[]> {
         const uniqueIds = new Set(ids)
+        if (uniqueIds.size === 0) return []
 
         const response = await this.api.v1.WEB_REMIX('music/get_queue', { json: { videoIds: Array.from(uniqueIds) } }).json<InnerTube.Queue.Response>()
 

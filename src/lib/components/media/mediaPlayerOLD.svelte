@@ -4,9 +4,9 @@
     import { queue } from '$lib/stores'
     import Services from '$lib/services.json'
     // import { FastAverageColor } from 'fast-average-color'
+    import AutoImage from './autoImage.svelte'
     import Slider from '$lib/components/util/slider.svelte'
     import Loader from '$lib/components/util/loader.svelte'
-    import LazyImage from './lazyImage.svelte'
     import IconButton from '$lib/components/util/iconButton.svelte'
     import ScrollingText from '$lib/components/util/scrollingText.svelte'
     import ArtistList from './artistList.svelte'
@@ -109,7 +109,7 @@
             <main in:fade={{ duration: 75, delay: 500 }} out:fade={{ duration: 75 }} class="flex h-20 w-full gap-10">
                 <section class="flex w-96 min-w-64 gap-2">
                     <div class="relative h-full w-20 min-w-20 overflow-clip rounded-xl p-2">
-                        <LazyImage thumbnailUrl={currentlyPlaying.thumbnailUrl} alt={`${currentlyPlaying.name} jacket`} objectFit={'cover'} />
+                        <AutoImage thumbnailUrl={currentlyPlaying.thumbnailUrl} alt="{currentlyPlaying.name} jacket" --object-fit="cover" />
                     </div>
                     <section class="flex flex-grow flex-col justify-center gap-1">
                         <div class="h-6">
@@ -185,7 +185,7 @@
         {:else}
             <main id="expanded-player" in:fade={{ delay: 500 }} out:fade={{ duration: 75 }} class="relative h-full">
                 <div class="absolute -z-10 h-full w-full blur-2xl brightness-[25%]">
-                    <LazyImage thumbnailUrl={currentlyPlaying.thumbnailUrl} alt={''} objectFit={'cover'} />
+                    <AutoImage thumbnailUrl={currentlyPlaying.thumbnailUrl} alt="" --object-fit="cover" />
                 </div>
                 <section class="relative grid h-full grid-rows-[1fr_4fr] gap-4 px-24 py-16">
                     <div class="grid grid-cols-[2fr_1fr]">
@@ -202,7 +202,7 @@
                                 <strong transition:fade class="ml-2 text-2xl">UP NEXT</strong>
                                 <div transition:fly={{ x: 300 }} class="mt-3 flex h-20 w-full items-center gap-3 overflow-clip rounded-lg border border-neutral-300 bg-neutral-900 pr-3">
                                     <div class="aspect-square h-full">
-                                        <LazyImage thumbnailUrl={next.thumbnailUrl} alt={`${next.name} jacket`} objectFit={'cover'} />
+                                        <AutoImage thumbnailUrl={next.thumbnailUrl} alt="{next.name} jacket" --object-fit="cover" />
                                     </div>
                                     <div>
                                         <div class="mb-0.5 line-clamp-1 font-medium">{next.name}</div>
@@ -214,7 +214,7 @@
                             {/if}
                         </section>
                     </div>
-                    <LazyImage thumbnailUrl={currentlyPlaying.thumbnailUrl} alt={`${currentlyPlaying.name} jacket`} objectFit={'contain'} objectPosition={'left'} />
+                    <AutoImage thumbnailUrl={currentlyPlaying.thumbnailUrl} alt="{currentlyPlaying.name} jacket" --object-fit="contain" --object-position="left" />
                 </section>
                 <section class="self-center px-16">
                     <div class="mb-7 flex min-w-56 flex-grow items-center justify-items-center gap-3 font-light">

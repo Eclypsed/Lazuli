@@ -1,11 +1,12 @@
 <script lang="ts">
     import IconButton from './iconButton.svelte'
+    import MingcuteMenuLine from '~icons/mingcute/menu-line'
     import { goto } from '$app/navigation'
     import { createEventDispatcher } from 'svelte'
 
     const dispatch = createEventDispatcher()
 
-    let searchBar: HTMLElement, searchInput: HTMLInputElement, searchBarWidth: number
+    let searchInput: HTMLInputElement, searchBarWidth: number
 
     const HIDE_SEARCHBAR_BREAKPOINT_PX = 300
     $: showSearchbar = searchBarWidth > HIDE_SEARCHBAR_BREAKPOINT_PX
@@ -25,7 +26,7 @@
         <div class="mr-4 flex h-full items-center">
             <div class="h-full p-1">
                 <IconButton halo={true} on:click={() => dispatch('opensidebar')}>
-                    <i slot="icon" class="fa-solid fa-bars text-xl" />
+                    <MingcuteMenuLine slot="icon" class="text-lg" />
                 </IconButton>
             </div>
             <!--                                                                                                              --------------This is a placeholder image--------------   -->
@@ -35,7 +36,6 @@
             {#if showSearchbar}
                 <search
                     role="search"
-                    bind:this={searchBar}
                     class="relative flex h-full w-full max-w-xl items-center gap-2.5 rounded-lg border border-[rgba(255,255,255,0.1)] px-4 py-2 text-neutral-400"
                     style="background-color: rgba(255,255,255, 0.07);"
                 >

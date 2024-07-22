@@ -1,6 +1,6 @@
 import { redirect, type Handle, type RequestEvent } from '@sveltejs/kit'
 import { SECRET_INTERNAL_API_KEY, SECRET_JWT_KEY } from '$env/static/private'
-import { userExists, mixExists } from '$lib/server/api-helper'
+import { userExists, connectionExists, mixExists } from '$lib/server/api-helper'
 import jwt from 'jsonwebtoken'
 
 function verifyAuthToken(event: RequestEvent) {
@@ -22,6 +22,9 @@ const handleAPIRequest: Handle = async ({ event, resolve }) => {
 
     const userId = event.params.userId
     if (userId && !(await userExists(userId))) return new Response(`User ${userId} not found`, { status: 404 })
+
+    const connectionId = event.params.connectionId
+    if (connectionId && !(await connectionExists(connectionId))) return new Response(`Connection ${connectionId} not found`, { status: 404 })
 
     const mixId = event.params.mixId
     if (mixId && !(await mixExists(mixId))) return new Response(`Mix ${mixId} not found`, { status: 404 })

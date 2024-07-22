@@ -7,7 +7,6 @@
     import { newestAlert } from '$lib/stores.js'
     import type { PageServerData } from './$types.js'
     import type { SubmitFunction } from '@sveltejs/kit'
-    import { getDeviceUUID } from '$lib/utils'
     import { SvelteComponent, type ComponentType } from 'svelte'
     import ConnectionProfile from './connectionProfile.svelte'
     import { enhance } from '$app/forms'
@@ -20,6 +19,15 @@
     let errorMessage: string
 
     data.connections.then((userConnections) => ('error' in userConnections ? (errorMessage = userConnections.error) : (connections = userConnections)))
+
+    function getDeviceUUID(): string {
+        const existingUUID = localStorage.getItem('deviceUUID')
+        if (existingUUID) return existingUUID
+
+        const newUUID = '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, (c: any) => (c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4)))).toString(16))
+        localStorage.setItem('deviceUUID', newUUID)
+        return newUUID
+    }
 
     const authenticateJellyfin: SubmitFunction = ({ formData, cancel }) => {
         const { serverUrl, username, password } = Object.fromEntries(formData)

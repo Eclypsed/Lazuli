@@ -4,8 +4,16 @@
     import IconButton from '$lib/components/util/iconButton.svelte'
     import Slider from '$lib/components/util/slider.svelte'
     import Loader from '$lib/components/util/loader.svelte'
+    import AutoImage from '$lib/components/media/autoImage.svelte'
+    import PhQueueBold from '~icons/ph/queue-bold'
+    import PhShuffleBold from '~icons/ph/shuffle-bold'
+    import PhRepeatBold from '~icons/ph/repeat-bold'
+    import BxVolumeFull from '~icons/bx/volume-full'
+    import BxVolumeLow from '~icons/bx/volume-low'
+    import BxVolume from '~icons/bx/volume'
+    import MiExpand from '~icons/mi/expand'
     import { onMount, createEventDispatcher } from 'svelte'
-    import { slide } from 'svelte/transition'
+    import { slide, fade } from 'svelte/transition'
 
     const dispatch = createEventDispatcher()
 
@@ -76,15 +84,10 @@
     let playerWidth: number
 </script>
 
-<div
-    bind:clientWidth={playerWidth}
-    transition:slide
-    id="player"
-    class="fixed {playerWidth > 800 ? 'bottom-0 left-0 right-0' : 'bottom-3 left-3 right-3 rounded-lg'} flex h-20 items-center gap-4 overflow-clip bg-neutral-925 px-2 text-neutral-400 transition-all"
->
-    <div id="details" class="flex h-full items-center gap-3 overflow-clip py-2" style="backgrounds: linear-gradient(to right, red, blue); flex-grow: 1; flex-basis: 18rem">
+<div bind:clientWidth={playerWidth} transition:slide id="player" class="flex h-20 items-center gap-4 overflow-clip bg-neutral-925 px-2.5 text-neutral-400">
+    <div id="details" class="flex h-full items-center gap-3 overflow-clip py-2.5" style="backgrounds: linear-gradient(to right, red, blue); flex-grow: 1; flex-basis: 16rem">
         <div class="relative aspect-square h-full">
-            <img src="/api/remoteImage?url={mediaItem.thumbnailUrl}&maxHeight=96" alt="jacket" class="h-full w-full rounded object-cover" />
+            <AutoImage thumbnailUrl={mediaItem.thumbnailUrl} alt="{mediaItem.name} jacket" loading="eager" --object-fit="cover" --height="100%" --border-radius="0.25rem" />
             <div id="jacket-play-button" class:hidden={playerWidth > 650} class="absolute bottom-0 left-0 right-0 top-0 backdrop-brightness-50">
                 <IconButton on:click={() => (paused = !paused)}>
                     <i slot="icon" class="fa-solid {paused ? 'fa-play' : 'fa-pause'} text-2xl text-neutral-200" />
@@ -93,15 +96,15 @@
         </div>
         <div class="flex flex-col justify-center gap-1">
             <ScrollingText>
-                <span slot="text" class="line-clamp-1 text-sm font-semibold text-neutral-200">{mediaItem.name}</span>
+                <span slot="text" title={mediaItem.name} class="line-clamp-1 text-sm font-medium text-neutral-200">{mediaItem.name}</span>
             </ScrollingText>
             <div class="line-clamp-1 text-xs">
                 <ArtistList {mediaItem} />
             </div>
         </div>
         <div class="h-8">
-            <IconButton color={'#ec4899'} on:click={() => (favorite = !favorite)}>
-                <i slot="icon" class={favorite ? 'fa-solid fa-heart text-pink-500' : 'fa-regular fa-heart'} />
+            <IconButton --color="#ec4899" toggled={favorite} on:click={() => (favorite = !favorite)}>
+                <i slot="icon" class={favorite ? 'fa-solid fa-heart' : 'fa-regular fa-heart'} />
             </IconButton>
         </div>
         <span class:hidden={playerWidth > 700 || playerWidth < 400} class="ml-auto whitespace-nowrap text-xs">{currentTimestamp} / {durationTimestamp}</span>
@@ -150,25 +153,36 @@
     {#if playerWidth > 450}
         <div id="tools" class="flex h-full justify-end gap-0.5 py-6" style="backgrounds: linear-gradient(to right, purple, orange);">
             {#if playerWidth > 1100}
-                <IconButton on:click={() => dispatch('toggleShuffle')}>
-                    <i slot="icon" class:text-lazuli-primary={shuffled} class="fa-solid fa-shuffle" />
+                <IconButton --hover-color="#e5e5e5" toggled={shuffled} on:click={() => dispatch('toggleShuffle')}>
+                    <PhShuffleBold slot="icon" />
                 </IconButton>
-                <IconButton on:click={() => (loop = !loop)}>
-                    <i slot="icon" class:text-lazuli-primary={loop} class="fa-solid fa-repeat" />
+                <IconButton --hover-color="#e5e5e5" toggled={loop} on:click={() => (loop = !loop)}>
+                    <PhRepeatBold slot="icon" />
+                </IconButton>
+                <IconButton --hover-color="#e5e5e5">
+                    <PhQueueBold slot="icon" />
                 </IconButton>
                 <div class="flex h-full items-center gap-1">
-                    <IconButton on:click={() => (volume = volume > 0 ? 0 : getStoredVolume())}>
-                        <i slot="icon" class="fa-solid {volume > MAX_VOLUME / 2 ? 'fa-volume-high' : volume > 0 ? 'fa-volume-low' : 'fa-volume-xmark'}" />
+                    <IconButton --hover-color="#e5e5e5" on:click={() => (volume = volume > 0 ? 0 : getStoredVolume())}>
+                        <span slot="icon" class="relative grid place-items-center">
+                            {#if volume > MAX_VOLUME / 2}
+                                <span class="absolute" in:fade={{ duration: 200 }} out:fade={{ duration: 200, delay: 100 }}><BxVolumeFull /></span>
+                            {:else if volume > 0}
+                                <span class="absolute" in:fade={{ duration: 200 }} out:fade={{ duration: 200, delay: 100 }}><BxVolumeLow /></span>
+                            {:else}
+                                <span class="absolute" in:fade={{ duration: 200 }} out:fade={{ duration: 200, delay: 100 }}><BxVolume /></span>
+                            {/if}
+                        </span>
                     </IconButton>
                     <div class="mr-2 w-20">
                         <Slider bind:value={volume} max={MAX_VOLUME} on:seeked={() => (volume > 0 ? localStorage.setItem('volume', volume.toString()) : null)} />
                     </div>
                 </div>
-                <IconButton>
-                    <i slot="icon" class="fa-solid fa-up-right-and-down-left-from-center" />
+                <IconButton --hover-color="#e5e5e5">
+                    <MiExpand slot="icon" />
                 </IconButton>
             {/if}
-            <IconButton>
+            <IconButton --hover-color="#e5e5e5">
                 <i slot="icon" class="fa-solid fa-ellipsis-vertical" />
             </IconButton>
         </div>
@@ -189,3 +203,13 @@
         on:error={() => setTimeout(() => audioElement.load(), 5000)}
     />
 </div>
+
+<style>
+    #player {
+        border-radius: var(--border-radius);
+        transition: border-radius 150ms linear;
+        -webkit-box-shadow: 0px 0px 80px 0px rgba(0, 0, 0, 0.75);
+        -moz-box-shadow: 0px 0px 80px 0px rgba(0, 0, 0, 0.75);
+        box-shadow: 0px 0px 80px 0px rgba(0, 0, 0, 0.75);
+    }
+</style>

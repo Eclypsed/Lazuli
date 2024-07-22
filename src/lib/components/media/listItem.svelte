@@ -1,5 +1,5 @@
 <script lang="ts">
-    import LazyImage from './lazyImage.svelte'
+    import AutoImage from './autoImage.svelte'
     import ArtistList from './artistList.svelte'
 
     export let mediaItem: Song | Album | Artist | Playlist
@@ -12,7 +12,7 @@
 <div id="list-item" class="h-16 w-full">
     <div class="h-full overflow-clip rounded-md">
         {#if thumbnailUrl}
-            <LazyImage {thumbnailUrl} alt={`${mediaItem.name} thumbnial`} objectFit={'cover'} />
+            <AutoImage {thumbnailUrl} alt="{mediaItem.name} jacket" --object-fit="cover" />
         {:else}
             <div id="thumbnail-placeholder" class="grid h-full w-full place-items-center bg-lazuli-primary">
                 <i class="fa-solid {mediaItem.type === 'artist' ? 'fa-user' : 'fa-play'} text-2xl" />

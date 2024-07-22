@@ -3,16 +3,20 @@
     import { sineOut } from 'svelte/easing'
     import { goto } from '$app/navigation'
     import IconButton from './iconButton.svelte'
+    import PhPlaylistBold from '~icons/ph/playlist-bold'
+    import MaterialSymbolsHome from '~icons/material-symbols/home'
+    import IcSharpVideoLibrary from '~icons/ic/sharp-video-library'
 
     type NavButton = {
         name: string
         path: string
-        icon: string
+        icon: any
     }
 
     const navButtons: NavButton[] = [
-        { name: 'Home', path: '/', icon: 'fa-solid fa-house' },
-        { name: 'Library', path: '/library', icon: 'fa-solid fa-book' },
+        { name: 'Home', path: '/', icon: MaterialSymbolsHome },
+        { name: 'Mixes', path: '/mixes', icon: PhPlaylistBold },
+        { name: 'Library', path: '/library', icon: IcSharpVideoLibrary },
     ]
 
     const OPEN_CLOSE_DURATION = 250
@@ -41,7 +45,7 @@
                         }}
                         class="flex w-full items-center gap-6 px-10 py-3.5 text-left transition-colors hover:bg-[rgba(255,255,255,0.1)]"
                     >
-                        <i class={tab.icon} />
+                        <svelte:component this={tab.icon} class="text-lg" />
                         {tab.name}
                     </button>
                 {/each}

@@ -1,8 +1,8 @@
 <script lang="ts">
     import type { PageData } from './$types'
     import Loader from '$lib/components/util/loader.svelte'
-    import MediaCard from '$lib/components/media/mediaCard.svelte'
     import AlbumCard from '$lib/components/media/albumCard.svelte'
+    import PlaylistCard from '$lib/components/media/playlistCard.svelte'
 
     export let data: PageData
 </script>
@@ -11,9 +11,13 @@
     {#await data.recommendations}
         <Loader />
     {:then recommendations}
-        <div id="card-wrapper" class="grid w-full gap-4 justify-self-center px-[5%] pt-8">
-            {#each recommendations.filter((item) => item.type === 'album') as album}
-                <AlbumCard {album} />
+        <div id="card-wrapper" class="grid w-full gap-4 justify-self-center px-[5%]">
+            {#each recommendations as mediaItem}
+                {#if mediaItem.type === 'album'}
+                    <AlbumCard album={mediaItem} />
+                {:else if mediaItem.type === 'playlist'}
+                    <PlaylistCard playlist={mediaItem} />
+                {/if}
             {/each}
         </div>
     {/await}

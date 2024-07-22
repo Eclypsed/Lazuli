@@ -1,7 +1,7 @@
 <script lang="ts">
+    export let toggled = false
     export let disabled = false
     export let halo = false
-    export let color = 'var(--lazuli-primary)'
 
     import { createEventDispatcher } from 'svelte'
 
@@ -9,10 +9,10 @@
 </script>
 
 <button
+    class:toggled
     class:disabled
     class:halo
     class="relative grid aspect-square h-full place-items-center transition-transform duration-75 active:scale-90"
-    style="--button-color: {color}"
     on:click|preventDefault|stopPropagation={() => dispatch('click')}
     {disabled}
 >
@@ -27,7 +27,7 @@
         content: '';
         width: 0;
         height: 0;
-        background-color: color-mix(in srgb, var(--button-color) 20%, transparent);
+        background-color: color-mix(in srgb, var(--color, var(--lazuli-primary)) 20%, transparent);
         border-radius: 100%;
         transition-property: width height;
         transition-duration: 200ms;
@@ -40,7 +40,10 @@
     button :global(> :first-child) {
         transition: color 200ms;
     }
-    button:not(.disabled):hover :global(> :first-child) {
-        color: var(--button-color);
+    button:not(.disabled).toggled :global(> :first-child) {
+        color: var(--color, var(--lazuli-primary));
+    }
+    button:not(.disabled):not(.toggled):hover :global(> :first-child) {
+        color: var(--hover-color, var(--color, var(--lazuli-primary)));
     }
 </style>

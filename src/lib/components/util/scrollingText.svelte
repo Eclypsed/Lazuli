@@ -13,7 +13,7 @@
     let slidingTextWidth: number, slidingTextWrapperWidth: number
     let scrollDirection: 1 | -1 = 1
     $: scrollDistance = slidingTextWidth - slidingTextWrapperWidth
-    $: if (slidingText && scrollDistance > 0) slidingText.style.animationDuration = `${scrollDistance / 40}s`
+    $: if (slidingText && scrollDistance > 0) slidingText.style.animationDuration = `${scrollDistance / 30}s`
 </script>
 
 <div bind:clientWidth={slidingTextWrapperWidth} class="relative h-full w-full overflow-clip">

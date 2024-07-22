@@ -64,12 +64,12 @@ function modifyImageURL(imageURL: URL, options?: { maxWidth?: number; maxHeight?
     switch (imageURL.origin) {
         case 'https://i.ytimg.com':
         case 'https://www.gstatic.com':
-            // These two origins correspond to images that can't have their size modified with search params, so we just return them at the default res
+        case 'https://music.youtube.com':
+            // These origins correspond to images that can't have their size modified with search params, so we just return them at the default res
             return baseURL
         case 'https://lh3.googleusercontent.com':
         case 'https://yt3.googleusercontent.com':
         case 'https://yt3.ggpht.com':
-        case 'https://music.youtube.com':
             const fakeQueryParams = []
             if (maxWidth) fakeQueryParams.push(`w${Math.min(maxWidth, MAX_YOUTUBE_THUMBNAIL_SCALAR_SIZE)}`)
             if (maxHeight) fakeQueryParams.push(`h${Math.min(maxHeight, MAX_YOUTUBE_THUMBNAIL_SCALAR_SIZE)}`)

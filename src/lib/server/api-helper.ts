@@ -6,7 +6,11 @@ export async function userExists(userId: string): Promise<boolean> {
     return Boolean(await DB.users.where('id', userId).first(DB.db.raw('EXISTS(SELECT 1)')))
 }
 
-export async function mixExists(mixId: string): Promise<Boolean> {
+export async function connectionExists(connectionId: string): Promise<boolean> {
+    return Boolean(await DB.connections.where('id', connectionId).first(DB.db.raw('EXISTS(SELECT 1)')))
+}
+
+export async function mixExists(mixId: string): Promise<boolean> {
     return Boolean(await DB.mixes.where('id', mixId).first(DB.db.raw('EXISTS(SELECT 1)')))
 }
 
